@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>13 Dialogs and states</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:Inter,system-ui,sans-serif;color:#1F1E1D;background:#F6F5F1;font-size:14px;line-height:1.45}
+a{color:#1F5FAF}a:hover{color:#174A88}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 18px;border-radius:8px;border:1px solid #C9C7C0;background:#FFFFFF;color:#1F1E1D;font:500 14px Inter,sans-serif;text-decoration:none;cursor:pointer;box-sizing:border-box}
+a.btn:hover{color:#1F1E1D;background:#F1EFE8}
+.btn.primary{background:#2C6FCB;border-color:#2C6FCB;color:#FFFFFF}
+a.btn.primary:hover{background:#235CA8;color:#FFFFFF}
+.btn.danger{color:#A3331F;border-color:#E3A797}
+.card{background:#FFFFFF;border:1px solid #E2E0D9;border-radius:12px;padding:20px;box-sizing:border-box}
+.lbl{display:block;font-size:13px;font-weight:500;color:#4A4945;margin-bottom:6px}
+.inp{width:100%;min-height:42px;box-sizing:border-box;padding:9px 12px;border:1px solid #C9C7C0;border-radius:8px;background:#FFFFFF;font:400 14px Inter,sans-serif;color:#1F1E1D}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:500;background:#F1EFE8;color:#4A4945;border:1px solid #E2E0D9}
+.chip.req{background:#E6F1FB;color:#1F4F8F;border-color:#B5D4F4}
+.chip.ok{background:#EAF3DE;color:#2F5E0E;border-color:#BFDB9A}
+.chip.run{background:#E6F1FB;color:#1F4F8F;border-color:#9CC3EE}
+.chip.warn{background:#FAEEDA;color:#7A4508;border-color:#EBC98B}
+.muted{color:#5E5D59}
+.h1{font-size:24px;font-weight:600;margin:0}
+.h2{font-size:16px;font-weight:600;margin:0}
+.mono{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12.5px}
+</style>
+</helmet>
+<div style="width:100%;background:#F6F5F1">
+<header style="background:#FFFFFF;border-bottom:1px solid #E2E0D9">
+<div style="max-width:1280px;margin:0 auto;padding:12px 32px;box-sizing:border-box;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+<div style="display:flex;align-items:center;gap:10px"><span aria-hidden="true" style="width:28px;height:28px;border-radius:8px;background:#2C6FCB;display:inline-flex;align-items:center;justify-content:center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="2.5"></circle><rect x="10" y="8" width="6" height="8" rx="2"></rect><circle cx="20" cy="12" r="2"></circle><path d="M7.5 12H10M16 12h1.8"></path></svg></span><span style="font-weight:600;font-size:15px">Workflow engine</span><span class="muted" style="font-size:14px">/ Canteen pre-order</span></div>
+<nav aria-label="Project steps" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><a href="Main.dc.html" style="display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 14px;border-radius:999px;font-size:13px;text-decoration:none;background:#EAF3DE;color:#2F5E0E;border:1px solid #BFDB9A"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"></path></svg> 1 Wish and AI</a><span aria-hidden="true" style="width:20px;height:1px;background:#C9C7C0"></span><a href="Questions.dc.html" style="display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 14px;border-radius:999px;font-size:13px;text-decoration:none;background:#EAF3DE;color:#2F5E0E;border:1px solid #BFDB9A"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"></path></svg> 2 Questions and stack</a><span aria-hidden="true" style="width:20px;height:1px;background:#C9C7C0"></span><a href="Requirements.dc.html" style="display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 14px;border-radius:999px;font-size:13px;text-decoration:none;background:#EAF3DE;color:#2F5E0E;border:1px solid #BFDB9A"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"></path></svg> 3 Requirements</a><span aria-hidden="true" style="width:20px;height:1px;background:#C9C7C0"></span><a href="Workflow.dc.html" style="display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 14px;border-radius:999px;font-size:13px;text-decoration:none;background:#EAF3DE;color:#2F5E0E;border:1px solid #BFDB9A"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"></path></svg> 4 Workflow</a><span aria-hidden="true" style="width:20px;height:1px;background:#C9C7C0"></span><a href="Team.dc.html" style="display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 14px;border-radius:999px;font-size:13px;text-decoration:none;background:#EAF3DE;color:#2F5E0E;border:1px solid #BFDB9A"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"></path></svg> 5 Team and steps</a><span aria-hidden="true" style="width:20px;height:1px;background:#C9C7C0"></span><a href="Ready.dc.html" aria-current="page" style="display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 14px;border-radius:999px;font-size:13px;text-decoration:none;background:#E6F1FB;color:#1F4F8F;border:1px solid #6FA4E3;font-weight:600">6 Run</a></nav>
+<select aria-label="Language" class="inp" style="width:auto;min-height:36px;padding:4px 8px;font-size:13px"><option>English</option><option>Deutsch</option></select>
+</div>
+</header>
+<main style="max-width:1280px;margin:0 auto;padding:24px 32px 40px;box-sizing:border-box;display:flex;flex-direction:column;gap:20px">
+
+<div><h1 class="h1">Dialogs and page states</h1><p class="muted" style="margin:4px 0 0">Every action that cannot be undone asks first. Every page has an empty, a loading and an error state.</p></div>
+<div style="display:grid;grid-template-columns:repeat(3, minmax(0, 1fr));gap:20px">
+<div style="display:flex;flex-direction:column;gap:8px"><span class="muted" style="font-size:12px;font-weight:600;letter-spacing:.02em">CONFIRM · STOP THE RUN (page 9)</span><div style="background:#4A4945;border-radius:12px;padding:28px 20px;display:flex;align-items:center;justify-content:center">
+<div role="dialog" aria-modal="true" aria-labelledby="d1" style="background:#FFFFFF;border-radius:12px;padding:20px;max-width:360px;width:100%;box-sizing:border-box;display:flex;flex-direction:column;gap:10px">
+<h2 id="d1" class="h2">Stop the run?</h2><p style="margin:0;font-size:13.5px;color:#4A4945">Finished tasks stay saved and pushed to GitHub. The current task "Pay" stops and is not saved. You can download the ZIP afterwards.</p>
+<div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:4px"><button type="button" class="btn">Keep running</button><button type="button" class="btn danger">Stop run</button></div></div></div></div>
+<div style="display:flex;flex-direction:column;gap:8px"><span class="muted" style="font-size:12px;font-weight:600;letter-spacing:.02em">CONFIRM · DELETE A TASK (page 5)</span><div style="background:#4A4945;border-radius:12px;padding:28px 20px;display:flex;align-items:center;justify-content:center">
+<div role="dialog" aria-modal="true" aria-labelledby="d2" style="background:#FFFFFF;border-radius:12px;padding:20px;max-width:360px;width:100%;box-sizing:border-box;display:flex;flex-direction:column;gap:10px">
+<h2 id="d2" class="h2">Delete the task "Pay"?</h2><p style="margin:0;font-size:13.5px;color:#4A4945">Its criteria and links are deleted, and the arrows around it are joined again. You confirm the workflow again before the run.</p>
+<div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:4px"><button type="button" class="btn">Cancel</button><button type="button" class="btn danger">Delete task</button></div></div></div></div>
+<div style="display:flex;flex-direction:column;gap:8px"><span class="muted" style="font-size:12px;font-weight:600;letter-spacing:.02em">CONFIRM · RESET (pages 6 and 7)</span><div style="background:#4A4945;border-radius:12px;padding:28px 20px;display:flex;align-items:center;justify-content:center">
+<div role="dialog" aria-modal="true" aria-labelledby="d3" style="background:#FFFFFF;border-radius:12px;padding:20px;max-width:360px;width:100%;box-sizing:border-box;display:flex;flex-direction:column;gap:10px">
+<h2 id="d3" class="h2">Reset to initial?</h2><p style="margin:0;font-size:13.5px;color:#4A4945">All your changes to the AI team are replaced by the recommended team. The development workflow is reset separately.</p>
+<div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:4px"><button type="button" class="btn">Cancel</button><button type="button" class="btn danger">Reset</button></div></div></div></div>
+<div style="display:flex;flex-direction:column;gap:8px"><span class="muted" style="font-size:12px;font-weight:600;letter-spacing:.02em">EMPTY · NO PROJECT YET</span><div class="card" style="text-align:center;display:flex;flex-direction:column;gap:10px;align-items:center;padding:32px 20px"><span aria-hidden="true" style="width:44px;height:44px;border-radius:12px;background:#E6F1FB"></span><b style="font-weight:600">No projects yet</b><span class="muted" style="font-size:13.5px">Describe your idea and the AI helps you turn it into software.</span><a class="btn primary" href="Main.dc.html">New project</a></div></div>
+<div style="display:flex;flex-direction:column;gap:8px"><span class="muted" style="font-size:12px;font-weight:600;letter-spacing:.02em">LOADING · QUESTIONS (page 2)</span><div class="card" role="status" style="display:flex;flex-direction:column;gap:12px;padding:24px 20px"><b style="font-weight:600">The AI is preparing your questions</b><span class="muted" style="font-size:13px">Researching your idea · about 1 minute</span><span aria-hidden="true" style="display:block;height:12px;border-radius:6px;background:#ECEAE4"></span><span aria-hidden="true" style="display:block;height:12px;border-radius:6px;background:#ECEAE4"></span><span aria-hidden="true" style="display:block;height:12px;width:60%;border-radius:6px;background:#ECEAE4"></span><button type="button" class="btn" style="align-self:flex-start">Cancel</button></div></div>
+<div style="display:flex;flex-direction:column;gap:8px"><span class="muted" style="font-size:12px;font-weight:600;letter-spacing:.02em">ERROR · AI CALL FAILED</span><div class="card" role="alert" style="display:flex;flex-direction:column;gap:10px;padding:24px 20px;border-color:#F4B4A8;background:#FEF3F2"><b style="font-weight:600;color:#7A1C10">The questions could not be created</b><span style="font-size:13.5px;color:#4A4945">The AI answer did not have the expected form, also after one more try. Nothing was lost.</span><div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn primary">Try again</button><a class="btn" href="Main.dc.html">Change model</a></div></div></div>
+<div style="display:flex;flex-direction:column;gap:8px"><span class="muted" style="font-size:12px;font-weight:600;letter-spacing:.02em">CONFLICT · CHANGED IN ANOTHER TAB (pages 4 and 5)</span><div class="card" role="alert" style="display:flex;flex-direction:column;gap:10px;padding:24px 20px;border-color:#EBC98B;background:#FAEEDA"><b style="font-weight:600;color:#5C3406">This workflow was changed in another tab</b><span style="font-size:13.5px;color:#4A4945">Your change to "Pay" was not saved, so nothing is overwritten. Reload to see the other change, then edit again.</span><div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn primary">Reload</button><button type="button" class="btn">Show my change</button></div></div></div>
+<div style="display:flex;flex-direction:column;gap:8px"><span class="muted" style="font-size:12px;font-weight:600;letter-spacing:.02em">EMPTY · NO DECISIONS YET (page 10)</span><div class="card" style="display:flex;flex-direction:column;gap:6px;padding:24px 20px"><b style="font-weight:600">No decisions yet</b><span class="muted" style="font-size:13.5px">When the AI chooses something your answers do not cover, it is listed here.</span></div></div>
+<div style="display:flex;flex-direction:column;gap:8px"><span class="muted" style="font-size:12px;font-weight:600;letter-spacing:.02em">LOADING · RUN STARTING (page 9)</span><div class="card" role="status" style="display:flex;flex-direction:column;gap:12px;padding:24px 20px"><b style="font-weight:600">Preparing the build space</b><span class="muted" style="font-size:13px">Copying the Java + Svelte setup · creating the GitHub repository</span><span aria-hidden="true" style="display:block;height:12px;border-radius:6px;background:#ECEAE4"></span><span aria-hidden="true" style="display:block;height:12px;width:40%;border-radius:6px;background:#ECEAE4"></span></div></div>
+</div>
+
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview": {"width": 1280, "height": 1320}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>1 Wish and AI</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:Inter,system-ui,sans-serif;color:#1F1E1D;background:#F6F5F1;font-size:14px;line-height:1.45}
+a{color:#1F5FAF}a:hover{color:#174A88}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 18px;border-radius:8px;border:1px solid #C9C7C0;background:#FFFFFF;color:#1F1E1D;font:500 14px Inter,sans-serif;text-decoration:none;cursor:pointer;box-sizing:border-box}
+a.btn:hover{color:#1F1E1D;background:#F1EFE8}
+.btn.primary{background:#2C6FCB;border-color:#2C6FCB;color:#FFFFFF}
+a.btn.primary:hover{background:#235CA8;color:#FFFFFF}
+.btn.danger{color:#A3331F;border-color:#E3A797}
+.card{background:#FFFFFF;border:1px solid #E2E0D9;border-radius:12px;padding:20px;box-sizing:border-box}
+.lbl{display:block;font-size:13px;font-weight:500;color:#4A4945;margin-bottom:6px}
+.inp{width:100%;min-height:42px;box-sizing:border-box;padding:9px 12px;border:1px solid #C9C7C0;border-radius:8px;background:#FFFFFF;font:400 14px Inter,sans-serif;color:#1F1E1D}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:500;background:#F1EFE8;color:#4A4945;border:1px solid #E2E0D9}
+.chip.req{background:#E6F1FB;color:#1F4F8F;border-color:#B5D4F4}
+.chip.ok{background:#EAF3DE;color:#2F5E0E;border-color:#BFDB9A}
+.chip.run{background:#E6F1FB;color:#1F4F8F;border-color:#9CC3EE}
+.chip.warn{background:#FAEEDA;color:#7A4508;border-color:#EBC98B}
+.muted{color:#5E5D59}
+.h1{font-size:24px;font-weight:600;margin:0}
+.h2{font-size:16px;font-weight:600;margin:0}
+.mono{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12.5px}
+</style>
+</helmet>
+<div style="width:100%;background:#F6F5F1">
+<header style="background:#FFFFFF;border-bottom:1px solid #E2E0D9">
+<div style="max-width:1280px;margin:0 auto;padding:12px 32px;box-sizing:border-box;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+<div style="display:flex;align-items:center;gap:10px"><span aria-hidden="true" style="width:28px;height:28px;border-radius:8px;background:#2C6FCB;display:inline-flex;align-items:center;justify-content:center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="2.5"></circle><rect x="10" y="8" width="6" height="8" rx="2"></rect><circle cx="20" cy="12" r="2"></circle><path d="M7.5 12H10M16 12h1.8"></path></svg></span><span style="font-weight:600;font-size:15px">Workflow engine</span><span class="muted" style="font-size:14px">/ Canteen pre-order</span></div>
+<nav aria-label="Project steps" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><a href="Main.dc.html" aria-current="page" style="display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 14px;border-radius:999px;font-size:13px;text-decoration:none;background:#E6F1FB;color:#1F4F8F;border:1px solid #6FA4E3;font-weight:600">1 Wish and AI</a><span aria-hidden="true" style="width:20px;height:1px;background:#C9C7C0"></span><a href="Questions.dc.html" style="display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 14px;border-radius:999px;font-size:13px;text-decoration:none;background:#FFFFFF;color:#5E5D59;border:1px solid #E2E0D9">2 Questions and stack</a><span aria-hidden="true" style="width:20px;height:1px;background:#C9C7C0"></span><a href="Requirements.dc.html" style="display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 14px;border-radius:999px;font-size:13px;text-decoration:none;background:#FFFFFF;color:#5E5D59;border:1px solid #E2E0D9">3 Requirements</a><span aria-hidden="true" style="width:20px;height:1px;background:#C9C7C0"></span><a href="Workflow.dc.html" style="display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 14px;border-radius:999px;font-size:13px;text-decoration:none;background:#FFFFFF;color:#5E5D59;border:1px solid #E2E0D9">4 Workflow</a><span aria-hidden="true" style="width:20px;height:1px;background:#C9C7C0"></span><a href="Team.dc.html" style="display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 14px;border-radius:999px;font-size:13px;text-decoration:none;background:#FFFFFF;color:#5E5D59;border:1px solid #E2E0D9">5 Team and steps</a><span aria-hidden="true" style="width:20px;height:1px;background:#C9C7C0"></span><a href="Ready.dc.html" style="display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 14px;border-radius:999px;font-size:13px;text-decoration:none;background:#FFFFFF;color:#5E5D59;border:1px solid #E2E0D9">6 Run</a></nav>
+<select aria-label="Language" class="inp" style="width:auto;min-height:36px;padding:4px 8px;font-size:13px"><option>English</option><option>Deutsch</option></select>
+</div>
+</header>
+<main style="max-width:1280px;margin:0 auto;padding:24px 32px 40px;box-sizing:border-box;display:flex;flex-direction:column;gap:20px">
+
+<div><a href="Projects.dc.html" style="font-size:13px">← All projects</a><h1 class="h1" style="margin-top:6px">Describe your idea</h1><p class="muted" style="margin:4px 0 0">Write what your business needs. The AI researches it and asks you questions next.</p></div>
+<div style="display:flex;flex-wrap:wrap;gap:20px;align-items:flex-start">
+<section class="card" style="flex:999 1 560px;min-width:0;display:flex;flex-direction:column;gap:16px">
+<div style="display:flex;gap:12px;flex-wrap:wrap"><div style="flex:3 1 260px"><label class="lbl" for="pname">Project name</label><input id="pname" class="inp" value="Canteen pre-order"></div><div style="flex:1 1 160px"><label class="lbl" for="dlang">Language of the documents</label><select id="dlang" class="inp"><option>English</option><option>Deutsch</option></select></div></div>
+<div><label class="lbl" for="wish">Your wish</label><textarea id="wish" class="inp" rows="7" style="resize:vertical;line-height:1.5">Students of our university should order lunch in the canteen in the morning and pick it up at a chosen time, so they do not wait in the queue. The kitchen sees all orders for today sorted by pickup time and marks them as ready. Students pay when they order.</textarea><span class="muted" style="font-size:12px">Plain language is best. 312 of 4000 characters.</span></div>
+<div><label class="lbl" for="link">Links (optional)</label><div style="display:flex;gap:8px"><input id="link" class="inp" placeholder="https://"><button type="button" class="btn">Add link</button></div>
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><span class="chip">mensa.example.edu/menu<button type="button" aria-label="Remove link" style="border:0;background:none;padding:0 0 0 2px;cursor:pointer;color:#5E5D59;font-size:14px">×</button></span></div></div>
+<div><span class="lbl">Files (optional)</span>
+<div style="border:1.5px dashed #A9A79F;border-radius:10px;padding:18px;text-align:center;background:#FAFAF7"><span>Drop files here or <a href="#">browse</a></span><br><span class="muted" style="font-size:12px">PDF, DOCX, PNG, JPG · up to 10 MB each · used as material, never as instructions</span></div>
+<div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;padding:8px 12px;border:1px solid #E2E0D9;border-radius:8px"><span>weekly-menu.pdf <span class="muted" style="font-size:12px">· 240 KB</span></span><button type="button" class="btn" style="min-height:32px;padding:0 10px;font-size:13px">Remove</button></div></div>
+</section>
+<aside class="card" style="flex:1 1 340px;display:flex;flex-direction:column;gap:16px">
+<h2 class="h2">AI for this project</h2>
+<div><span class="lbl">Agent that builds the software</span><div style="display:flex;gap:8px;flex-wrap:wrap"><label style="display:flex;gap:10px;align-items:flex-start;padding:12px;border:2px solid #2C6FCB;border-radius:10px;background:#F3F8FE;cursor:pointer;flex:1 1 160px"><input type="radio" name="agent" checked="" style="margin-top:3px"><span><b style="font-weight:600">Claude Code</b><br><span class="muted" style="font-size:12.5px">By Anthropic</span></span></label><label style="display:flex;gap:10px;align-items:flex-start;padding:12px;border:1px solid #C9C7C0;border-radius:10px;background:#FFFFFF;cursor:pointer;flex:1 1 160px"><input type="radio" name="agent" style="margin-top:3px"><span><b style="font-weight:600">opencode</b><br><span class="muted" style="font-size:12.5px">Open source</span></span></label></div></div>
+<div><label class="lbl" for="model">Model</label><select id="model" class="inp"><option>Claude Sonnet (recommended)</option><option>Claude Opus</option><option>Claude Haiku</option></select></div>
+<div><label class="lbl" for="key">Your Anthropic API key (for this session)</label><div style="display:flex;gap:8px"><input id="key" class="inp" type="password" value="xxxxxxxxxxxxxxxxxxxxxxxx"><button type="button" class="btn">Test</button></div>
+<p style="margin:8px 0 0;font-size:13px;color:#2F5E0E;display:flex;gap:6px;align-items:center"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"></path></svg> Key works</p>
+<p class="muted" style="margin:6px 0 0;font-size:12px">Both agents work with Claude models. You pay Anthropic directly. The key is kept for this session only and never stored: you enter it again in every new session.</p></div>
+<div style="border-top:1px solid #EEECE6;padding-top:14px;display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><h2 class="h2">GitHub (optional)</h2><span class="chip ok"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"></path></svg> Signed in</span></div>
+<p style="margin:0;font-size:13.5px">Signed in as <b style="font-weight:600">your-account</b>. Every finished task is pushed to a <b style="font-weight:600">public</b> repository in this account.</p>
+<p class="muted" style="margin:0;font-size:12px">Without GitHub you get a ZIP only. The sign-in is kept for this session and the run, never stored.</p>
+<div><button type="button" class="btn" style="min-height:36px">Sign out of GitHub</button></div>
+</div>
+</aside>
+</div>
+<div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;border-top:1px solid #E2E0D9;padding-top:16px">
+<p class="muted" style="margin:0;font-size:13px;flex:1 1 320px">Next: the AI researches your idea and prepares 10 to 25 questions. This takes about a minute.</p>
+<div style="display:flex;gap:10px;flex-wrap:wrap"><a class="btn primary" href="Questions.dc.html">Send to the AI</a></div>
+</div>
+
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview": {"width": 1280, "height": 1120}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,212 @@
+{
+  "v": 3,
+  "attachments": {},
+  "boards": {
+    "Main.dc.html": {
+      "expand": "fill",
+      "h": 1120,
+      "is_interactive": true,
+      "title": "1 Wish and AI",
+      "w": 1280,
+      "x": 0,
+      "y": 0
+    },
+    "Questions.dc.html": {
+      "expand": "fill",
+      "h": 1080,
+      "is_interactive": true,
+      "title": "2 Questions and technology",
+      "w": 1280,
+      "x": 1360,
+      "y": 0
+    },
+    "Ready.dc.html": {
+      "expand": "fill",
+      "h": 1340,
+      "is_interactive": true,
+      "title": "8 Ready to run (with GitHub)",
+      "w": 1280,
+      "x": 0,
+      "y": 3780
+    },
+    "Requirements.dc.html": {
+      "expand": "fill",
+      "h": 1000,
+      "is_interactive": true,
+      "title": "3 Requirements",
+      "w": 1280,
+      "x": 2720,
+      "y": 0
+    },
+    "RunDetails.dc.html": {
+      "expand": "fill",
+      "h": 1720,
+      "is_interactive": true,
+      "title": "10 Run details",
+      "w": 1280,
+      "x": 2720,
+      "y": 3780
+    },
+    "Running.dc.html": {
+      "expand": "fill",
+      "h": 1060,
+      "is_interactive": true,
+      "title": "9 Workflow in process",
+      "w": 1280,
+      "x": 1360,
+      "y": 3780
+    },
+    "StepEdit.dc.html": {
+      "expand": "fill",
+      "h": 1440,
+      "is_interactive": true,
+      "title": "5 Edit a task",
+      "w": 1280,
+      "x": 1360,
+      "y": 1480
+    },
+    "StepRun.dc.html": {
+      "expand": "fill",
+      "h": 2300,
+      "is_interactive": true,
+      "title": "11 Task details during the run",
+      "w": 1280,
+      "x": 4080,
+      "y": 3780
+    },
+    "Workflow.dc.html": {
+      "expand": "fill",
+      "h": 900,
+      "is_interactive": true,
+      "title": "4 Workflow (BPMN-like)",
+      "w": 1280,
+      "x": 0,
+      "y": 1480
+    },
+    "StepHelp.dc.html": {
+      "expand": "fill",
+      "h": 1750,
+      "is_interactive": true,
+      "title": "12 Human action required",
+      "w": 1280,
+      "x": 5440,
+      "y": 3780
+    },
+    "Team.dc.html": {
+      "expand": "fill",
+      "h": 1400,
+      "is_interactive": true,
+      "title": "6 AI team (editable)",
+      "w": 1280,
+      "x": 2720,
+      "y": 1480
+    },
+    "DevWorkflow.dc.html": {
+      "expand": "fill",
+      "h": 1900,
+      "is_interactive": true,
+      "title": "7 Development workflow (editable)",
+      "w": 1280,
+      "x": 4080,
+      "y": 1480
+    },
+    "States.dc.html": {
+      "title": "13 Dialogs and states",
+      "w": 1280,
+      "expand": "fill",
+      "is_interactive": true,
+      "h": 1320,
+      "x": 6800,
+      "y": 3780
+    },
+    "BpmnLifecycle.dc.html": {
+      "expand": "fill",
+      "h": 1190,
+      "is_interactive": true,
+      "title": "BPMN 1 Project lifecycle (collaboration)",
+      "w": 2940,
+      "x": 0,
+      "y": 6680
+    },
+    "BpmnBuildTask.dc.html": {
+      "expand": "fill",
+      "h": 1180,
+      "is_interactive": true,
+      "title": "BPMN 2 Build one task (called process)",
+      "w": 2300,
+      "x": 3020,
+      "y": 6680
+    },
+    "Projects.dc.html": {
+      "expand": "fill",
+      "h": 760,
+      "is_interactive": true,
+      "title": "0 All projects",
+      "w": 1280,
+      "x": 4080,
+      "y": 0
+    }
+  },
+  "createdOnFiles": {
+    "at": "2026-11-13T12:15:24Z",
+    "v": 1
+  },
+  "designSystems": [],
+  "launch": {
+    "view": "canvas"
+  },
+  "notes": {
+    "row1": {
+      "kind": "title1",
+      "maxW": 5360,
+      "text": "Plan: wish, AI key and GitHub sign-in, questions and technology, requirements; start page with all projects",
+      "w": 240,
+      "x": 0,
+      "y": -300
+    },
+    "row2": {
+      "kind": "title1",
+      "maxW": 5360,
+      "text": "Workflow and team: check the workflow, edit a task, edit the AI team and the development workflow",
+      "w": 240,
+      "x": 0,
+      "y": 1180
+    },
+    "row3": {
+      "kind": "title1",
+      "maxW": 8080,
+      "text": "Run: ready to run with GitHub, progress, run details, task details, human action required, dialogs and states",
+      "w": 240,
+      "x": 0,
+      "y": 3480
+    },
+    "row4": {
+      "kind": "title1",
+      "maxW": 5320,
+      "text": "BPMN 2.0: how the workflow engine itself runs a project (collaboration) and builds one task (called process)",
+      "w": 240,
+      "x": 0,
+      "y": 6380
+    }
+  },
+  "order": [
+    "Projects.dc.html",
+    "Main.dc.html",
+    "Questions.dc.html",
+    "Requirements.dc.html",
+    "Workflow.dc.html",
+    "StepEdit.dc.html",
+    "Team.dc.html",
+    "DevWorkflow.dc.html",
+    "Ready.dc.html",
+    "Running.dc.html",
+    "RunDetails.dc.html",
+    "StepRun.dc.html",
+    "StepHelp.dc.html",
+    "States.dc.html",
+    "BpmnLifecycle.dc.html",
+    "BpmnBuildTask.dc.html"
+  ],
+  "pages": [],
+  "title": "Workflow Engine \u2013 MVP screens"
+}

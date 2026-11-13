@@ -1,0 +1,30 @@
+# Secrets: never in Git (CLAUDE.md section 3)
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+secrets/
+
+# Claude Code: personal files and hook log
+.claude/settings.local.json
+.claude/hooks/blocked.log
+CLAUDE.local.md
+
+# Build output
+build/
+target/
+out/
+.gradle/
+node_modules/
+.svelte-kit/
+dist/
+coverage/
+test-results/
+playwright-report/
+
+# OS and editors
+.DS_Store
+.idea/
+.vscode/
+*.iml

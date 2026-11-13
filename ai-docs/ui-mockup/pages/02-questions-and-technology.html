@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>2 Questions and stack</title>
+
+</head>
+<body>
+<div style="position:sticky;top:0;z-index:10;background:#1F1E1D;color:#fff;font:13px Inter,system-ui,sans-serif;padding:6px 12px;display:flex;gap:12px;align-items:center"><a href="../index.html" style="color:#fff">All screens</a><span style="opacity:.7">Static copy of the MVP screen mockup · links between pages work, buttons do nothing</span></div>
+<div class="x-dc">
+
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:Inter,system-ui,sans-serif;color:#1F1E1D;background:#F6F5F1;font-size:14px;line-height:1.45}
+a{color:#1F5FAF}a:hover{color:#174A88}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 18px;border-radius:8px;border:1px solid #C9C7C0;background:#FFFFFF;color:#1F1E1D;font:500 14px Inter,sans-serif;text-decoration:none;cursor:pointer;box-sizing:border-box}
+a.btn:hover{color:#1F1E1D;background:#F1EFE8}
+.btn.primary{background:#2C6FCB;border-color:#2C6FCB;color:#FFFFFF}
+a.btn.primary:hover{background:#235CA8;color:#FFFFFF}
+.btn.danger{color:#A3331F;border-color:#E3A797}
+.card{background:#FFFFFF;border:1px solid #E2E0D9;border-radius:12px;padding:20px;box-sizing:border-box}
+.lbl{display:block;font-size:13px;font-weight:500;color:#4A4945;margin-bottom:6px}
+.inp{width:100%;min-height:42px;box-sizing:border-box;padding:9px 12px;border:1px solid #C9C7C0;border-radius:8px;background:#FFFFFF;font:400 14px Inter,sans-serif;color:#1F1E1D}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:500;background:#F1EFE8;color:#4A4945;border:1px solid #E2E0D9}
+.chip.req{background:#E6F1FB;color:#1F4F8F;border-color:#B5D4F4}
+.chip.ok{background:#EAF3DE;color:#2F5E0E;border-color:#BFDB9A}
+.chip.run{background:#E6F1FB;color:#1F4F8F;border-color:#9CC3EE}
+.chip.warn{background:#FAEEDA;color:#7A4508;border-color:#EBC98B}
+.muted{color:#5E5D59}
+.h1{font-size:24px;font-weight:600;margin:0}
+.h2{font-size:16px;font-weight:600;margin:0}
+.mono{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12.5px}
+</style>
+
+<div style="width:100%;background:#F6F5F1">
+<header style="background:#FFFFFF;border-bottom:1px solid #E2E0D9">
+<div style="max-width:1280px;margin:0 auto;padding:12px 32px;box-sizing:border-box;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+<div style="display:flex;align-items:center;gap:10px"><span aria-hidden="true" style="width:28px;height:28px;border-radius:8px;background:#2C6FCB;display:inline-flex;align-items:center;justify-content:center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="2.5"></circle><rect x="10" y="8" width="6" height="8" rx="2"></rect><circle cx="20" cy="12" r="2"></circle><path d="M7.5 12H10M16 12h1.8"></path></svg></span><span style="font-weight:600;font-size:15px">Workflow engine</span><span class="muted" style="font-size:14px">/ Canteen pre-order</span></div>
+<nav aria-label="Project steps" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><a href="01-wish-and-ai.html" style="display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 14px;border-radius:999px;font-size:13px;text-decoration:none;background:#EAF3DE;color:#2F5E0E;border:1px solid #BFDB9A"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"></path></svg> 1 Wish and AI</a><span aria-hidden="true" style="width:20px;height:1px;background:#C9C7C0"></span><a href="02-questions-and-technology.html" aria-current="page" style="display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 14px;border-radius:999px;font-size:13px;text-decoration:none;background:#E6F1FB;color:#1F4F8F;border:1px solid #6FA4E3;font-weight:600">2 Questions and stack</a><span aria-hidden="true" style="width:20px;height:1px;background:#C9C7C0"></span><a href="03-requirements.html" style="display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 14px;border-radius:999px;font-size:13px;text-decoration:none;background:#FFFFFF;color:#5E5D59;border:1px solid #E2E0D9">3 Requirements</a><span aria-hidden="true" style="width:20px;height:1px;background:#C9C7C0"></span><a href="04-workflow-bpmn-like.html" style="display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 14px;border-radius:999px;font-size:13px;text-decoration:none;background:#FFFFFF;color:#5E5D59;border:1px solid #E2E0D9">4 Workflow</a><span aria-hidden="true" style="width:20px;height:1px;background:#C9C7C0"></span><a href="06-ai-team-editable.html" style="display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 14px;border-radius:999px;font-size:13px;text-decoration:none;background:#FFFFFF;color:#5E5D59;border:1px solid #E2E0D9">5 Team and steps</a><span aria-hidden="true" style="width:20px;height:1px;background:#C9C7C0"></span><a href="08-ready-to-run-with-github.html" style="display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 14px;border-radius:999px;font-size:13px;text-decoration:none;background:#FFFFFF;color:#5E5D59;border:1px solid #E2E0D9">6 Run</a></nav>
+<select aria-label="Language" class="inp" style="width:auto;min-height:36px;padding:4px 8px;font-size:13px"><option>English</option><option>Deutsch</option></select>
+</div>
+</header>
+<main style="max-width:1280px;margin:0 auto;padding:24px 32px 40px;box-sizing:border-box;display:flex;flex-direction:column;gap:20px">
+
+<div style="display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap"><div><h1 class="h1">Questions and technology</h1><p class="muted" style="margin:4px 0 0">Answer what you can. If you are not sure, let the AI decide; its choice is written down for you.</p></div>
+<div style="min-width:260px"><div style="display:flex;justify-content:space-between;font-size:13px"><span>14 of 22 answered</span><span class="muted">8 open</span></div><div role="progressbar" aria-valuenow="14" aria-valuemin="0" aria-valuemax="22" aria-label="Answered questions" style="height:8px;border-radius:4px;background:#E2E0D9;margin-top:6px"><div style="width:64%;height:8px;border-radius:4px;background:#2C6FCB"></div></div></div></div>
+<div style="display:flex;flex-wrap:wrap;gap:20px;align-items:flex-start">
+<section class="card" style="flex:999 1 560px;min-width:0;display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn" style="min-height:36px;background:#1F1E1D;color:#FFFFFF;border-color:#1F1E1D">All 22</button><button type="button" class="btn" style="min-height:36px">Open 8</button><button type="button" class="btn" style="min-height:36px">Answered 14</button></div>
+<div style="border:1px solid #E2E0D9;border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start"><span><span class="muted" style="font-size:12px">Question 1 · one choice</span><br><b style="font-weight:600">Who can order food?</b></span><span class="chip ok">Answered</span></div>
+<div style="display:flex;gap:8px;flex-wrap:wrap"><label style="display:inline-flex;align-items:center;gap:8px;min-height:36px;padding:0 12px;border:1px solid #C9C7C0;border-radius:8px;background:#FFFFFF;cursor:pointer;font-size:13.5px"><input type="radio" name="q1">Students only</label><label style="display:inline-flex;align-items:center;gap:8px;min-height:36px;padding:0 12px;border:1px solid #2C6FCB;border-radius:8px;background:#F3F8FE;cursor:pointer;font-size:13.5px"><input type="radio" name="q1" checked="">Students and staff</label><label style="display:inline-flex;align-items:center;gap:8px;min-height:36px;padding:0 12px;border:1px solid #C9C7C0;border-radius:8px;background:#FFFFFF;cursor:pointer;font-size:13.5px"><input type="radio" name="q1">Anyone</label></div>
+</div>
+<div style="border:1px solid #E2E0D9;border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start"><span><span class="muted" style="font-size:12px">Question 2 · text</span><br><b style="font-weight:600">Until when can people order for the same day?</b></span><span class="chip ok">Answered</span></div>
+<input class="inp" aria-label="Answer to question 2" value="Until 10:30, pickup between 11:30 and 14:00">
+</div>
+<div style="border:1px solid #E2E0D9;border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start"><span><span class="muted" style="font-size:12px">Question 3 · several choices</span><br><b style="font-weight:600">How do people pay?</b></span><span class="chip ok">Answered</span></div>
+<div style="display:flex;gap:8px;flex-wrap:wrap"><label style="display:inline-flex;align-items:center;gap:8px;min-height:36px;padding:0 12px;border:1px solid #2C6FCB;border-radius:8px;background:#F3F8FE;cursor:pointer;font-size:13.5px"><input type="checkbox" name="q3" checked="">At pickup</label><label style="display:inline-flex;align-items:center;gap:8px;min-height:36px;padding:0 12px;border:1px solid #2C6FCB;border-radius:8px;background:#F3F8FE;cursor:pointer;font-size:13.5px"><input type="checkbox" name="q3" checked="">Online (simulated in the MVP)</label><label style="display:inline-flex;align-items:center;gap:8px;min-height:36px;padding:0 12px;border:1px solid #C9C7C0;border-radius:8px;background:#FFFFFF;cursor:pointer;font-size:13.5px"><input type="checkbox" name="q3">Student card</label></div>
+</div>
+<div style="border:1px solid #E2E0D9;border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start"><span><span class="muted" style="font-size:12px">Question 4 · feature</span><br><b style="font-weight:600">Should the kitchen be able to mark a dish as sold out?</b></span><span class="chip warn">Open</span></div>
+<div style="display:flex;gap:8px;flex-wrap:wrap"><label style="display:inline-flex;align-items:center;gap:8px;min-height:36px;padding:0 12px;border:1px solid #C9C7C0;border-radius:8px;background:#FFFFFF;cursor:pointer;font-size:13.5px"><input type="radio" name="q4">Yes</label><label style="display:inline-flex;align-items:center;gap:8px;min-height:36px;padding:0 12px;border:1px solid #C9C7C0;border-radius:8px;background:#FFFFFF;cursor:pointer;font-size:13.5px"><input type="radio" name="q4">No</label><label style="display:inline-flex;align-items:center;gap:8px;min-height:36px;padding:0 12px;border:1px solid #C9C7C0;border-radius:8px;background:#FFFFFF;cursor:pointer;font-size:13.5px"><input type="radio" name="q4">Let the AI decide</label></div>
+</div>
+<p class="muted" style="margin:0;font-size:13px">18 more questions below · the AI asks at most 5 feature questions</p>
+</section>
+<aside class="card" style="flex:1 1 340px;display:flex;flex-direction:column;gap:16px">
+<h2 class="h2">Technology of your project</h2>
+<fieldset style="border:0;padding:0;margin:0;display:flex;flex-direction:column;gap:6px"><legend class="lbl" style="padding:0">Backend</legend><label style="display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:44px;padding:0 12px;border:2px solid #2C6FCB;border-radius:8px;color:#1F1E1D;cursor:pointer"><span style="display:flex;align-items:center;gap:10px"><input type="radio" name="be" checked="">Java <span class="muted" style="font-size:12px">Spring Boot</span></span><span class="chip ok">ready</span></label><label style="display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:44px;padding:0 12px;border:1px solid #E2E0D9;border-radius:8px;color:#5E5D59;cursor:pointer"><span style="display:flex;align-items:center;gap:10px"><input type="radio" name="be" disabled="">C# <span class="muted" style="font-size:12px">.NET</span></span><span class="chip">coming soon</span></label><label style="display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:44px;padding:0 12px;border:1px solid #E2E0D9;border-radius:8px;color:#5E5D59;cursor:pointer"><span style="display:flex;align-items:center;gap:10px"><input type="radio" name="be" disabled="">Python <span class="muted" style="font-size:12px">FastAPI</span></span><span class="chip">coming soon</span></label></fieldset>
+<fieldset style="border:0;padding:0;margin:0;display:flex;flex-direction:column;gap:6px"><legend class="lbl" style="padding:0">Frontend</legend><label style="display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:44px;padding:0 12px;border:2px solid #2C6FCB;border-radius:8px;color:#1F1E1D;cursor:pointer"><span style="display:flex;align-items:center;gap:10px"><input type="radio" name="fe" checked="">Svelte <span class="muted" style="font-size:12px">SvelteKit</span></span><span class="chip ok">ready</span></label><label style="display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:44px;padding:0 12px;border:1px solid #E2E0D9;border-radius:8px;color:#5E5D59;cursor:pointer"><span style="display:flex;align-items:center;gap:10px"><input type="radio" name="fe" disabled="">Angular <span class="muted" style="font-size:12px"></span></span><span class="chip">coming soon</span></label><label style="display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:44px;padding:0 12px;border:1px solid #E2E0D9;border-radius:8px;color:#5E5D59;cursor:pointer"><span style="display:flex;align-items:center;gap:10px"><input type="radio" name="fe" disabled="">Nuxt <span class="muted" style="font-size:12px">Vue</span></span><span class="chip">coming soon</span></label></fieldset>
+<div><span class="lbl">Database</span><div style="display:flex;align-items:center;justify-content:space-between;min-height:44px;padding:0 12px;border:1px solid #E2E0D9;border-radius:8px;background:#FAFAF7"><span>PostgreSQL</span><span class="chip">fixed</span></div></div>
+<div style="background:#FAFAF7;border-radius:10px;padding:12px 14px;font-size:13px"><b style="font-weight:600">Included:</b> Docker setup, tests, README.<br><b style="font-weight:600">Not in the MVP:</b> login, real payments, email, hosting.</div>
+</aside>
+</div>
+<div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;border-top:1px solid #E2E0D9;padding-top:16px">
+<p class="muted" style="margin:0;font-size:13px;flex:1 1 320px">Open questions are answered by the AI with a sensible default. You can change every answer later.</p>
+<div style="display:flex;gap:10px;flex-wrap:wrap"><a class="btn" href="01-wish-and-ai.html">Back</a><a class="btn primary" href="03-requirements.html">Create requirements</a></div>
+</div>
+
+</main>
+</div>
+</div>
+
+</body>
+</html>
