@@ -81,7 +81,7 @@ paths:
                 $ref: "#/components/schemas/Problem"
     get:
       operationId: listProjects
-      summary: All projects, newest first (no login: everyone sees all)
+      summary: "All projects, newest first (no login, everyone sees all)"
       responses:
         "200":
           description: The projects
@@ -113,7 +113,7 @@ paths:
   /api/projects/{id}/workflow:
     post:
       operationId: generateWorkflow
-      summary: Claude writes the business workflow from the wish (one planning call, one retry)
+      summary: Claude writes the business workflow from the wish, the answers and the requirements (one planning call, one retry; needs the requirements)
       description: >
         Replaces the draft workflow of the project; its status becomes valid. A confirmed
         contract is never touched.
@@ -220,6 +220,226 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+  /api/projects/{id}/brief:
+    post:
+      operationId: generateBrief
+      summary: Write the brief of the wish (one Claude call; only while the project is a draft)
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      responses:
+        "200":
+          description: The brief
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Brief"
+        "404":
+          description: No such project
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "401":
+          description: The Anthropic key was rejected
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: No key, or the project is not at the right step
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "429":
+          description: Anthropic rate limit or credit used up
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "502":
+          description: Anthropic failed, or the answer was invalid twice
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    get:
+      operationId: getBrief
+      summary: The brief of the project
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      responses:
+        "200":
+          description: The brief
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Brief"
+        "404":
+          description: No such project, or no brief yet
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/projects/{id}/questions:
+    post:
+      operationId: generateQuestions
+      summary: Research the wish and ask at most 8 questions, each with the AI proposal (replaces earlier questions; needs the brief)
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      responses:
+        "200":
+          description: The questions; project status questions_ready
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Questions"
+        "404":
+          description: No such project
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "401":
+          description: The Anthropic key was rejected
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: No key, or the project is not at the right step
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "429":
+          description: Anthropic rate limit or credit used up
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "502":
+          description: Anthropic failed, or the answer was invalid twice
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    get:
+      operationId: getQuestions
+      summary: The questions of the project with the answers given so far
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      responses:
+        "200":
+          description: The questions (empty list when none were asked)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Questions"
+        "404":
+          description: No such project
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/projects/{id}/answers:
+    put:
+      operationId: saveAnswers
+      summary: Save one answer for every question (the client's value, or the AI proposal); project status answered
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SaveAnswersRequest"
+      responses:
+        "200":
+          description: The questions with their answers
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Questions"
+        "400":
+          description: An answer is missing or not one of the options
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: No such project
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: There are no questions, or the requirements are already written
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/projects/{id}/requirements:
+    post:
+      operationId: generateRequirements
+      summary: Write the requirements from the wish and the answers (replaces earlier ones); project status requirements_ready
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      responses:
+        "200":
+          description: The requirements grouped by epic
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Requirements"
+        "404":
+          description: No such project
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "401":
+          description: The Anthropic key was rejected
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: No key, or the project is not at the right step
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "429":
+          description: Anthropic rate limit or credit used up
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "502":
+          description: Anthropic failed, or the answer was invalid twice
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    get:
+      operationId: getRequirements
+      summary: The requirements of the project (no epics when none were written)
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      responses:
+        "200":
+          description: The requirements grouped by epic
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Requirements"
+        "404":
+          description: No such project
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
 components:
   parameters:
     ProjectId:
@@ -252,6 +472,80 @@ components:
           enum: [draft, questions_ready, answered, requirements_ready, workflow_drafted, confirmed, executing, done, stopped, failed]
         createdAt: {type: string, format: date-time}
         updatedAt: {type: string, format: date-time}
+    Brief:
+      type: object
+      required: [goal, actors, domainTerms, risks]
+      properties:
+        goal: {type: string}
+        actors: {type: array, items: {type: string}}
+        domainTerms: {type: array, items: {type: string}}
+        risks: {type: array, items: {type: string}}
+    Questions:
+      type: array
+      maxItems: 8
+      items:
+        $ref: "#/components/schemas/Question"
+    Question:
+      type: object
+      required: [id, seq, category, answerType, text, options, proposal]
+      properties:
+        id: {type: string, format: uuid}
+        seq: {type: integer}
+        category: {type: string, enum: [requirement, feature]}
+        answerType: {type: string, enum: [single_choice, multiple_choice, text]}
+        text: {type: string}
+        options: {type: array, items: {type: string}}
+        proposal:
+          description: The AI's proposed answer, preselected for the client; a string, or an array of strings for multiple_choice
+        explanation: {type: string, nullable: true}
+        answer:
+          nullable: true
+          type: object
+          required: [value, decidedBy]
+          properties:
+            value:
+              description: A string, or an array of strings for multiple_choice
+            decidedBy: {type: string, enum: [client, ai]}
+    SaveAnswersRequest:
+      type: object
+      required: [answers]
+      properties:
+        answers:
+          type: array
+          items:
+            type: object
+            required: [questionId]
+            properties:
+              questionId: {type: string, format: uuid}
+              acceptProposal:
+                type: boolean
+                description: When true the proposal is the answer and decidedBy is ai; value is ignored
+              value:
+                description: The client's answer, a string, or an array of strings for multiple_choice
+    Requirements:
+      type: object
+      required: [epics]
+      properties:
+        epics:
+          type: array
+          items:
+            type: object
+            required: [key, name, domainName, requirements]
+            properties:
+              key: {type: string}
+              name: {type: string}
+              domainName: {type: string}
+              requirements:
+                type: array
+                items:
+                  type: object
+                  required: [key, type, priority, text]
+                  properties:
+                    key: {type: string}
+                    type: {type: string, enum: [functional, quality, constraint]}
+                    priority: {type: string, enum: [must, should, could, wont]}
+                    text: {type: string}
+                    source: {type: string, nullable: true}
     Workflow:
       type: object
       required: [id, projectId, status, version, lanes, nodes, edges]

@@ -9,6 +9,12 @@ public interface ProjectPort {
     /** The wish of the project, or empty when the project does not exist. */
     Optional<String> wishOf(UUID projectId);
 
+    /** The status of the project, or empty when the project does not exist. */
+    Optional<String> statusOf(UUID projectId);
+
+    /** The brief of the project as text for a planning call, or empty when there is none. */
+    Optional<String> briefOf(UUID projectId);
+
     /** Moves the project to the given status (a value of the status check of the table). */
     void markStatus(UUID projectId, String status);
 }

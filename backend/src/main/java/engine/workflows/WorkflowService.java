@@ -1,5 +1,7 @@
 package engine.workflows;
 
+import engine.shared.InvalidAiOutputException;
+
 import engine.shared.ApiProblem;
 import engine.shared.ProjectPort;
 import engine.shared.SessionKey;
@@ -50,7 +52,7 @@ class WorkflowService {
                 WorkflowDraft draft = writer.write(key, wish, correction);
                 WorkflowValidator.validate(draft);
                 return draft;
-            } catch (InvalidDraftException e) {
+            } catch (InvalidAiOutputException e) {
                 if (attempt == 2) {
                     throw new ApiProblem(502, "Invalid workflow from Claude",
                             "Claude's workflow was invalid twice (" + e.getMessage()

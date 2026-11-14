@@ -1,5 +1,7 @@
 package engine.workflows;
 
+import engine.shared.InvalidAiOutputException;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -34,8 +36,8 @@ class WorkflowValidatorTest {
     @Test
     void emptyDraftIsRejected() {
         assertThatThrownBy(() -> WorkflowValidator.validate(new WorkflowDraft(List.of(), List.of(), List.of())))
-                .isInstanceOf(InvalidDraftException.class);
-        assertThatThrownBy(() -> WorkflowValidator.validate(null)).isInstanceOf(InvalidDraftException.class);
+                .isInstanceOf(InvalidAiOutputException.class);
+        assertThatThrownBy(() -> WorkflowValidator.validate(null)).isInstanceOf(InvalidAiOutputException.class);
     }
 
     @Test

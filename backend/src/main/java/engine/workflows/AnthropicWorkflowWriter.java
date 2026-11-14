@@ -1,5 +1,7 @@
 package engine.workflows;
 
+import engine.shared.InvalidAiOutputException;
+
 import com.anthropic.client.AnthropicClient;
 import com.anthropic.client.okhttp.AnthropicOkHttpClient;
 import com.anthropic.errors.AnthropicException;
@@ -57,7 +59,7 @@ public class AnthropicWorkflowWriter implements WorkflowWriter {
                             .map(typed -> typed.text())
                             .toList();
             if (drafts.isEmpty()) {
-                throw new InvalidDraftException("Claude returned no workflow (stop reason "
+                throw new InvalidAiOutputException("Claude returned no workflow (stop reason "
                         + message.stopReason().map(Object::toString).orElse("unknown") + ").");
             }
             return drafts.get(0);
@@ -68,7 +70,7 @@ public class AnthropicWorkflowWriter implements WorkflowWriter {
             throw new ApiProblem(
                     429, "Rate limit reached", "Anthropic's rate limit or credit is used up. Try again later.", e);
         } catch (AnthropicInvalidDataException e) {
-            throw new InvalidDraftException("The answer was not valid JSON for the schema.", e);
+            throw new InvalidAiOutputException("The answer was not valid JSON for the schema.", e);
         } catch (AnthropicException e) {
             throw new ApiProblem(
                     502,

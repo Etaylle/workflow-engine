@@ -9,6 +9,8 @@ import java.util.Optional;
 import java.util.UUID;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.json.JsonMapper;
 
 /** Creates and reads projects; also the answer of the domain to {@link ProjectPort}. */
 @Service
@@ -20,10 +22,12 @@ public class ProjectService implements ProjectPort {
 
     private final JdbcClient jdbc;
     private final Clock clock;
+    private final JsonMapper json;
 
-    public ProjectService(JdbcClient jdbc, Clock clock) {
+    public ProjectService(JdbcClient jdbc, Clock clock, JsonMapper json) {
         this.jdbc = jdbc;
         this.clock = clock;
+        this.json = json;
     }
 
     /** Creates a draft project from the wish; the name is the start of the wish. */
@@ -70,6 +74,30 @@ public class ProjectService implements ProjectPort {
         return jdbc.sql("select wish from projects.projects where id = :id")
                 .param("id", projectId)
                 .query(String.class)
+                .optional();
+    }
+
+    @Override
+    public Optional<String> statusOf(UUID projectId) {
+        return jdbc.sql("select status from projects.projects where id = :id")
+                .param("id", projectId)
+                .query(String.class)
+                .optional();
+    }
+
+    @Override
+    public Optional<String> briefOf(UUID projectId) {
+        return briefRecord(projectId).map(Brief::toText);
+    }
+
+    /** The stored brief of the project, or empty when none was written. */
+    Optional<Brief> briefRecord(UUID projectId) {
+        TypeReference<List<String>> strings = new TypeReference<>() { };
+        return jdbc.sql("select goal, actors::text, domain_terms::text, risks::text"
+                        + " from projects.project_briefs where project_id = :id")
+                .param("id", projectId)
+                .query((rs, row) -> new Brief(rs.getString(1), json.readValue(rs.getString(2), strings),
+                        json.readValue(rs.getString(3), strings), json.readValue(rs.getString(4), strings)))
                 .optional();
     }
 

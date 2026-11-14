@@ -1,5 +1,7 @@
 package engine.workflows;
 
+import engine.shared.InvalidAiOutputException;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 import engine.shared.ApiProblem;
@@ -137,8 +139,8 @@ class WorkflowIT {
     @Test
     void outputInvalidTwiceAnswers502AndStoresNothing() throws Exception {
         UUID id = createProject("A canteen app");
-        writer.script.add(new InvalidDraftException("first"));
-        writer.script.add(new InvalidDraftException("second"));
+        writer.script.add(new InvalidAiOutputException("first"));
+        writer.script.add(new InvalidAiOutputException("second"));
 
         HttpResponse<String> response = call("POST", "/api/projects/" + id + "/workflow", null);
 
