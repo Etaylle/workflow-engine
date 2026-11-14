@@ -12,6 +12,14 @@
 	import { locale } from '#lib/i18n/state.svelte.js';
 	import WorkflowDiagram from './WorkflowDiagram.svelte';
 
+	import { rank } from '#lib/planning/steps.js';
+	import {
+		getQuestions,
+		getRequirements,
+		type Question,
+		type Requirements
+	} from '#lib/api/client.js';
+
 	let { project, changed }: { project: Project; changed: () => void } = $props();
 
 	let workflow = $state<Workflow | null>(null);
@@ -51,16 +59,35 @@
 		}
 	}
 
+	let questions = $state<Question[]>([]);
+	let requirements = $state<Requirements>({ epics: [] });
+	const reviewed = $derived(rank(project.status) >= 4);
+	const summary = $derived({
+		answers: String(questions.length),
+		byAi: String(questions.filter((q) => q.answer?.decidedBy === 'ai').length),
+		requirements: String(requirements.epics.reduce((n, e) => n + e.requirements.length, 0)),
+		tasks: String(workflow?.nodes.filter((n) => n.kind === 'task').length ?? 0)
+	});
+
 	$effect(() => {
 		void project.id;
+		void project.status;
 		error = null;
 		void load();
+		void Promise.all([getQuestions(project.id), getRequirements(project.id)]).then(([q, r]) => {
+			questions = q;
+			requirements = r;
+		}, fail);
 	});
 </script>
 
-<section aria-labelledby="workflow-heading">
-	<h2 id="workflow-heading">{locale.t('workflow.heading', { name: project.name })}</h2>
-	<p>{project.wish}</p>
+<section aria-labelledby="workflow-heading" data-testid="step-workflow">
+	<h2 id="workflow-heading">
+		{locale.t(reviewed ? 'review.heading' : 'workflow.heading')}
+	</h2>
+	{#if reviewed}
+		<p data-testid="review-summary">{locale.t('review.summary', summary)}</p>
+	{/if}
 
 	<button
 		onclick={() => run('generating', () => generateWorkflow(project.id))}

@@ -93,3 +93,46 @@ export async function getWorkflow(projectId: string): Promise<Workflow | null> {
 	if (!response.ok) throw await failure(response);
 	return (await response.json()) as Workflow;
 }
+
+export type Brief = { goal: string; actors: string[]; domainTerms: string[]; risks: string[] };
+export type AnswerValue = string | string[];
+export type Question = {
+	id: string;
+	seq: number;
+	category: 'requirement' | 'feature';
+	answerType: 'single_choice' | 'multiple_choice' | 'text';
+	text: string;
+	options: string[];
+	proposal: AnswerValue;
+	explanation?: string | null;
+	answer?: { value: AnswerValue; decidedBy: 'client' | 'ai' } | null;
+};
+export type AnswerInput = { questionId: string; acceptProposal?: boolean; value?: AnswerValue };
+export type Requirement = {
+	key: string;
+	type: 'functional' | 'quality' | 'constraint';
+	priority: 'must' | 'should' | 'could' | 'wont';
+	text: string;
+	source?: string | null;
+};
+export type Epic = { key: string; name: string; domainName: string; requirements: Requirement[] };
+export type Requirements = { epics: Epic[] };
+
+export const generateBrief = (projectId: string) =>
+	json<Brief>(`/api/projects/${projectId}/brief`, 'POST');
+export const getBrief = async (projectId: string): Promise<Brief | null> => {
+	const response = await fetch(`/api/projects/${projectId}/brief`);
+	if (response.status === 404) return null;
+	if (!response.ok) throw await failure(response);
+	return (await response.json()) as Brief;
+};
+export const generateQuestions = (projectId: string) =>
+	json<Question[]>(`/api/projects/${projectId}/questions`, 'POST');
+export const getQuestions = (projectId: string) =>
+	json<Question[]>(`/api/projects/${projectId}/questions`);
+export const saveAnswers = (projectId: string, answers: AnswerInput[]) =>
+	json<Question[]>(`/api/projects/${projectId}/answers`, 'PUT', { answers });
+export const generateRequirements = (projectId: string) =>
+	json<Requirements>(`/api/projects/${projectId}/requirements`, 'POST');
+export const getRequirements = (projectId: string) =>
+	json<Requirements>(`/api/projects/${projectId}/requirements`);

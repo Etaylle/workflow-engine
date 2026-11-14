@@ -11,7 +11,7 @@ export function describeError(error: unknown): Described {
 		return { key: 'error.keyMissing', params: {} };
 	if (status === 401) return { key: 'error.keyRejected', params: {} };
 	if (status === 429) return { key: 'error.rateLimit', params: {} };
-	if (status === 502 && title === 'Invalid workflow from Claude')
+	if (status === 502 && /^Invalid .* from Claude$/.test(title))
 		return { key: 'error.invalidOutput', params: {} };
 	return { key: 'error.other', params: { detail: error.message } };
 }

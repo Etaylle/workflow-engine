@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import NewProject from '#lib/components/NewProject.svelte';
 	import ProjectList from '#lib/components/ProjectList.svelte';
-	import WorkflowPanel from '#lib/components/WorkflowPanel.svelte';
+	import ProjectPanel from '#lib/components/ProjectPanel.svelte';
 	import {
 		ApiError,
 		checkAiConnection,
@@ -113,7 +113,7 @@
 	<NewProject {created} />
 	<ProjectList {projects} failed={projectsFailed} {selectedId} {open} />
 	{#if selected}
-		<WorkflowPanel project={selected} changed={reloadProjects} />
+		<ProjectPanel project={selected} changed={reloadProjects} />
 	{/if}
 
 	<section aria-labelledby="ai-heading">

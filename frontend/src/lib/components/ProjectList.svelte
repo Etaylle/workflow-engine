@@ -15,10 +15,16 @@
 		open: (id: string) => void;
 	} = $props();
 
+	const KNOWN = [
+		'draft',
+		'questions_ready',
+		'answered',
+		'requirements_ready',
+		'workflow_drafted',
+		'confirmed'
+	];
 	const statusKey = (status: string): MessageKey =>
-		status === 'draft' || status === 'workflow_drafted' || status === 'confirmed'
-			? (`status.${status}` as MessageKey)
-			: 'status.other';
+		KNOWN.includes(status) ? (`status.${status}` as MessageKey) : 'status.other';
 </script>
 
 <section aria-labelledby="projects-heading">

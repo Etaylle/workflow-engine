@@ -2,13 +2,32 @@
 
 Updated after each slice and each decision. Newest first. The plan: `ai-docs/plan.md`. How we work: `CLAUDE.md` 2.
 
-Last update: 2026-11-14 (Claude): M1 thin workflow path complete (stub verified; real Claude call not tried); D-35 to D-39.
+Last update: 2026-11-14 (Claude): M2 planning complete (brief, questions, requirements, workflow from both, review and confirm; stub verified, real Claude calls not tried); D-40 to D-45.
+
+## How to test (owner)
+
+**Start** (from the project folder): `ci/run env-up` builds the frontend and the jar, starts PostgreSQL if needed and the engine at **http://localhost:8080**. Stop it with `ci/run env-down`. All checks: `ci/run all-local`.
+
+**With the stub, no key, no cost**: `ENGINE_AI_STUB=true ci/run env-up`. Every Claude answer is then the canteen example (any text you type gives the same brief, 3 questions, 5 requirements and a 6-step workflow); type any text as the key (for example `sk-test`).
+
+**With a real key**: `ci/run env-up` (no `ENGINE_AI_STUB`). Type your Anthropic key into the "Anthropic key" field of the new-project form. It stays in engine memory only; after a restart enter it again. Calls use `claude-sonnet-5-5` and can take up to two minutes each.
+
+**Click path** (the page is `/`; the open project is in the address after `#`, so a reload keeps your place):
+
+1. "New project": type the wish and the key, "Create project".
+2. "Research and ask questions": Claude writes the brief and at most 8 questions; the AI's proposal is preselected on each. Change what does not fit, "Save answers".
+3. "Write the requirements with Claude": requirements grouped by epic.
+4. "Write the workflow with Claude": swimlane diagram. "Write it again" replaces it.
+5. "Review and confirm" shows the counts; "Confirm as contract" freezes wish, brief, answers, requirements and workflow as contract version 1. Changing the workflow and confirming again makes version 2.
+
+Reload the page at any step: nothing is lost. A wrong or missing key, a rate limit or an invalid answer shows a message and leaves the project where it was.
 
 ## Current position
 
 | Item | State |
 |---|---|
-| Milestone | M0 and M1 done 2026-11-14; next M2 planning complete |
+| Milestone | M0, M1 and M2 done 2026-11-14; next M3 (build spike, not started) |
+| M2 done | Brief (`POST/GET /api/projects/{id}/brief`), questions (`POST/GET .../questions`, `PUT .../answers`), requirements (`POST/GET .../requirements`), workflow now from answers and requirements; contract snapshot holds wish, brief, answers, requirements, workflow. Frontend: one project page with the steps, status-driven so a reload keeps the place. Diagram redrawn with swimlane bands (screenshot checked). `ci/run all-local` green (counts in the report of this session). **Not tried: any real Claude call of M2** (4 calls: brief, questions, requirements, workflow) |
 | M0 done | `backend/` (Spring Boot 4.1.2, Java 21 by Gradle toolchain, wrapper 8.14.7), the four planning migrations (18 tables), `GET /api/status` from `api/openapi.yaml`, health; `./gradlew test` 2 of 2 green (unit, architecture), `./gradlew integrationTest` 3 of 3 green on PostgreSQL 17 |
 | M0 also done | `frontend/` (SvelteKit 3, Svelte 5, English and German, status call, AI check), `POST /api/ai/check` (key in memory only, Anthropic Java SDK, `claude-haiku-5-5`; stub with `ENGINE_AI_STUB=true`), `ci/run`, one Playwright journey; `ci/run all-local` green (backend 5 unit + 3 integration, frontend 5 Vitest, 1 end-to-end). Not tried: the AI check with a real valid key (only the 401 path against the live API) |
 | M1 done | Create project from wish (key kept in session), `POST /api/projects/{id}/workflow` (Claude Sonnet 5.5 via Anthropic Java SDK, structured output, validate, one retry; stub canteen with `ENGINE_AI_STUB=true`), Svelte Flow diagram (read-only, swimlane layout from the engine), confirm as immutable contract version (trigger in V5), project list survives reload (`#<id>`). `ci/run all-local` green: backend unit 13, integration 13, frontend Vitest 11, Playwright 2. **Not tried: the real Claude call** (owner: start the engine without `ENGINE_AI_STUB`, type a key into the new-project form, click "Write the workflow with Claude") |
@@ -36,6 +55,12 @@ Last update: 2026-11-14 (Claude): M1 thin workflow path complete (stub verified;
 
 | ID | Decision | Date |
 |---|---|---|
+| D-45 | Left out of the M2 stories to stay on the path: attachments and links in the brief (US-01.07 keeps only the brief table fields goal, actors, domain terms, risks), web research with sources (US-02.04: the questions call uses Claude's own knowledge), edit/add/delete of single questions (US-02.03), technology choice, languages and colours (US-02.05/06), project plan document, download as DOCX/PDF (US-03.02 to 03.04), cost limit, time rules, GitHub and Render on the review page (US-04.06 shows counts and the diagram, confirm only) | 2026-11-14 |
+| D-44 | Status gates: brief only in `draft`; questions in `draft` or `questions_ready` (asking again replaces them); answers in `questions_ready` or `answered` (every question needs one answer, saved all at once); requirements in `answered` or `requirements_ready`; workflow in `requirements_ready`, `workflow_drafted` or `confirmed`. Anything else is 409. Accepting the proposal (value equal to it) is stored as `decided_by = ai`, any other value as `client` | 2026-11-14 |
+| D-43 | Domains share data through ports in `engine.shared`: `ProjectPort` (wish, status, brief text, mark status), `AnswersPort` (implemented by `questions`), `RequirementsPort` (implemented by `documents`). `ClaudeCall` in `engine.shared` is the one place that builds the client from the session key, reads structured output, maps errors (401, 429, 502) and runs the one retry (`validated`); all four planning calls use it. `InvalidAiOutputException` moved there | 2026-11-14 |
+| D-42 | Each planning call has an interface and a canteen stub (`ENGINE_AI_STUB=true`): `BriefWriter`, `QuestionWriter`, `RequirementWriter`, `WorkflowWriter`. The M1 direct path (workflow from the wish alone) is replaced: `WorkflowWriter.write` takes the planning material (brief, answers, requirements) and the endpoint answers 409 before the requirements exist | 2026-11-14 |
+| D-41 | Questions: at most 8 (validated, retry on more), answer types single_choice (2 to 6 options), multiple_choice, text; the proposal is stored as JSON in `ai_default`; requirement keys are made by the engine (E-01, FR-001, QR-001, CON-001) | 2026-11-14 |
+| D-40 | Contract snapshot is now wish + brief + answers + requirements + workflow view (still frozen by the trigger of V5; no new migration was needed, the tables of V1 to V4 carry everything) | 2026-11-14 |
 | D-39 | `engine.shared` holds what domains share: `SessionKey` (moved from `ai`), `ProjectPort` (workflows reads the wish and sets the project status through it; `projects` implements it), `ApiProblem` (problem+json). Domains still never call each other | 2026-11-14 |
 | D-38 | Workflow generation: one call, model `claude-sonnet-5-5`, no thinking or effort settings, 120 s timeout, SDK retries off; rules checked by `WorkflowValidator` (one start, an end, lanes known, reachable, no dead ends); on invalid output one retry with the reason; then 502. No server-side refusal fallback yet. Errors: 409 key missing, 401 key rejected, 429 rate limit, 502 failed/invalid. Positions come from a swimlane layout in the backend (x by steps from start, y by lane), stored in `nodes.pos_x/pos_y` | 2026-11-14 |
 | D-37 | Contracts: V5 makes `cost_limit_amount` nullable (the limit is chosen in M3) and adds a trigger that rejects UPDATE and DELETE on `workflows.contracts`. Snapshot = wish + workflow view. One workflow per project; generating again replaces the draft (status valid, version+1); confirming needs status valid, so an unchanged confirmed workflow answers 409; a changed one confirms as version N+1 | 2026-11-14 |
@@ -79,8 +104,8 @@ Last update: 2026-11-14 (Claude): M1 thin workflow path complete (stub verified;
 
 ## Next (in order)
 
-1. Live check of M1 with a real key (owner).
-2. M2 planning complete, as far as the time reaches.
+1. Live check of M1 and M2 with a real key (owner, see "How to test").
+2. M3 build spike.
 
 ## Done
 

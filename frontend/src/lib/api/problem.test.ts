@@ -9,7 +9,7 @@ describe('describeError', () => {
 		expect(describeError(failure(409, 'Anthropic key missing')).key).toBe('error.keyMissing');
 		expect(describeError(failure(401, 'Anthropic key rejected')).key).toBe('error.keyRejected');
 		expect(describeError(failure(429, 'Rate limit reached')).key).toBe('error.rateLimit');
-		expect(describeError(failure(502, 'Invalid workflow from Claude')).key).toBe(
+		expect(describeError(failure(502, 'Invalid questions from Claude')).key).toBe(
 			'error.invalidOutput'
 		);
 	});

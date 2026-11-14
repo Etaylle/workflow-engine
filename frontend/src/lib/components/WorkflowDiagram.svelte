@@ -43,12 +43,21 @@
 		border: 1px solid #ccc;
 	}
 	.diagram :global(.lane-label) {
-		background: none;
-		border: none;
-		box-shadow: none;
+		background: rgba(100, 120, 160, 0.08);
+		border: 1px solid #c8d0e0;
+		border-radius: 4px;
+	}
+	.diagram :global(.lane-label) {
+		display: flex;
+		align-items: flex-start;
+		justify-content: flex-start;
+		padding: 0.4rem 0.6rem;
 		font-weight: 600;
-		width: 9rem;
-		text-align: right;
+		box-shadow: none;
+		pointer-events: none;
+	}
+	.diagram :global(.lane-label .svelte-flow__handle) {
+		display: none;
 	}
 	.diagram :global(.kind-start_event) {
 		border-color: #2a7d3f;
