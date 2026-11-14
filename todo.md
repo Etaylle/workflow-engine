@@ -2,7 +2,7 @@
 
 Updated after each slice and each decision. Newest first. The plan: `ai-docs/plan.md`. How we work: `CLAUDE.md` 2.
 
-Last update: 2026-11-15 (Claude): M6 slices 1 to 5 done (All projects with rename/delete, wish form and edit, app shell, edit/add/delete single questions, workflow editor, documents); D-46 to D-52. M2 planning complete 2026-11-14 (real Claude calls not tried).
+Last update: 2026-11-15 (Claude): M6 slices 1 to 6 done (All projects with rename/delete, wish form and edit, app shell, edit/add/delete single questions, workflow editor, documents, review table); D-46 to D-53. Remaining M6 stories need a real key, settings or execution (see D-48, D-51, D-52, D-53). M2 planning complete 2026-11-14 (real Claude calls not tried).
 
 ## How to test (owner)
 
@@ -58,6 +58,7 @@ Reload the page at any step: nothing is lost. A wrong or missing key, a rate lim
 
 | ID | Decision | Date |
 |---|---|---|
+| D-53 | Review (screen 8, what needs no settings/execution): table "Your project" with wish name, answers (by AI), technology (fixed Java + Svelte + PostgreSQL), AI (harness and model, now in the Project API), requirements by priority, workflow tasks by type, the no-login note. Not done: cost limit, time rules, GitHub, Render, team, steps, estimate (M3 and later). Model choice (US-01.04) is not offered: planning calls use `claude-sonnet-5-5` fixed, wiring a choice through the four writers needs a real-key check | 2026-11-15 |
 | D-52 | US-03.02 to 03.04 (reduced): the requirements document and the project plan are built from what the project holds now, with no AI call (`DocumentBuilder`; the plan follows the workflow, so it needs no key and stays in step with edits), viewed in the browser and downloaded as DOCX (written by hand, no library) or Markdown. PDF is not offered, English only (the document language field is not used yet), nothing stored (table `generated_documents` stays unused). Read through ports: `ProjectPort.nameOf`, new `WorkflowPort` | 2026-11-15 |
 | D-51 | US-04.03/04.04/04.05 (reduced): `PUT /api/projects/{id}/workflow` replaces the workflow by an edited one (lanes, nodes, arrows), same validator as Claude's draft (400 with the rule broken), status valid, project `workflow_drafted`; after a confirmation the next confirm is version N+1. The edit is a list editor under the diagram (steps with name, what happens, lane, type; add step after, delete with reconnect, arrows, lanes), not drag and drop. Not done: acceptance criteria, AI test scenarios, story type (US-04.03), delete of a lane, moving boxes | 2026-11-15 |
 | D-50 | US-02.03: `POST /api/projects/{id}/question-items`, `PUT/DELETE .../question-items/{questionId}` (add, rewrite, delete one question; at most 8; only status `questions_ready`, 409 otherwise; an edit drops that question's answer; delete renumbers). Regenerate = "Ask again" (existing call). Saving answers with no questions is 400 | 2026-11-15 |

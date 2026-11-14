@@ -37,6 +37,8 @@ export type Project = {
 	name: string;
 	wish: string;
 	status: string;
+	agentHarness: string;
+	model: string;
 	createdAt: string;
 	updatedAt: string;
 };

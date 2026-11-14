@@ -54,7 +54,9 @@ test('wish to questions, requirements, workflow and confirmed contract, survivin
 	await expect(diagram.locator('.svelte-flow__edge')).toHaveCount(5);
 	await page.waitForTimeout(500);
 	await diagram.screenshot({ path: 'test-results/workflow-diagram.png' });
-	await expect(page.getByTestId('review-summary')).toContainText('3 answers (2 by AI proposal)');
+	await expect(page.getByTestId('review-summary')).toContainText(
+		'3 answers, 2 decided by the AI proposal'
+	);
 
 	// US-04.03/04: edit a step, add one after it, delete another with reconnect, save
 	await page.getByTestId('edit-workflow').click();

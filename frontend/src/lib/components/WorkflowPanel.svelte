@@ -10,6 +10,8 @@
 	} from '#lib/api/client.js';
 	import { describeError } from '#lib/api/problem.js';
 	import { locale } from '#lib/i18n/state.svelte.js';
+	import ReviewSummary from './ReviewSummary.svelte';
+	import { reviewFacts } from '#lib/planning/review.js';
 	import WorkflowDiagram from './WorkflowDiagram.svelte';
 	import WorkflowEditor from './WorkflowEditor.svelte';
 
@@ -64,12 +66,7 @@
 	let questions = $state<Question[]>([]);
 	let requirements = $state<Requirements>({ epics: [] });
 	const reviewed = $derived(rank(project.status) >= 4);
-	const summary = $derived({
-		answers: String(questions.length),
-		byAi: String(questions.filter((q) => q.answer?.decidedBy === 'ai').length),
-		requirements: String(requirements.epics.reduce((n, e) => n + e.requirements.length, 0)),
-		tasks: String(workflow?.nodes.filter((n) => n.kind === 'task').length ?? 0)
-	});
+	const facts = $derived(reviewFacts(questions, requirements, workflow));
 
 	$effect(() => {
 		void project.id;
@@ -88,7 +85,7 @@
 		{locale.t(reviewed ? 'review.heading' : 'workflow.heading')}
 	</h2>
 	{#if reviewed}
-		<p data-testid="review-summary">{locale.t('review.summary', summary)}</p>
+		<ReviewSummary {project} {facts} />
 	{/if}
 
 	<button

@@ -5,5 +5,12 @@ import java.util.UUID;
 
 /** A client project as the API shows it. */
 public record Project(
-        UUID id, String name, String wish, String status, Instant createdAt, Instant updatedAt) {
+        UUID id,
+        String name,
+        String wish,
+        String status,
+        String agentHarness,
+        String model,
+        Instant createdAt,
+        Instant updatedAt) {
 }

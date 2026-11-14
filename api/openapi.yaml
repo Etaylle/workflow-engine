@@ -722,7 +722,7 @@ components:
           description: Optional; kept in memory for the session
     Project:
       type: object
-      required: [id, name, wish, status, createdAt, updatedAt]
+      required: [id, name, wish, status, agentHarness, model, createdAt, updatedAt]
       properties:
         id: {type: string, format: uuid}
         name: {type: string, description: The start of the wish}
@@ -730,6 +730,8 @@ components:
         status:
           type: string
           enum: [draft, questions_ready, answered, requirements_ready, workflow_drafted, confirmed, executing, done, stopped, failed]
+        agentHarness: {type: string, enum: [claude_code, opencode]}
+        model: {type: string}
         createdAt: {type: string, format: date-time}
         updatedAt: {type: string, format: date-time}
     Brief:

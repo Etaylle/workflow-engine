@@ -21,7 +21,7 @@ public class ProjectService implements ProjectPort {
     static final int MAX_WISH_LENGTH = 20_000;
     static final int MAX_NAME_LENGTH = 120;
     private static final int NAME_LENGTH = 60;
-    private static final String COLUMNS = "id, name, wish, status, created_at, updated_at";
+    private static final String COLUMNS = "id, name, wish, status, agent_harness, model, created_at, updated_at";
 
     private final JdbcClient jdbc;
     private final Clock clock;
@@ -189,6 +189,8 @@ public class ProjectService implements ProjectPort {
                 rs.getString("name"),
                 rs.getString("wish"),
                 rs.getString("status"),
+                rs.getString("agent_harness"),
+                rs.getString("model"),
                 rs.getTimestamp("created_at").toInstant(),
                 rs.getTimestamp("updated_at").toInstant());
     }

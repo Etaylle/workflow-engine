@@ -63,7 +63,6 @@
 	"priority.could": "could",
 	"priority.wont": "won't",
 	"review.heading": "Review and confirm",
-	"review.summary": "Review: {answers} answers ({byAi} by AI proposal), {requirements} requirements, {tasks} tasks in the workflow. Confirming freezes all of it as a contract version.",
 	"language.en": "English",
 	"language.de": "Deutsch",
 	"nav.back": "← All projects",
@@ -139,5 +138,16 @@
 	"documents.heading": "Documents",
 	"documents.requirements": "Requirements document",
 	"documents.plan": "Project plan",
-	"documents.view": "View"
+	"documents.view": "View",
+	"review.project": "Your project",
+	"review.wish": "Wish",
+	"review.answers": "Answers",
+	"review.answersValue": "{answers} answers, {byAi} decided by the AI proposal",
+	"review.technology": "Technology",
+	"review.ai": "AI",
+	"review.requirements": "Requirements",
+	"review.requirementsValue": "{total} ({must} must, {should} should)",
+	"review.workflow": "Workflow",
+	"review.workflowValue": "{tasks} tasks: {software} built by the AI, {manual} manual",
+	"review.noLogin": "MVP: no login. Everyone who opens this engine can see and continue this project. The generated app has no login and no real payments."
 }

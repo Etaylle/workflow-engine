@@ -63,7 +63,6 @@
 	"priority.could": "kann",
 	"priority.wont": "nicht jetzt",
 	"review.heading": "Prüfen und bestätigen",
-	"review.summary": "Prüfung: {answers} Antworten ({byAi} durch Vorschlag der KI), {requirements} Anforderungen, {tasks} Aufgaben im Workflow. Die Bestätigung friert alles als Vertragsversion ein.",
 	"language.en": "English",
 	"language.de": "Deutsch",
 	"nav.back": "← Alle Projekte",
@@ -139,5 +138,16 @@
 	"documents.heading": "Dokumente",
 	"documents.requirements": "Anforderungsdokument",
 	"documents.plan": "Projektplan",
-	"documents.view": "Ansehen"
+	"documents.view": "Ansehen",
+	"review.project": "Dein Projekt",
+	"review.wish": "Wunsch",
+	"review.answers": "Antworten",
+	"review.answersValue": "{answers} Antworten, {byAi} per KI-Vorschlag entschieden",
+	"review.technology": "Technologie",
+	"review.ai": "KI",
+	"review.requirements": "Anforderungen",
+	"review.requirementsValue": "{total} ({must} Muss, {should} Soll)",
+	"review.workflow": "Workflow",
+	"review.workflowValue": "{tasks} Aufgaben: {software} von der KI gebaut, {manual} manuell",
+	"review.noLogin": "MVP: keine Anmeldung. Wer diese Engine öffnet, kann dieses Projekt sehen und weiterführen. Die erzeugte App hat keine Anmeldung und keine echten Zahlungen."
 }
