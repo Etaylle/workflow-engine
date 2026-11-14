@@ -4,6 +4,7 @@ package engine.workflows;
 import engine.shared.AnswersPort;
 import engine.shared.ApiProblem;
 import engine.shared.ClaudeCall;
+import engine.shared.ContractPort;
 import engine.shared.InvalidAiOutputException;
 import engine.shared.ProjectPort;
 import engine.shared.RequirementsPort;
@@ -18,7 +19,7 @@ import tools.jackson.databind.json.JsonMapper;
 
 /** Writes, validates, stores and confirms the workflow of a project. */
 @Service
-class WorkflowService implements WorkflowPort {
+class WorkflowService implements WorkflowPort, ContractPort {
 
     private final WorkflowWriter writer;
     private final WorkflowStore store;
@@ -43,7 +44,7 @@ class WorkflowService implements WorkflowPort {
     WorkflowView generate(UUID projectId) {
         String wish = projects.wishOf(projectId).orElseThrow(() -> notFound(projectId));
         String status = projects.statusOf(projectId).orElseThrow(() -> notFound(projectId));
-        if (!Set.of("requirements_ready", "workflow_drafted", "confirmed").contains(status)) {
+        if (!Set.of("requirements_ready", "workflow_drafted", "confirmed", "done").contains(status)) {
             throw new ApiProblem(409, "Requirements missing", "The workflow is drawn from the"
                     + " requirements; answer the questions and write the requirements first.");
         }
@@ -62,7 +63,7 @@ class WorkflowService implements WorkflowPort {
      */
     WorkflowView edit(UUID projectId, WorkflowDraft draft) {
         String status = projects.statusOf(projectId).orElseThrow(() -> notFound(projectId));
-        if (!Set.of("workflow_drafted", "confirmed").contains(status)) {
+        if (!Set.of("workflow_drafted", "confirmed", "done").contains(status)) {
             throw new ApiProblem(409, "No workflow to edit", "Generate the workflow first.");
         }
         try {
@@ -124,6 +125,17 @@ class WorkflowService implements WorkflowPort {
                             n.taskType()))
                     .toList();
         }).orElse(List.of());
+    }
+
+    @Override
+    public Optional<ContractInfo> latestContract(UUID projectId) {
+        return store.latestContract(projectId).map(stored -> {
+            WorkflowStore.Snapshot snapshot =
+                    json.readValue(stored.snapshot(), WorkflowStore.Snapshot.class);
+            return new ContractInfo(stored.version(), Optional.ofNullable(stored.costLimit()),
+                    ContractMarkdown.of(stored.version(), snapshot),
+                    ContractMarkdown.softwareTasks(snapshot.workflow()));
+        });
     }
 
     private static ApiProblem notFound(UUID id) {

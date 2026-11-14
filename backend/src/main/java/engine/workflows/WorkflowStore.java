@@ -152,6 +152,21 @@ class WorkflowStore {
         return Optional.of(new ContractView(id, projectId, version, now.toInstant()));
     }
 
+    /** The newest contract version with its frozen snapshot as JSON text. */
+    Optional<StoredContract> latestContract(UUID projectId) {
+        return jdbc.sql("select contract_version, snapshot::text as snapshot, cost_limit_amount"
+                        + " from workflows.contracts where project_id = :p"
+                        + " order by contract_version desc limit 1")
+                .param("p", projectId)
+                .query((rs, row) -> new StoredContract(rs.getInt("contract_version"),
+                        rs.getString("snapshot"), rs.getBigDecimal("cost_limit_amount")))
+                .optional();
+    }
+
+    /** A contract row: version, snapshot JSON and the limit (null when none was chosen). */
+    record StoredContract(int version, String snapshot, java.math.BigDecimal costLimit) {
+    }
+
     List<ContractView> contracts(UUID projectId) {
         return jdbc.sql("select id, contract_version, confirmed_at from workflows.contracts"
                         + " where project_id = :p order by contract_version")

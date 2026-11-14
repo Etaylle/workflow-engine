@@ -6,7 +6,9 @@ const KNOWN = [
 	'answered',
 	'requirements_ready',
 	'workflow_drafted',
-	'confirmed'
+	'confirmed',
+	'executing',
+	'done'
 ];
 
 export const statusKey = (status: string): MessageKey =>
@@ -15,7 +17,7 @@ export const statusKey = (status: string): MessageKey =>
 /** Colour of the status pill: waiting for the client, finished, or just under way. */
 export function statusTone(status: string): 'wait' | 'done' | 'active' | '' {
 	if (status === 'questions_ready') return 'wait';
-	if (status === 'confirmed') return 'done';
+	if (status === 'confirmed' || status === 'done') return 'done';
 	if (status === 'draft') return '';
 	return 'active';
 }

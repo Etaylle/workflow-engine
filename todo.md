@@ -2,7 +2,7 @@
 
 Updated after each slice and each decision. Newest first. The plan: `ai-docs/plan.md`. How we work: `CLAUDE.md` 2.
 
-Last update: 2026-11-15 (Claude): M6 slices 1 to 6 done (All projects with rename/delete, wish form and edit, app shell, edit/add/delete single questions, workflow editor, documents, review table); D-46 to D-53. Remaining M6 stories need a real key, settings or execution (see D-48, D-51, D-52, D-53). M2 planning complete 2026-11-14 (real Claude calls not tried).
+Last update: 2026-11-15 (Claude): M4 run end to end (thin) built with the stub, D-54 to D-61; M6 slices 1 to 6 done (All projects with rename/delete, wish form and edit, app shell, edit/add/delete single questions, workflow editor, documents, review table); D-46 to D-53. Remaining M6 stories need a real key, settings or execution (see D-48, D-51, D-52, D-53). M2 planning complete 2026-11-14 (real Claude calls not tried).
 
 ## How to test (owner)
 
@@ -25,11 +25,15 @@ From the requirements on, "Documents" shows the requirements document and the pr
 
 Reload the page at any step: nothing is lost. A wrong or missing key, a rate limit or an invalid answer shows a message and leaves the project where it was.
 
+## M4 run (how to test)
+
+Confirm a contract, then press "Run" under the workflow: tasks, steps, cost and console fill live, the ZIP button appears at the end. With `ENGINE_AI_STUB=true ci/run env-up` a run takes seconds and writes small files. Without the stub the engine runs Claude Code per step in a workspace folder (needs the key from the form, or `ENGINE_EXECUTION_USE_SIGN_IN=true` for the machine's sign-in). Cost limit USD 10.
+
 ## Current position
 
 | Item | State |
 |---|---|
-| Milestone | M0, M1 and M2 done 2026-11-14; M3 build spike measured 2026-11-15 (see "M3 spike results"); next the run (M4) |
+| Milestone | M0, M1 and M2 done 2026-11-14; M3 build spike measured 2026-11-15 (see "M3 spike results"); M4 run built (see "M4 run" below); next M5 |
 | M2 done | Brief (`POST/GET /api/projects/{id}/brief`), questions (`POST/GET .../questions`, `PUT .../answers`), requirements (`POST/GET .../requirements`), workflow now from answers and requirements; contract snapshot holds wish, brief, answers, requirements, workflow. Frontend: one project page with the steps, status-driven so a reload keeps the place. Diagram redrawn with swimlane bands (screenshot checked). `ci/run all-local` green (counts in the report of this session). **Not tried: any real Claude call of M2** (4 calls: brief, questions, requirements, workflow) |
 | M0 done | `backend/` (Spring Boot 4.1.2, Java 21 by Gradle toolchain, wrapper 8.14.7), the four planning migrations (18 tables), `GET /api/status` from `api/openapi.yaml`, health; `./gradlew test` 2 of 2 green (unit, architecture), `./gradlew integrationTest` 3 of 3 green on PostgreSQL 17 |
 | M0 also done | `frontend/` (SvelteKit 3, Svelte 5, English and German, status call, AI check), `POST /api/ai/check` (key in memory only, Anthropic Java SDK, `claude-haiku-5-5`; stub with `ENGINE_AI_STUB=true`), `ci/run`, one Playwright journey; `ci/run all-local` green (backend 5 unit + 3 integration, frontend 5 Vitest, 1 end-to-end). Not tried: the AI check with a real valid key (only the 401 path against the live API) |
@@ -71,6 +75,14 @@ Not measured: the container half (Docker not running), a second task, rate-limit
 
 | ID | Decision | Date |
 |---|---|---|
+| D-61 | M4 left out (thin): trying the result after each task (D-23), fix loops, asking the client, stop and resume (M5), GitHub push, Render link, final report. After a failed step the run is `paused` with the reason; after an engine restart a running run is `interrupted`; both can be downloaded as ZIP and a new run can be started | 2026-11-15 |
+| D-60 | `POST .../workflow` and `PUT .../workflow` are allowed from project status `done` too (a new contract version for another run). A run sets the project to `executing`, and to `done` when all tasks are built | 2026-11-15 |
+| D-59 | Live status: events `run`, `task`, `step`, `console` with a number per run (`GET /api/runs/{id}/events?after=`, SSE `/stream?after=` or `Last-Event-ID`, replay then live). The screen loads the snapshot (`GET /api/runs/{id}`), follows the stream and reloads the snapshot on every non-console event, so a reload loses nothing | 2026-11-15 |
+| D-58 | Workspace per run in `ENGINE_EXECUTION_WORKSPACE_DIR` (default `~/.workflow-engine/workspaces/run-<id>`, logs in `run-<id>-logs`), template from `ENGINE_EXECUTION_TEMPLATE_DIR` (`ci/run` sets it). The generated project's database is `run_<12 hex>` created on the engine's PostgreSQL server (`ENGINE_EXECUTION_CREATE_DATABASE`, default true) and dropped when the project is deleted. ZIP = workspace without `.git`, `build`, `node_modules`, `.gradle`. After a task its `docs/*` move to `docs/task-N/` | 2026-11-15 |
+| D-57 | Builder behind an interface: `ClaudeCodeBuilder` (per step `claude -p` as in the spike, `--max-budget-usd` = min(step cap, limit left), 20 min wait per step, 10 min per check; the session key only as `ANTHROPIC_API_KEY` of the child; `ENGINE_EXECUTION_USE_SIGN_IN=true` runs on the machine's Claude Code sign-in without a key) and `StubBuilder` (`ENGINE_AI_STUB=true`). Cost limit: contract limit or `ENGINE_EXECUTION_COST_LIMIT_USD` (default 10), checked before every step | 2026-11-15 |
+| D-56 | The step profile is data: `backend/src/main/resources/execution/profile-short.txt` (key, title, gate, cap, prompt; prompts of the spike). Titles of steps and the failure reason are engine text from that data, not from the message files | 2026-11-15 |
+| D-55 | Run states: `preparing`, `executing`, `paused` (a step failed or the cost limit is reached; reason shown), `done`, `interrupted` (engine restart). Task states pending, running, done, failed; step states waiting, running, done, failed. Tasks = software tasks of the latest contract in workflow order (position left to right) | 2026-11-15 |
+| D-54 | Schema `execution` (V7): `runs`, `task_runs`, `step_runs`, `agent_calls`, `checkpoints`, `run_events` (console lines are events of kind `console`; `human_questions` waits for M5) | 2026-11-15 |
 | D-53 | Review (screen 8, what needs no settings/execution): table "Your project" with wish name, answers (by AI), technology (fixed Java + Svelte + PostgreSQL), AI (harness and model, now in the Project API), requirements by priority, workflow tasks by type, the no-login note. Not done: cost limit, time rules, GitHub, Render, team, steps, estimate (M3 and later). Model choice (US-01.04) is not offered: planning calls use `claude-sonnet-5-5` fixed, wiring a choice through the four writers needs a real-key check | 2026-11-15 |
 | D-52 | US-03.02 to 03.04 (reduced): the requirements document and the project plan are built from what the project holds now, with no AI call (`DocumentBuilder`; the plan follows the workflow, so it needs no key and stays in step with edits), viewed in the browser and downloaded as DOCX (written by hand, no library) or Markdown. PDF is not offered, English only (the document language field is not used yet), nothing stored (table `generated_documents` stays unused). Read through ports: `ProjectPort.nameOf`, new `WorkflowPort` | 2026-11-15 |
 | D-51 | US-04.03/04.04/04.05 (reduced): `PUT /api/projects/{id}/workflow` replaces the workflow by an edited one (lanes, nodes, arrows), same validator as Claude's draft (400 with the rule broken), status valid, project `workflow_drafted`; after a confirmation the next confirm is version N+1. The edit is a list editor under the diagram (steps with name, what happens, lane, type; add step after, delete with reconnect, arrows, lanes), not drag and drop. Not done: acceptance criteria, AI test scenarios, story type (US-04.03), delete of a lane, moving boxes | 2026-11-15 |

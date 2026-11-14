@@ -689,8 +689,156 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+  /api/projects/{id}/runs:
+    post:
+      operationId: startRun
+      summary: Start a run on the latest confirmed contract (only when the project is confirmed)
+      description: >
+        Returns at once with the run in status preparing; the build goes on in the background.
+        The tasks are the software tasks of the contract in workflow order, each built by the
+        steps of the short profile. Needs the Anthropic key of the session unless the engine is
+        set to use the machine's own Claude Code sign-in.
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      responses:
+        "201":
+          description: The run was created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Run"
+        "409":
+          description: Not confirmed, a run is active, no software task, or no key
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: No such project
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/projects/{id}/runs/latest:
+    get:
+      operationId: getLatestRun
+      summary: The newest run of the project
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      responses:
+        "200":
+          description: The run with tasks, steps and cost
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Run"
+        "404":
+          description: No such project, or it has no run yet
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/runs/{runId}:
+    get:
+      operationId: getRun
+      summary: Snapshot of a run (state, tasks, steps, cost, last event number)
+      parameters:
+        - $ref: "#/components/parameters/RunId"
+      responses:
+        "200":
+          description: The run
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Run"
+        "404":
+          description: No such run
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/runs/{runId}/events:
+    get:
+      operationId: listRunEvents
+      summary: Events of a run after a sequence number (at most 1000, oldest first)
+      parameters:
+        - $ref: "#/components/parameters/RunId"
+        - name: after
+          in: query
+          schema: {type: integer, format: int64, default: 0}
+      responses:
+        "200":
+          description: The events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RunEvent"
+        "404":
+          description: No such run
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/runs/{runId}/stream:
+    get:
+      operationId: streamRunEvents
+      summary: Server-sent events of a run, replayed from a sequence number, then live
+      description: >
+        The events after `after` (or after the header Last-Event-ID, which browsers send when they
+        reconnect) are sent first, then new ones as they happen. The `id` of each event is its
+        sequence number. The stream ends after ten minutes; the client reconnects.
+      parameters:
+        - $ref: "#/components/parameters/RunId"
+        - name: after
+          in: query
+          schema: {type: integer, format: int64}
+      responses:
+        "200":
+          description: The event stream
+          content:
+            text/event-stream:
+              schema: {type: string}
+        "404":
+          description: No such run
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/runs/{runId}/zip:
+    get:
+      operationId: downloadRunZip
+      summary: The workspace of the run as ZIP (without .git, build output and node_modules)
+      parameters:
+        - $ref: "#/components/parameters/RunId"
+      responses:
+        "200":
+          description: The ZIP
+          content:
+            application/zip:
+              schema: {type: string, format: binary}
+        "404":
+          description: No such run, or its workspace is gone
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: The run is still preparing or building
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
 components:
   parameters:
+    RunId:
+      name: runId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
     ProjectId:
       name: id
       in: path
@@ -900,6 +1048,60 @@ components:
               id: {type: string, format: uuid}
               source: {type: string, format: uuid}
               target: {type: string, format: uuid}
+    Run:
+      type: object
+      required: [id, projectId, contractVersion, status, costUsd, costLimitUsd, lastSeq, startedAt, tasks]
+      properties:
+        id: {type: string, format: uuid}
+        projectId: {type: string, format: uuid}
+        contractVersion: {type: integer}
+        status:
+          type: string
+          enum: [preparing, executing, paused, done, interrupted]
+          description: >
+            paused = a step failed (reason in failureReason); interrupted = the engine restarted
+            while the run was under way (the key is gone)
+        failureReason: {type: string, nullable: true}
+        costUsd: {type: number, description: Sum of the Claude Code invocations so far}
+        costLimitUsd: {type: number}
+        lastSeq: {type: integer, format: int64}
+        startedAt: {type: string, format: date-time}
+        finishedAt: {type: string, format: date-time, nullable: true}
+        tasks:
+          type: array
+          items:
+            type: object
+            required: [id, seq, title, status, steps]
+            properties:
+              id: {type: string, format: uuid}
+              seq: {type: integer}
+              title: {type: string}
+              lane: {type: string, nullable: true}
+              status: {type: string, enum: [pending, running, done, failed]}
+              steps:
+                type: array
+                items:
+                  type: object
+                  required: [id, seq, key, title, status, costUsd]
+                  properties:
+                    id: {type: string, format: uuid}
+                    seq: {type: integer}
+                    key: {type: string}
+                    title: {type: string}
+                    status: {type: string, enum: [waiting, running, done, failed]}
+                    result: {type: string, nullable: true}
+                    costUsd: {type: number}
+                    turns: {type: integer}
+                    seconds: {type: integer}
+                    commit: {type: string, nullable: true}
+    RunEvent:
+      type: object
+      required: [seq, kind, text, at]
+      properties:
+        seq: {type: integer, format: int64}
+        kind: {type: string, enum: [run, task, step, console]}
+        text: {type: string}
+        at: {type: string, format: date-time}
     Contract:
       type: object
       required: [id, projectId, version, confirmedAt]

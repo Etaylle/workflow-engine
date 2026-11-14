@@ -169,3 +169,60 @@ export const getDocument = (projectId: string, kind: DocumentKind) =>
 	json<ProjectDocument>(`/api/projects/${projectId}/documents/${kind}`);
 export const documentUrl = (projectId: string, kind: DocumentKind, format: 'docx' | 'md') =>
 	`/api/projects/${projectId}/documents/${kind}/download?format=${format}`;
+
+export type RunStatus = 'preparing' | 'executing' | 'paused' | 'done' | 'interrupted';
+export type RunStep = {
+	id: string;
+	seq: number;
+	key: string;
+	title: string;
+	status: 'waiting' | 'running' | 'done' | 'failed';
+	result?: string | null;
+	costUsd: number;
+	turns: number;
+	seconds: number;
+	commit?: string | null;
+};
+export type RunTask = {
+	id: string;
+	seq: number;
+	title: string;
+	lane?: string | null;
+	status: 'pending' | 'running' | 'done' | 'failed';
+	steps: RunStep[];
+};
+export type Run = {
+	id: string;
+	projectId: string;
+	contractVersion: number;
+	status: RunStatus;
+	failureReason?: string | null;
+	costUsd: number;
+	costLimitUsd: number;
+	lastSeq: number;
+	startedAt: string;
+	finishedAt?: string | null;
+	tasks: RunTask[];
+};
+export type RunEvent = {
+	seq: number;
+	kind: 'run' | 'task' | 'step' | 'console';
+	text: string;
+	at: string;
+};
+
+export const startRun = (projectId: string) => json<Run>(`/api/projects/${projectId}/runs`, 'POST');
+export const getRun = (runId: string) => json<Run>(`/api/runs/${runId}`);
+export const listRunEvents = (runId: string, after = 0) =>
+	json<RunEvent[]>(`/api/runs/${runId}/events?after=${after}`);
+export const runStreamUrl = (runId: string, after: number) =>
+	`/api/runs/${runId}/stream?after=${after}`;
+export const runZipUrl = (runId: string) => `/api/runs/${runId}/zip`;
+
+/** The newest run of a project, or null when it has none yet. */
+export async function getLatestRun(projectId: string): Promise<Run | null> {
+	const response = await fetch(`/api/projects/${projectId}/runs/latest`);
+	if (response.status === 404) return null;
+	if (!response.ok) throw await failure(response);
+	return (await response.json()) as Run;
+}

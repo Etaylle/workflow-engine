@@ -20,7 +20,7 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 class DatabaseIT {
 
     private static final List<String> DOMAIN_SCHEMAS =
-            List.of("projects", "questions", "documents", "workflows");
+            List.of("projects", "questions", "documents", "workflows", "execution");
 
     @Autowired private JdbcClient jdbc;
     @LocalServerPort private int port;
@@ -35,7 +35,7 @@ class DatabaseIT {
                         .query(Integer.class)
                         .single();
 
-        assertThat(tables).isEqualTo(18);
+        assertThat(tables).isEqualTo(24);
     }
 
     @Test

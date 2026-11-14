@@ -4,6 +4,7 @@
 	import { rank } from '#lib/planning/steps.js';
 	import DocumentsPanel from './DocumentsPanel.svelte';
 	import WishEditor from './WishEditor.svelte';
+	import RunPanel from './RunPanel.svelte';
 	import QuestionsStep from './QuestionsStep.svelte';
 	import RequirementsStep from './RequirementsStep.svelte';
 	import WorkflowPanel from './WorkflowPanel.svelte';
@@ -22,6 +23,9 @@
 	{/if}
 	{#if rank(project.status) >= 3}
 		<WorkflowPanel {project} {changed} />
+	{/if}
+	{#if rank(project.status) >= 5}
+		<RunPanel {project} {changed} />
 	{/if}
 	<DocumentsPanel {project} />
 </article>
