@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { currentStep, rank } from './steps.js';
+import { activeChip, rank } from './steps.js';
 
 describe('journey position', () => {
 	it('orders the statuses', () => {
@@ -8,12 +8,12 @@ describe('journey position', () => {
 		expect(rank('executing')).toBe(rank('confirmed'));
 	});
 
-	it('names the step to work on', () => {
-		expect(currentStep('draft')).toBe('questions');
-		expect(currentStep('questions_ready')).toBe('questions');
-		expect(currentStep('answered')).toBe('requirements');
-		expect(currentStep('requirements_ready')).toBe('workflow');
-		expect(currentStep('workflow_drafted')).toBe('review');
-		expect(currentStep('confirmed')).toBe('review');
+	it('names the header chip to work on', () => {
+		expect(activeChip('draft')).toBe(1);
+		expect(activeChip('questions_ready')).toBe(1);
+		expect(activeChip('answered')).toBe(2);
+		expect(activeChip('requirements_ready')).toBe(3);
+		expect(activeChip('workflow_drafted')).toBe(4);
+		expect(activeChip('confirmed')).toBe(4);
 	});
 });

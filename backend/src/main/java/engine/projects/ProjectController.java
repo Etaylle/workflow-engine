@@ -5,7 +5,9 @@ import engine.shared.SessionKey;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -17,12 +19,15 @@ import org.springframework.web.bind.annotation.RestController;
 public class ProjectController {
 
     /** Request body; the key never appears in toString. */
-    public record CreateProjectRequest(String wish, String apiKey) {
+    public record CreateProjectRequest(String wish, String apiKey, String name) {
         @Override
         public String toString() {
             return "CreateProjectRequest[wish=" + wish + ", apiKey=***]";
         }
     }
+
+    /** Request body of the rename. */
+    public record RenameRequest(String name) { }
 
     private final ProjectService projects;
     private final SessionKey sessionKey;
@@ -35,7 +40,7 @@ public class ProjectController {
     @PostMapping("/api/projects")
     @ResponseStatus(HttpStatus.CREATED)
     public Project create(@RequestBody CreateProjectRequest request) {
-        Project project = projects.create(request.wish());
+        Project project = projects.create(request.wish(), request.name());
         if (request.apiKey() != null && !request.apiKey().isBlank()) {
             sessionKey.set(request.apiKey().strip());
         }
@@ -52,5 +57,16 @@ public class ProjectController {
         return projects
                 .get(id)
                 .orElseThrow(() -> new ApiProblem(404, "Project not found", "No project " + id));
+    }
+
+    @PatchMapping("/api/projects/{id}")
+    public Project rename(@PathVariable UUID id, @RequestBody RenameRequest request) {
+        return projects.rename(id, request.name());
+    }
+
+    @DeleteMapping("/api/projects/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void delete(@PathVariable UUID id) {
+        projects.delete(id);
     }
 }

@@ -1,6 +1,7 @@
 package engine.projects;
 
 import engine.shared.ApiProblem;
+import engine.shared.ProjectCleanup;
 import engine.shared.ProjectPort;
 import java.sql.Timestamp;
 import java.time.Clock;
@@ -9,6 +10,7 @@ import java.util.Optional;
 import java.util.UUID;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -17,21 +19,25 @@ import tools.jackson.databind.json.JsonMapper;
 public class ProjectService implements ProjectPort {
 
     static final int MAX_WISH_LENGTH = 20_000;
+    static final int MAX_NAME_LENGTH = 120;
     private static final int NAME_LENGTH = 60;
     private static final String COLUMNS = "id, name, wish, status, created_at, updated_at";
 
     private final JdbcClient jdbc;
     private final Clock clock;
     private final JsonMapper json;
+    private final List<ProjectCleanup> cleanups;
 
-    public ProjectService(JdbcClient jdbc, Clock clock, JsonMapper json) {
+    public ProjectService(
+            JdbcClient jdbc, Clock clock, JsonMapper json, List<ProjectCleanup> cleanups) {
+        this.cleanups = cleanups;
         this.jdbc = jdbc;
         this.clock = clock;
         this.json = json;
     }
 
-    /** Creates a draft project from the wish; the name is the start of the wish. */
-    public Project create(String wish) {
+    /** Creates a draft project from the wish; without a name it is the start of the wish. */
+    public Project create(String wish, String name) {
         String trimmed = wish == null ? "" : wish.strip();
         if (trimmed.isEmpty()) {
             throw new ApiProblem(
@@ -49,11 +55,49 @@ public class ProjectService implements ProjectPort {
                                 + " values (:id, :name, :wish, 'draft', 'claude_code', 'anthropic',"
                                 + " 'claude-sonnet-5-5', :now, :now)")
                 .param("id", id)
-                .param("name", nameOf(trimmed))
+                .param("name", name == null || name.isBlank() ? nameOf(trimmed) : checkedName(name))
                 .param("wish", trimmed)
                 .param("now", now)
                 .update();
         return get(id).orElseThrow();
+    }
+
+    /** Renames a project; the name must not be blank. */
+    public Project rename(UUID id, String name) {
+        String trimmed = checkedName(name);
+        int rows = jdbc.sql("update projects.projects set name = :name, updated_at = :now,"
+                        + " version = version + 1 where id = :id")
+                .param("name", trimmed)
+                .param("now", Timestamp.from(clock.instant()))
+                .param("id", id)
+                .update();
+        if (rows == 0) {
+            throw notFound(id);
+        }
+        return get(id).orElseThrow();
+    }
+
+    private static String checkedName(String name) {
+        String trimmed = name == null ? "" : name.strip();
+        if (trimmed.isEmpty() || trimmed.length() > MAX_NAME_LENGTH) {
+            throw new ApiProblem(400, "Name invalid",
+                    "The name must have 1 to " + MAX_NAME_LENGTH + " characters.");
+        }
+        return trimmed;
+    }
+
+    /** Deletes the project with everything the domains hold for it. */
+    @Transactional
+    public void delete(UUID id) {
+        if (get(id).isEmpty()) {
+            throw notFound(id);
+        }
+        cleanups.forEach(cleanup -> cleanup.deleteAllOf(id));
+        jdbc.sql("delete from projects.projects where id = :id").param("id", id).update();
+    }
+
+    static ApiProblem notFound(UUID id) {
+        return new ApiProblem(404, "Project not found", "No project " + id);
     }
 
     public List<Project> list() {

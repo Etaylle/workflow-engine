@@ -5,13 +5,13 @@ import { isLocale, translate, type MessageKey } from './i18n.js';
 
 describe('translate', () => {
 	it('returns the message of the locale', () => {
-		expect(translate('en', 'status.heading')).toBe('Engine status');
-		expect(translate('de', 'status.heading')).toBe('Status der Engine');
+		expect(translate('en', 'list.title')).toBe('All projects');
+		expect(translate('de', 'list.title')).toBe('Alle Projekte');
 	});
 
 	it('fills placeholders and keeps unknown ones visible', () => {
-		expect(translate('en', 'ai.ok', { model: 'stub' })).toContain('stub');
-		expect(translate('en', 'ai.ok')).toContain('{model}');
+		expect(translate('en', 'status.footer', { name: 'x', build: 'stub' })).toContain('stub');
+		expect(translate('en', 'status.footer')).toContain('{name}');
 	});
 
 	it('fails loudly for a missing key', () => {

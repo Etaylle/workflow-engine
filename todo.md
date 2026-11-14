@@ -2,7 +2,7 @@
 
 Updated after each slice and each decision. Newest first. The plan: `ai-docs/plan.md`. How we work: `CLAUDE.md` 2.
 
-Last update: 2026-11-14 (Claude): M2 planning complete (brief, questions, requirements, workflow from both, review and confirm; stub verified, real Claude calls not tried); D-40 to D-45.
+Last update: 2026-11-15 (Claude): M6 slice 1 done (screen 0 All projects with rename and delete, screen 1 form, app shell with step chips); D-46 to D-48. M2 planning complete 2026-11-14 (real Claude calls not tried).
 
 ## How to test (owner)
 
@@ -12,9 +12,10 @@ Last update: 2026-11-14 (Claude): M2 planning complete (brief, questions, requir
 
 **With a real key**: `ci/run env-up` (no `ENGINE_AI_STUB`). Type your Anthropic key into the "Anthropic key" field of the new-project form. It stays in engine memory only; after a restart enter it again. Calls use `claude-sonnet-5-5` and can take up to two minutes each.
 
-**Click path** (the page is `/`; the open project is in the address after `#`, so a reload keeps your place):
+**Click path** (the page is `/`; the open project is in the address after `#`, the list is `#projects`, so a reload keeps your place):
 
-1. "New project": type the wish and the key, "Create project".
+0. The start page is "All projects" (open, rename, delete with confirmation). "New project" opens "Describe your idea" (address `#new`).
+1. Type the optional name, the wish and the key ("Test" checks the key), "Send to the AI".
 2. "Research and ask questions": Claude writes the brief and at most 8 questions; the AI's proposal is preselected on each. Change what does not fit, "Save answers".
 3. "Write the requirements with Claude": requirements grouped by epic.
 4. "Write the workflow with Claude": swimlane diagram. "Write it again" replaces it.
@@ -55,6 +56,9 @@ Reload the page at any step: nothing is lost. A wrong or missing key, a rate lim
 
 | ID | Decision | Date |
 |---|---|---|
+| D-48 | Left out of M6 slice 1 (stories need later milestones or were cut in D-45): links and files (US-01.03), GitHub sign-in (US-01.06), opencode (D-21; only Claude Code is shown), GitHub column of the list | 2026-11-15 |
+| D-47 | Deleting a project removes everything the domains hold for it: each domain implements `engine.shared.ProjectCleanup`, `ProjectService.delete` runs them in one transaction. Contracts stay undeletable (V5 trigger) except inside that transaction: V6 lets the delete pass when `engine.deleting_project` is set for the transaction. Rename = `PATCH /api/projects/{id}`, create takes an optional `name` | 2026-11-15 |
+| D-46 | Frontend shell: global `src/app.css` (tokens, buttons, cards, pills), a hash router (`#projects` list, `#new` wish form, `#<id>` project), header with step chips from the project status. The AI check section and the status block of the old page moved: key test is on the wish form, engine name and build in the page footer | 2026-11-15 |
 | D-45 | Left out of the M2 stories to stay on the path: attachments and links in the brief (US-01.07 keeps only the brief table fields goal, actors, domain terms, risks), web research with sources (US-02.04: the questions call uses Claude's own knowledge), edit/add/delete of single questions (US-02.03), technology choice, languages and colours (US-02.05/06), project plan document, download as DOCX/PDF (US-03.02 to 03.04), cost limit, time rules, GitHub and Render on the review page (US-04.06 shows counts and the diagram, confirm only) | 2026-11-14 |
 | D-44 | Status gates: brief only in `draft`; questions in `draft` or `questions_ready` (asking again replaces them); answers in `questions_ready` or `answered` (every question needs one answer, saved all at once); requirements in `answered` or `requirements_ready`; workflow in `requirements_ready`, `workflow_drafted` or `confirmed`. Anything else is 409. Accepting the proposal (value equal to it) is stored as `decided_by = ai`, any other value as `client` | 2026-11-14 |
 | D-43 | Domains share data through ports in `engine.shared`: `ProjectPort` (wish, status, brief text, mark status), `AnswersPort` (implemented by `questions`), `RequirementsPort` (implemented by `documents`). `ClaudeCall` in `engine.shared` is the one place that builds the client from the session key, reads structured output, maps errors (401, 429, 502) and runs the one retry (`validated`); all four planning calls use it. `InvalidAiOutputException` moved there | 2026-11-14 |

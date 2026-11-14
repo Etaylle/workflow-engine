@@ -3,11 +3,11 @@ import { expect, test } from '@playwright/test';
 test('wish to questions, requirements, workflow and confirmed contract, surviving reloads', async ({
 	page
 }) => {
-	await page.goto('/');
+	await page.goto('/#new');
 
 	await page.getByTestId('wish').fill('A canteen app where students order a meal and pick it up');
 	await page.getByTestId('project-key').fill('sk-any');
-	await page.getByRole('button', { name: 'Create project' }).click();
+	await page.getByTestId('create').click();
 
 	// Screen 1 and 2: brief and questions with the proposal preselected
 	await page.getByTestId('ask').click();
@@ -47,7 +47,6 @@ test('wish to questions, requirements, workflow and confirmed contract, survivin
 	await expect(page.getByTestId('confirmed')).toContainText('contract version 1');
 
 	await page.reload();
-	await expect(page.getByTestId('projects')).toContainText('A canteen app');
 	await expect(page.getByTestId('diagram').getByText('Order a meal')).toBeVisible();
 	await expect(page.getByTestId('confirmed')).toContainText('contract version 1');
 	await expect(page.getByTestId('question-1')).toContainText('How do students pay?');
@@ -55,4 +54,8 @@ test('wish to questions, requirements, workflow and confirmed contract, survivin
 	await page.getByTestId('generate').click();
 	await page.getByTestId('confirm').click();
 	await expect(page.getByTestId('versions')).toContainText('1, 2');
+
+	await page.goto('/#projects');
+	await expect(page.getByTestId('projects')).toContainText('A canteen app');
+	await expect(page.getByTestId('projects')).toContainText('Confirmed');
 });

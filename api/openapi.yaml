@@ -110,6 +110,56 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+    patch:
+      operationId: renameProject
+      summary: Rename a project
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 120
+      responses:
+        "200":
+          description: The renamed project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "400":
+          description: The name is blank or too long
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: No such project
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    delete:
+      operationId: deleteProject
+      summary: Delete a project with its questions, requirements, workflow and contracts
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: No such project
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
   /api/projects/{id}/workflow:
     post:
       operationId: generateWorkflow
@@ -457,6 +507,10 @@ components:
         wish:
           type: string
           maxLength: 20000
+        name:
+          type: string
+          maxLength: 120
+          description: Optional; without it the name is the start of the wish
         apiKey:
           type: string
           description: Optional; kept in memory for the session

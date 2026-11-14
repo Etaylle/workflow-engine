@@ -76,8 +76,14 @@ async function json<T>(path: string, method = 'GET', body?: unknown): Promise<T>
 	return (await response.json()) as T;
 }
 
-export const createProject = (wish: string, apiKey: string) =>
-	json<Project>('/api/projects', 'POST', { wish, apiKey });
+export const createProject = (wish: string, apiKey: string, name: string) =>
+	json<Project>('/api/projects', 'POST', { wish, apiKey, name });
+export const renameProject = (projectId: string, name: string) =>
+	json<Project>(`/api/projects/${projectId}`, 'PATCH', { name });
+export async function deleteProject(projectId: string): Promise<void> {
+	const response = await fetch(`/api/projects/${projectId}`, { method: 'DELETE' });
+	if (!response.ok) throw await failure(response);
+}
 export const listProjects = () => json<Project[]>('/api/projects');
 export const generateWorkflow = (projectId: string) =>
 	json<Workflow>(`/api/projects/${projectId}/workflow`, 'POST');

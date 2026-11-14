@@ -14,14 +14,11 @@ export function rank(status: string): number {
 	return index < 0 ? ORDER.length - 1 : index;
 }
 
-export const STEPS = ['questions', 'requirements', 'workflow', 'review'] as const;
-export type Step = (typeof STEPS)[number];
-
-/** The step the client works on at the status: done steps are behind it. */
-export function currentStep(status: string): Step {
+/** Index in the header chips (wish, questions, requirements, workflow, review) of the step to work on. */
+export function activeChip(status: string): number {
 	const r = rank(status);
-	if (r <= 1) return 'questions';
-	if (r === 2) return 'requirements';
-	if (r === 3) return 'workflow';
-	return 'review';
+	if (r <= 1) return 1;
+	if (r === 2) return 2;
+	if (r === 3) return 3;
+	return 4;
 }
