@@ -128,6 +128,14 @@ public class ProjectService implements ProjectPort {
     }
 
     @Override
+    public Optional<String> nameOf(UUID projectId) {
+        return jdbc.sql("select name from projects.projects where id = :id")
+                .param("id", projectId)
+                .query(String.class)
+                .optional();
+    }
+
+    @Override
     public Optional<String> wishOf(UUID projectId) {
         return jdbc.sql("select wish from projects.projects where id = :id")
                 .param("id", projectId)

@@ -75,6 +75,15 @@ test('wish to questions, requirements, workflow and confirmed contract, survivin
 	await page.getByTestId('confirm').click();
 	await expect(page.getByTestId('confirmed')).toContainText('contract version 1');
 
+	// US-03.02/03: both documents can be read and downloaded
+	await page.getByTestId('view-plan').click();
+	await expect(page.getByTestId('document-view')).toContainText('Choose a meal');
+	await page.getByTestId('view-requirements').click();
+	await expect(page.getByTestId('document-view')).toContainText('FR-001');
+	const download = page.waitForEvent('download');
+	await page.getByTestId('docx-plan').click();
+	expect((await download).suggestedFilename()).toBe('plan.docx');
+
 	await page.reload();
 	await expect(page.getByTestId('diagram').getByText('Order a meal')).toBeVisible();
 	await expect(page.getByTestId('confirmed')).toContainText('contract version 1');

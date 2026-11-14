@@ -6,6 +6,9 @@ import java.util.UUID;
 /** What other domains may ask of the domain "projects" (domains do not call each other). */
 public interface ProjectPort {
 
+    /** The name of the project, or empty when the project does not exist. */
+    Optional<String> nameOf(UUID projectId);
+
     /** The wish of the project, or empty when the project does not exist. */
     Optional<String> wishOf(UUID projectId);
 

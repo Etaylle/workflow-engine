@@ -30,6 +30,12 @@ public final class TestHttp {
         return HttpClient.newHttpClient().send(builder.build(), HttpResponse.BodyHandlers.ofString());
     }
 
+    /** Binary response, for downloads. */
+    public HttpResponse<byte[]> bytes(String path) throws Exception {
+        HttpRequest request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + path)).build();
+        return HttpClient.newHttpClient().send(request, HttpResponse.BodyHandlers.ofByteArray());
+    }
+
     public JsonNode json(String method, String path, String body) throws Exception {
         return JSON.readTree(call(method, path, body).body());
     }

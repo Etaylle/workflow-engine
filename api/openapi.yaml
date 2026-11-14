@@ -621,6 +621,74 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+  /api/projects/{id}/documents/{kind}:
+    get:
+      operationId: getDocument
+      summary: View the requirements document (kind requirements) or the project plan (kind plan), built from what the project holds now
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+        - name: kind
+          in: path
+          required: true
+          schema: {type: string, enum: [requirements, plan]}
+      responses:
+        "200":
+          description: The document as title and sections
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Document"
+        "404":
+          description: No such project or document kind
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: The requirements or the workflow are not written yet
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/projects/{id}/documents/{kind}/download:
+    get:
+      operationId: downloadDocument
+      summary: Download a document as DOCX or Markdown (PDF is not offered yet)
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+        - name: kind
+          in: path
+          required: true
+          schema: {type: string, enum: [requirements, plan]}
+        - name: format
+          in: query
+          schema: {type: string, enum: [docx, md], default: docx}
+      responses:
+        "200":
+          description: The file
+          content:
+            application/vnd.openxmlformats-officedocument.wordprocessingml.document:
+              schema: {type: string, format: binary}
+            text/markdown:
+              schema: {type: string}
+        "400":
+          description: Unknown format
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: No such project or document kind
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: The requirements or the workflow are not written yet
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
 components:
   parameters:
     ProjectId:
@@ -733,6 +801,20 @@ components:
             properties:
               from: {type: string}
               to: {type: string}
+    Document:
+      type: object
+      required: [title, sections]
+      properties:
+        title: {type: string}
+        sections:
+          type: array
+          items:
+            type: object
+            required: [heading, paragraphs, bullets]
+            properties:
+              heading: {type: string}
+              paragraphs: {type: array, items: {type: string}}
+              bullets: {type: array, items: {type: string}}
     SaveAnswersRequest:
       type: object
       required: [answers]

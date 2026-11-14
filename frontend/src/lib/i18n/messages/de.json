@@ -135,5 +135,9 @@
 	"workflow.arrowFrom": "Von",
 	"workflow.arrowTo": "Nach",
 	"workflow.addArrow": "Pfeil hinzufügen",
-	"workflow.saveEdit": "Workflow speichern"
+	"workflow.saveEdit": "Workflow speichern",
+	"documents.heading": "Dokumente",
+	"documents.requirements": "Anforderungsdokument",
+	"documents.plan": "Projektplan",
+	"documents.view": "Ansehen"
 }

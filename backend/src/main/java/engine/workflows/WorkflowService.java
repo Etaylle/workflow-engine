@@ -8,6 +8,7 @@ import engine.shared.InvalidAiOutputException;
 import engine.shared.ProjectPort;
 import engine.shared.RequirementsPort;
 import engine.shared.SessionKey;
+import engine.shared.WorkflowPort;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -17,7 +18,7 @@ import tools.jackson.databind.json.JsonMapper;
 
 /** Writes, validates, stores and confirms the workflow of a project. */
 @Service
-class WorkflowService {
+class WorkflowService implements WorkflowPort {
 
     private final WorkflowWriter writer;
     private final WorkflowStore store;
@@ -111,6 +112,18 @@ class WorkflowService {
     List<ContractView> contracts(UUID projectId) {
         projects.wishOf(projectId).orElseThrow(() -> notFound(projectId));
         return store.contracts(projectId);
+    }
+
+    @Override
+    public List<StepLine> stepsOf(UUID projectId) {
+        return store.find(projectId).map(view -> {
+            java.util.Map<UUID, String> lanes = new java.util.HashMap<>();
+            view.lanes().forEach(lane -> lanes.put(lane.id(), lane.name()));
+            return view.nodes().stream()
+                    .map(n -> new StepLine(lanes.get(n.laneId()), n.kind(), n.title(), n.description(),
+                            n.taskType()))
+                    .toList();
+        }).orElse(List.of());
     }
 
     private static ApiProblem notFound(UUID id) {

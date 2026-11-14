@@ -135,5 +135,9 @@
 	"workflow.arrowFrom": "From",
 	"workflow.arrowTo": "To",
 	"workflow.addArrow": "Add arrow",
-	"workflow.saveEdit": "Save the workflow"
+	"workflow.saveEdit": "Save the workflow",
+	"documents.heading": "Documents",
+	"documents.requirements": "Requirements document",
+	"documents.plan": "Project plan",
+	"documents.view": "View"
 }

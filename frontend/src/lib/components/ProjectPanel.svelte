@@ -2,6 +2,7 @@
 	import type { Project } from '#lib/api/client.js';
 	import { locale } from '#lib/i18n/state.svelte.js';
 	import { rank } from '#lib/planning/steps.js';
+	import DocumentsPanel from './DocumentsPanel.svelte';
 	import WishEditor from './WishEditor.svelte';
 	import QuestionsStep from './QuestionsStep.svelte';
 	import RequirementsStep from './RequirementsStep.svelte';
@@ -22,4 +23,5 @@
 	{#if rank(project.status) >= 3}
 		<WorkflowPanel {project} {changed} />
 	{/if}
+	<DocumentsPanel {project} />
 </article>

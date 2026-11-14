@@ -157,3 +157,13 @@ export const editQuestion = (projectId: string, questionId: string, input: Quest
 	json<Question[]>(`/api/projects/${projectId}/question-items/${questionId}`, 'PUT', input);
 export const deleteQuestion = (projectId: string, questionId: string) =>
 	json<Question[]>(`/api/projects/${projectId}/question-items/${questionId}`, 'DELETE');
+
+export type DocumentKind = 'requirements' | 'plan';
+export type ProjectDocument = {
+	title: string;
+	sections: { heading: string; paragraphs: string[]; bullets: string[] }[];
+};
+export const getDocument = (projectId: string, kind: DocumentKind) =>
+	json<ProjectDocument>(`/api/projects/${projectId}/documents/${kind}`);
+export const documentUrl = (projectId: string, kind: DocumentKind, format: 'docx' | 'md') =>
+	`/api/projects/${projectId}/documents/${kind}/download?format=${format}`;
