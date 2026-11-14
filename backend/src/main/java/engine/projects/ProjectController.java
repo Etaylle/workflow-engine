@@ -26,8 +26,8 @@ public class ProjectController {
         }
     }
 
-    /** Request body of the rename. */
-    public record RenameRequest(String name) { }
+    /** Request body of the update: a name, a wish, or both. */
+    public record UpdateRequest(String name, String wish) { }
 
     private final ProjectService projects;
     private final SessionKey sessionKey;
@@ -60,8 +60,8 @@ public class ProjectController {
     }
 
     @PatchMapping("/api/projects/{id}")
-    public Project rename(@PathVariable UUID id, @RequestBody RenameRequest request) {
-        return projects.rename(id, request.name());
+    public Project update(@PathVariable UUID id, @RequestBody UpdateRequest request) {
+        return projects.update(id, request.name(), request.wish());
     }
 
     @DeleteMapping("/api/projects/{id}")

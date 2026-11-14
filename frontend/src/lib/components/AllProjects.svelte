@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { ApiError, deleteProject, renameProject, type Project } from '#lib/api/client.js';
+	import { ApiError, deleteProject, updateProject, type Project } from '#lib/api/client.js';
 	import { locale } from '#lib/i18n/state.svelte.js';
 	import { relativeTime } from '#lib/shell/relativeTime.js';
 	import { statusKey, statusTone } from '#lib/shell/status.js';
@@ -64,7 +64,7 @@
 											class="inline"
 											onsubmit={(e) => {
 												e.preventDefault();
-												void act(() => renameProject(project.id, renaming?.name ?? ''));
+												void act(() => updateProject(project.id, { name: renaming?.name ?? '' }));
 											}}
 										>
 											<input

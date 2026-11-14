@@ -78,4 +78,29 @@ class ProjectsIT {
         assertThat(http.call("POST", "/api/projects",
                 "{\"wish\":\"x\",\"name\":\"" + "n".repeat(121) + "\"}").statusCode()).isEqualTo(400);
     }
+
+    @Test
+    void changingTheWishMovesTheProjectBackToDraftButRenamingDoesNot() throws Exception {
+        UUID id = http.answeredProject("A canteen app");
+
+        var renamed = http.json("PATCH", "/api/projects/" + id, "{\"name\":\"Same wish\"}");
+        assertThat(renamed.get("status").asString()).isEqualTo("answered");
+
+        var sameWish = http.json("PATCH", "/api/projects/" + id, "{\"wish\":\"A canteen app\"}");
+        assertThat(sameWish.get("status").asString()).isEqualTo("answered");
+
+        var changed = http.json("PATCH", "/api/projects/" + id, "{\"wish\":\" A bike shop app \"}");
+        assertThat(changed.get("status").asString()).isEqualTo("draft");
+        assertThat(changed.get("wish").asString()).isEqualTo("A bike shop app");
+        assertThat(changed.get("name").asString()).isEqualTo("Same wish");
+    }
+
+    @Test
+    void updateRejectsEmptyRequestAndBlankWish() throws Exception {
+        UUID id = http.createProject("A canteen app");
+
+        assertThat(http.call("PATCH", "/api/projects/" + id, "{}").statusCode()).isEqualTo(400);
+        assertThat(http.call("PATCH", "/api/projects/" + id, "{\"wish\":\"  \"}").statusCode())
+                .isEqualTo(400);
+    }
 }

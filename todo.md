@@ -19,7 +19,7 @@ Last update: 2026-11-15 (Claude): M6 slice 1 done (screen 0 All projects with re
 2. "Research and ask questions": Claude writes the brief and at most 8 questions; the AI's proposal is preselected on each. Change what does not fit, "Save answers".
 3. "Write the requirements with Claude": requirements grouped by epic.
 4. "Write the workflow with Claude": swimlane diagram. "Write it again" replaces it.
-5. "Review and confirm" shows the counts; "Confirm as contract" freezes wish, brief, answers, requirements and workflow as contract version 1. Changing the workflow and confirming again makes version 2.
+5. "Review and confirm" shows the counts; "Confirm as contract" freezes wish, brief, answers, requirements and workflow as contract version 1. Changing the workflow and confirming again makes version 2. "Edit the wish" under the project name moves the project back to step 1.
 
 Reload the page at any step: nothing is lost. A wrong or missing key, a rate limit or an invalid answer shows a message and leaves the project where it was.
 
@@ -56,6 +56,7 @@ Reload the page at any step: nothing is lost. A wrong or missing key, a rate lim
 
 | ID | Decision | Date |
 |---|---|---|
+| D-49 | US-01.08: `PATCH /api/projects/{id}` takes name and/or wish; a changed wish sets status draft (renaming or the same wish does not). Questions of an earlier wish stay visible only as the prompt to ask again (the old questions are replaced then); requirements and workflow remain until redone; a confirmed contract is untouched and the next confirmation is version N+1 | 2026-11-15 |
 | D-48 | Left out of M6 slice 1 (stories need later milestones or were cut in D-45): links and files (US-01.03), GitHub sign-in (US-01.06), opencode (D-21; only Claude Code is shown), GitHub column of the list | 2026-11-15 |
 | D-47 | Deleting a project removes everything the domains hold for it: each domain implements `engine.shared.ProjectCleanup`, `ProjectService.delete` runs them in one transaction. Contracts stay undeletable (V5 trigger) except inside that transaction: V6 lets the delete pass when `engine.deleting_project` is set for the transaction. Rename = `PATCH /api/projects/{id}`, create takes an optional `name` | 2026-11-15 |
 | D-46 | Frontend shell: global `src/app.css` (tokens, buttons, cards, pills), a hash router (`#projects` list, `#new` wish form, `#<id>` project), header with step chips from the project status. The AI check section and the status block of the old page moved: key test is on the wish form, engine name and build in the page footer | 2026-11-15 |

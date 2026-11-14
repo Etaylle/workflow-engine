@@ -38,15 +38,7 @@ public class ProjectService implements ProjectPort {
 
     /** Creates a draft project from the wish; without a name it is the start of the wish. */
     public Project create(String wish, String name) {
-        String trimmed = wish == null ? "" : wish.strip();
-        if (trimmed.isEmpty()) {
-            throw new ApiProblem(
-                    400, "Wish missing", "Describe what you want built; the wish is empty.");
-        }
-        if (trimmed.length() > MAX_WISH_LENGTH) {
-            throw new ApiProblem(
-                    400, "Wish too long", "The wish has more than " + MAX_WISH_LENGTH + " characters.");
-        }
+        String trimmed = checkedWish(wish);
         UUID id = UUID.randomUUID();
         Timestamp now = Timestamp.from(clock.instant());
         jdbc.sql(
@@ -62,19 +54,41 @@ public class ProjectService implements ProjectPort {
         return get(id).orElseThrow();
     }
 
-    /** Renames a project; the name must not be blank. */
-    public Project rename(UUID id, String name) {
-        String trimmed = checkedName(name);
-        int rows = jdbc.sql("update projects.projects set name = :name, updated_at = :now,"
-                        + " version = version + 1 where id = :id")
-                .param("name", trimmed)
+    /**
+     * Changes the name and/or the wish. A changed wish moves the project back to draft, so the
+     * brief and the questions are made again from the new wish.
+     */
+    @Transactional
+    public Project update(UUID id, String name, String wish) {
+        if (name == null && wish == null) {
+            throw new ApiProblem(400, "Nothing to change", "Send a name, a wish, or both.");
+        }
+        Project current = get(id).orElseThrow(() -> notFound(id));
+        String newName = name == null ? current.name() : checkedName(name);
+        String newWish = wish == null ? current.wish() : checkedWish(wish);
+        boolean wishChanged = !newWish.equals(current.wish());
+        jdbc.sql("update projects.projects set name = :name, wish = :wish, status = :status,"
+                        + " updated_at = :now, version = version + 1 where id = :id")
+                .param("name", newName)
+                .param("wish", newWish)
+                .param("status", wishChanged ? "draft" : current.status())
                 .param("now", Timestamp.from(clock.instant()))
                 .param("id", id)
                 .update();
-        if (rows == 0) {
-            throw notFound(id);
-        }
         return get(id).orElseThrow();
+    }
+
+    private static String checkedWish(String wish) {
+        String trimmed = wish == null ? "" : wish.strip();
+        if (trimmed.isEmpty()) {
+            throw new ApiProblem(
+                    400, "Wish missing", "Describe what you want built; the wish is empty.");
+        }
+        if (trimmed.length() > MAX_WISH_LENGTH) {
+            throw new ApiProblem(
+                    400, "Wish too long", "The wish has more than " + MAX_WISH_LENGTH + " characters.");
+        }
+        return trimmed;
     }
 
     private static String checkedName(String name) {

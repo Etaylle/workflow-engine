@@ -30,6 +30,8 @@
 	const saving = createAction();
 	const loading = createAction();
 	const open = $derived(rank(project.status) <= 2);
+	/** Questions written for an earlier wish: the wish changed, so they must be asked again. */
+	const stale = $derived(project.status === 'draft' && questions.length > 0);
 
 	async function load() {
 		await loading.run(async () => {
@@ -40,7 +42,7 @@
 
 	async function ask() {
 		const ok = await asking.run(async () => {
-			if (!brief) brief = await generateBrief(project.id);
+			if (!brief || project.status === 'draft') brief = await generateBrief(project.id);
 			questions = await generateQuestions(project.id);
 			draft = initialDraft(questions);
 		});
@@ -87,8 +89,8 @@
 		</details>
 	{/if}
 
-	{#if questions.length === 0}
-		<p>{locale.t('questions.none')}</p>
+	{#if questions.length === 0 || stale}
+		<p>{locale.t(stale ? 'questions.stale' : 'questions.none')}</p>
 		<button onclick={ask} disabled={asking.busy} data-testid="ask">
 			{asking.busy ? locale.t('questions.asking') : locale.t('questions.ask')}
 		</button>

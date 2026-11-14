@@ -58,4 +58,16 @@ test('wish to questions, requirements, workflow and confirmed contract, survivin
 	await page.goto('/#projects');
 	await expect(page.getByTestId('projects')).toContainText('A canteen app');
 	await expect(page.getByTestId('projects')).toContainText('Confirmed');
+
+	// US-01.08: editing the wish moves the project back to the first step
+	await page.goto('/#projects');
+	await page.getByTestId('project-row').first().getByRole('link', { name: 'Open' }).click();
+	await page.getByTestId('wish-edit-open').click();
+	await page.getByTestId('wish-edit').fill('A canteen app with a weekly menu');
+	await page.getByTestId('wish-save').click();
+	await expect(page.getByTestId('wish-text')).toContainText('weekly menu');
+	await page.getByTestId('ask').click();
+	await expect(page.getByTestId('question-1')).toContainText('How do students pay?');
+	await page.reload();
+	await expect(page.getByTestId('wish-text')).toContainText('weekly menu');
 });

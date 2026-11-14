@@ -101,5 +101,8 @@
 	"wish.keyWorks": "Key works",
 	"wish.keyNote": "You pay Anthropic directly. The key is kept for this session only and never stored: you enter it again in every new session.",
 	"wish.next": "Next: the AI researches your idea and prepares questions. This takes about a minute.",
-	"wish.send": "Send to the AI"
+	"wish.send": "Send to the AI",
+	"wish.edit": "Edit the wish",
+	"wish.editWarning": "Changing the wish moves the project back to the first step: the brief and the questions are written again from the new wish. A confirmed contract stays as it is; confirming again makes a new version.",
+	"questions.stale": "The wish changed. Claude writes the brief and the questions again; the earlier questions and answers are replaced."
 }

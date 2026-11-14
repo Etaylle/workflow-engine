@@ -101,5 +101,8 @@
 	"wish.keyWorks": "Schlüssel funktioniert",
 	"wish.keyNote": "Du bezahlst Anthropic direkt. Der Schlüssel gilt nur für diese Sitzung und wird nie gespeichert: Du gibst ihn in jeder neuen Sitzung erneut ein.",
 	"wish.next": "Als Nächstes: Die KI recherchiert deine Idee und bereitet Fragen vor. Das dauert etwa eine Minute.",
-	"wish.send": "An die KI senden"
+	"wish.send": "An die KI senden",
+	"wish.edit": "Wunsch bearbeiten",
+	"wish.editWarning": "Ändert sich der Wunsch, geht das Projekt zurück zum ersten Schritt: Kurzbeschreibung und Fragen werden aus dem neuen Wunsch neu geschrieben. Ein bestätigter Vertrag bleibt bestehen; eine neue Bestätigung ergibt eine neue Version.",
+	"questions.stale": "Der Wunsch hat sich geändert. Claude schreibt Kurzbeschreibung und Fragen neu; die früheren Fragen und Antworten werden ersetzt."
 }
