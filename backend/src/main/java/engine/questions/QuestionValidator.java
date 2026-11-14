@@ -27,6 +27,11 @@ final class QuestionValidator {
         }
     }
 
+    /** Checks one question written or edited by the client. */
+    static void validateItem(QuestionDraft.Item item) {
+        item(item, "The question");
+    }
+
     private static void item(QuestionDraft.Item item, String label) {
         if (item.text() == null || item.text().isBlank()) {
             throw new InvalidAiOutputException(label + " has no text.");

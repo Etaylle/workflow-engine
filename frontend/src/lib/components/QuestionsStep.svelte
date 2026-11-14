@@ -1,5 +1,8 @@
 <script lang="ts">
 	import {
+		addQuestion,
+		deleteQuestion,
+		editQuestion,
 		generateBrief,
 		generateQuestions,
 		getBrief,
@@ -20,6 +23,13 @@
 		type Draft
 	} from '#lib/planning/answers.js';
 	import { rank } from '#lib/planning/steps.js';
+	import {
+		editorFrom,
+		emptyEditor,
+		toInput,
+		type EditorState
+	} from '#lib/planning/questionEditor.js';
+	import QuestionEditor from './QuestionEditor.svelte';
 
 	let { project, changed }: { project: Project; changed: () => void } = $props();
 
@@ -29,6 +39,9 @@
 	const asking = createAction();
 	const saving = createAction();
 	const loading = createAction();
+	let editing = $state<{ id: string | null; state: EditorState } | null>(null);
+	const editor = createAction();
+	const adjustable = $derived(project.status === 'questions_ready');
 	const open = $derived(rank(project.status) <= 2);
 	/** Questions written for an earlier wish: the wish changed, so they must be asked again. */
 	const stale = $derived(project.status === 'draft' && questions.length > 0);
@@ -47,6 +60,34 @@
 			draft = initialDraft(questions);
 		});
 		if (ok) changed();
+	}
+
+	/** Takes the list the server returned; answers typed for untouched questions are kept. */
+	function adopt(next: Question[], touched: string | null) {
+		const keep = { ...draft };
+		if (touched) delete keep[touched];
+		questions = next;
+		draft = {
+			...initialDraft(next),
+			...Object.fromEntries(Object.entries(keep).filter(([id]) => next.some((q) => q.id === id)))
+		};
+	}
+
+	async function saveEditor() {
+		if (!editing) return;
+		const { id, state } = editing;
+		const ok = await editor.run(async () => {
+			const input = toInput(state);
+			adopt(
+				id ? await editQuestion(project.id, id, input) : await addQuestion(project.id, input),
+				id
+			);
+		});
+		if (ok) editing = null;
+	}
+
+	async function remove(id: string) {
+		await editor.run(async () => adopt(await deleteQuestion(project.id, id), id));
 	}
 
 	async function save() {
@@ -138,6 +179,23 @@
 							value={typeof value === 'string' ? value : ''}
 							oninput={(e) => (draft[question.id] = e.currentTarget.value)}></textarea>
 					{/if}
+					{#if adjustable}
+						<button
+							type="button"
+							onclick={() => (editing = { id: question.id, state: editorFrom(question) })}
+							data-testid={`edit-${question.seq}`}
+						>
+							{locale.t('questions.edit')}
+						</button>
+						<button
+							type="button"
+							class="danger"
+							onclick={() => remove(question.id)}
+							data-testid={`remove-${question.seq}`}
+						>
+							{locale.t('list.delete')}
+						</button>
+					{/if}
 					<small>
 						{locale.t('questions.proposal', { proposal: asText(question.proposal) })}
 						{#if question.explanation}{question.explanation}{/if}
@@ -151,8 +209,22 @@
 					</small>
 				</fieldset>
 			{/each}
+			{#if adjustable && !editing}
+				<button
+					type="button"
+					onclick={() => (editing = { id: null, state: emptyEditor() })}
+					disabled={questions.length >= 8}
+					data-testid="add-question"
+				>
+					{locale.t('questions.add')}
+				</button>
+				<button type="button" onclick={ask} disabled={asking.busy} data-testid="ask-again">
+					{asking.busy ? locale.t('questions.asking') : locale.t('questions.askAgain')}
+				</button>
+			{/if}
+			{#if editor.error && !editing}<p role="alert">{editor.error}</p>{/if}
 			{#if open}
-				<button type="submit" disabled={saving.busy} data-testid="save-answers">
+				<button type="submit" class="primary" disabled={saving.busy} data-testid="save-answers">
 					{saving.busy ? locale.t('questions.saving') : locale.t('questions.save')}
 				</button>
 				{#if project.status === 'answered'}
@@ -161,6 +233,15 @@
 			{/if}
 			{#if saving.error}<p role="alert" data-testid="save-error">{saving.error}</p>{/if}
 		</form>
+		{#if editing}
+			<QuestionEditor
+				state={editing.state}
+				busy={editor.busy}
+				error={editor.error}
+				save={saveEditor}
+				cancel={() => (editing = null)}
+			/>
+		{/if}
 	{/if}
 </section>
 

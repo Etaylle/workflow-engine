@@ -3,6 +3,7 @@ package engine.questions;
 import engine.shared.AnswersPort;
 import engine.shared.ApiProblem;
 import engine.shared.ClaudeCall;
+import engine.shared.InvalidAiOutputException;
 import engine.shared.ProjectPort;
 import engine.shared.SessionKey;
 import java.util.HashMap;
@@ -66,6 +67,59 @@ class QuestionService implements AnswersPort {
         return store.find(projectId);
     }
 
+    /** Adds a question written by the client (at most 8 in all); only while answers are open. */
+    List<QuestionView> add(UUID projectId, QuestionDraft.Item item) {
+        requireEditable(projectId);
+        if (store.find(projectId).size() >= QuestionValidator.MAX_QUESTIONS) {
+            throw new ApiProblem(409, "Too many questions",
+                    "There are already " + QuestionValidator.MAX_QUESTIONS + " questions.");
+        }
+        store.add(projectId, checked(item));
+        return store.find(projectId);
+    }
+
+    /** Rewrites one question; its answer is dropped, so it has to be answered again. */
+    List<QuestionView> edit(UUID projectId, UUID questionId, QuestionDraft.Item item) {
+        requireEditable(projectId);
+        if (!store.update(projectId, questionId, checked(item))) {
+            throw questionNotFound(questionId);
+        }
+        return store.find(projectId);
+    }
+
+    /** Deletes one question with its answer. */
+    List<QuestionView> remove(UUID projectId, UUID questionId) {
+        requireEditable(projectId);
+        if (!store.delete(projectId, questionId)) {
+            throw questionNotFound(questionId);
+        }
+        return store.find(projectId);
+    }
+
+    private void requireEditable(UUID projectId) {
+        String status = projects.statusOf(projectId).orElseThrow(() -> notFound(projectId));
+        if (!"questions_ready".equals(status)) {
+            throw new ApiProblem(409, "Questions are not open", "Questions can be changed only while"
+                    + " they wait for answers (ask first, or the requirements are already written).");
+        }
+    }
+
+    private static QuestionDraft.Item checked(QuestionDraft.Item item) {
+        if (item == null) {
+            throw new ApiProblem(400, "Question invalid", "The question is missing.");
+        }
+        try {
+            QuestionValidator.validateItem(item);
+        } catch (InvalidAiOutputException e) {
+            throw new ApiProblem(400, "Question invalid", e.getMessage());
+        }
+        return item;
+    }
+
+    private static ApiProblem questionNotFound(UUID id) {
+        return new ApiProblem(404, "Question not found", "No question " + id + " in this project.");
+    }
+
     /** Saves exactly one answer for every question; accepting the proposal marks it as the AI's. */
     List<QuestionView> save(UUID projectId, SaveAnswersRequest request) {
         String status = projects.statusOf(projectId).orElseThrow(() -> notFound(projectId));
@@ -86,6 +140,9 @@ class QuestionService implements AnswersPort {
                 throw new ApiProblem(400, "Answered twice", "Question " + question.seq()
                         + " has two answers.");
             }
+        }
+        if (questions.isEmpty()) {
+            throw new ApiProblem(400, "No questions", "There is nothing to answer; ask the questions first.");
         }
         for (QuestionView question : questions) {
             if (!answers.containsKey(question.id())) {

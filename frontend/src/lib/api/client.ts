@@ -113,6 +113,13 @@ export type Question = {
 	explanation?: string | null;
 	answer?: { value: AnswerValue; decidedBy: 'client' | 'ai' } | null;
 };
+export type QuestionInput = {
+	category: 'requirement' | 'feature';
+	answerType: 'single_choice' | 'multiple_choice' | 'text';
+	text: string;
+	options: string[];
+	proposal: string[];
+};
 export type AnswerInput = { questionId: string; acceptProposal?: boolean; value?: AnswerValue };
 export type Requirement = {
 	key: string;
@@ -142,3 +149,9 @@ export const generateRequirements = (projectId: string) =>
 	json<Requirements>(`/api/projects/${projectId}/requirements`, 'POST');
 export const getRequirements = (projectId: string) =>
 	json<Requirements>(`/api/projects/${projectId}/requirements`);
+export const addQuestion = (projectId: string, input: QuestionInput) =>
+	json<Question[]>(`/api/projects/${projectId}/question-items`, 'POST', input);
+export const editQuestion = (projectId: string, questionId: string, input: QuestionInput) =>
+	json<Question[]>(`/api/projects/${projectId}/question-items/${questionId}`, 'PUT', input);
+export const deleteQuestion = (projectId: string, questionId: string) =>
+	json<Question[]>(`/api/projects/${projectId}/question-items/${questionId}`, 'DELETE');

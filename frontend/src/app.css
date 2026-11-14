@@ -145,3 +145,13 @@ label > select {
 section {
 	margin-bottom: 1.5rem;
 }
+fieldset {
+	background: var(--surface);
+	border: 1px solid var(--line);
+	border-radius: var(--radius);
+	padding: 0.75rem 1.25rem;
+}
+legend {
+	font-weight: 600;
+	padding: 0 0.4rem;
+}

@@ -104,5 +104,18 @@
 	"wish.send": "An die KI senden",
 	"wish.edit": "Wunsch bearbeiten",
 	"wish.editWarning": "Ändert sich der Wunsch, geht das Projekt zurück zum ersten Schritt: Kurzbeschreibung und Fragen werden aus dem neuen Wunsch neu geschrieben. Ein bestätigter Vertrag bleibt bestehen; eine neue Bestätigung ergibt eine neue Version.",
-	"questions.stale": "Der Wunsch hat sich geändert. Claude schreibt Kurzbeschreibung und Fragen neu; die früheren Fragen und Antworten werden ersetzt."
+	"questions.stale": "Der Wunsch hat sich geändert. Claude schreibt Kurzbeschreibung und Fragen neu; die früheren Fragen und Antworten werden ersetzt.",
+	"questions.edit": "Bearbeiten",
+	"questions.add": "Frage hinzufügen",
+	"questions.askAgain": "Erneut fragen (ersetzt alle Fragen)",
+	"questions.editText": "Frage",
+	"questions.editType": "Antwortart",
+	"questions.typeSingle": "Eine Option",
+	"questions.typeMultiple": "Mehrere Optionen",
+	"questions.typeText": "Freitext",
+	"questions.editCategory": "Art",
+	"questions.categoryRequirement": "Anforderung",
+	"questions.categoryFeature": "Funktion",
+	"questions.editOptions": "Optionen (eine pro Zeile, 2 bis 6)",
+	"questions.editProposal": "Vorgeschlagene Antwort (eine pro Zeile; eine Zeile, außer bei mehreren Optionen)"
 }

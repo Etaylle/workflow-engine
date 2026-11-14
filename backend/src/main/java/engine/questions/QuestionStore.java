@@ -35,20 +35,68 @@ class QuestionStore {
         jdbc.sql("delete from questions.questions where project_id = :p").param("p", projectId).update();
         int seq = 1;
         for (QuestionDraft.Item item : draft.questions()) {
-            JsonNode proposal = "multiple_choice".equals(item.answerType())
-                    ? json.valueToTree(item.proposal())
-                    : json.valueToTree(item.proposal().get(0).strip());
-            jdbc.sql("insert into questions.questions (id, project_id, seq, category, answer_type, text,"
-                            + " options, ai_default, explanation, created_at, updated_at) values (:id, :p,"
-                            + " :seq, :category, :type, :text, cast(:options as jsonb), :proposal,"
-                            + " :explanation, :now, :now)")
-                    .param("id", UUID.randomUUID()).param("p", projectId).param("seq", seq++)
-                    .param("category", item.category()).param("type", item.answerType())
-                    .param("text", item.text().strip())
-                    .param("options", json.writeValueAsString(item.options()))
-                    .param("proposal", json.writeValueAsString(proposal))
-                    .param("explanation", item.explanation()).param("now", now).update();
+            insert(projectId, seq++, item, now);
         }
+    }
+
+    private void insert(UUID projectId, int seq, QuestionDraft.Item item, Timestamp now) {
+        jdbc.sql("insert into questions.questions (id, project_id, seq, category, answer_type, text,"
+                        + " options, ai_default, explanation, created_at, updated_at) values (:id, :p,"
+                        + " :seq, :category, :type, :text, cast(:options as jsonb), :proposal,"
+                        + " :explanation, :now, :now)")
+                .param("id", UUID.randomUUID()).param("p", projectId).param("seq", seq)
+                .param("category", item.category()).param("type", item.answerType())
+                .param("text", item.text().strip())
+                .param("options", json.writeValueAsString(item.options()))
+                .param("proposal", proposalJson(item))
+                .param("explanation", item.explanation()).param("now", now).update();
+    }
+
+    private String proposalJson(QuestionDraft.Item item) {
+        JsonNode proposal = "multiple_choice".equals(item.answerType())
+                ? json.valueToTree(item.proposal())
+                : json.valueToTree(item.proposal().get(0).strip());
+        return json.writeValueAsString(proposal);
+    }
+
+    /** Appends a question at the end. */
+    void add(UUID projectId, QuestionDraft.Item item) {
+        int next = jdbc.sql("select coalesce(max(seq), 0) + 1 from questions.questions"
+                + " where project_id = :p").param("p", projectId).query(Integer.class).single();
+        insert(projectId, next, item, Timestamp.from(clock.instant()));
+    }
+
+    /** Rewrites one question and drops its answer; false when the project has no such question. */
+    @Transactional
+    boolean update(UUID projectId, UUID questionId, QuestionDraft.Item item) {
+        int rows = jdbc.sql("update questions.questions set category = :category,"
+                        + " answer_type = :type, text = :text, options = cast(:options as jsonb),"
+                        + " ai_default = :proposal, explanation = :explanation, updated_at = :now"
+                        + " where id = :id and project_id = :p")
+                .param("category", item.category()).param("type", item.answerType())
+                .param("text", item.text().strip())
+                .param("options", json.writeValueAsString(item.options()))
+                .param("proposal", proposalJson(item)).param("explanation", item.explanation())
+                .param("now", Timestamp.from(clock.instant())).param("id", questionId)
+                .param("p", projectId).update();
+        jdbc.sql("delete from questions.answers where question_id = :id").param("id", questionId).update();
+        return rows > 0;
+    }
+
+    /** Removes one question with its answer and closes the gap in the numbering. */
+    @Transactional
+    boolean delete(UUID projectId, UUID questionId) {
+        Integer seq = jdbc.sql("select seq from questions.questions where id = :id and project_id = :p")
+                .param("id", questionId).param("p", projectId).query(Integer.class).optional().orElse(null);
+        if (seq == null) {
+            return false;
+        }
+        jdbc.sql("delete from questions.questions where id = :id").param("id", questionId).update();
+        jdbc.sql("update questions.questions set seq = -seq where project_id = :p and seq > :s")
+                .param("p", projectId).param("s", seq).update();
+        jdbc.sql("update questions.questions set seq = -seq - 1 where project_id = :p and seq < 0")
+                .param("p", projectId).update();
+        return true;
     }
 
     /** The questions of the project in order, each with its answer when one exists. */

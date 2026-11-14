@@ -396,6 +396,100 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+  /api/projects/{id}/question-items:
+    post:
+      operationId: addQuestion
+      summary: Add a question written by the client (at most 8 in all; only while the questions wait for answers)
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QuestionInput"
+      responses:
+        "201":
+          description: All questions of the project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Questions"
+        "400":
+          description: The question is invalid
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: Not open for changes, or 8 questions already
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/projects/{id}/question-items/{questionId}:
+    put:
+      operationId: editQuestion
+      summary: Rewrite one question; its answer is dropped
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+        - $ref: "#/components/parameters/QuestionId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QuestionInput"
+      responses:
+        "200":
+          description: All questions of the project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Questions"
+        "400":
+          description: The question is invalid
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: No such question
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: Not open for changes
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    delete:
+      operationId: deleteQuestion
+      summary: Delete one question with its answer
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+        - $ref: "#/components/parameters/QuestionId"
+      responses:
+        "200":
+          description: The remaining questions, renumbered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Questions"
+        "404":
+          description: No such question
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: Not open for changes
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
   /api/projects/{id}/answers:
     put:
       operationId: saveAnswers
@@ -503,6 +597,13 @@ components:
       schema:
         type: string
         format: uuid
+    QuestionId:
+      name: questionId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
   schemas:
     CreateProjectRequest:
       type: object
@@ -564,6 +665,16 @@ components:
             value:
               description: A string, or an array of strings for multiple_choice
             decidedBy: {type: string, enum: [client, ai]}
+    QuestionInput:
+      type: object
+      required: [category, answerType, text, options, proposal]
+      properties:
+        category: {type: string, enum: [requirement, feature]}
+        answerType: {type: string, enum: [single_choice, multiple_choice, text]}
+        text: {type: string}
+        options: {type: array, items: {type: string}, description: 2 to 6 for the choice types, empty for text}
+        proposal: {type: array, items: {type: string}, description: One element for single_choice and text, one or more options for multiple_choice}
+        explanation: {type: string, nullable: true}
     SaveAnswersRequest:
       type: object
       required: [answers]

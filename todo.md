@@ -2,7 +2,7 @@
 
 Updated after each slice and each decision. Newest first. The plan: `ai-docs/plan.md`. How we work: `CLAUDE.md` 2.
 
-Last update: 2026-11-15 (Claude): M6 slice 1 done (screen 0 All projects with rename and delete, screen 1 form, app shell with step chips); D-46 to D-48. M2 planning complete 2026-11-14 (real Claude calls not tried).
+Last update: 2026-11-15 (Claude): M6 slices 1 to 3 done (All projects with rename/delete, wish form and edit, app shell, edit/add/delete single questions); D-46 to D-50. M2 planning complete 2026-11-14 (real Claude calls not tried).
 
 ## How to test (owner)
 
@@ -16,7 +16,7 @@ Last update: 2026-11-15 (Claude): M6 slice 1 done (screen 0 All projects with re
 
 0. The start page is "All projects" (open, rename, delete with confirmation). "New project" opens "Describe your idea" (address `#new`).
 1. Type the optional name, the wish and the key ("Test" checks the key), "Send to the AI".
-2. "Research and ask questions": Claude writes the brief and at most 8 questions; the AI's proposal is preselected on each. Change what does not fit, "Save answers".
+2. "Research and ask questions": Claude writes the brief and at most 8 questions; the AI's proposal is preselected on each. Edit, delete or add single questions ("Add a question", "Ask again" replaces all), change answers that do not fit, "Save answers".
 3. "Write the requirements with Claude": requirements grouped by epic.
 4. "Write the workflow with Claude": swimlane diagram. "Write it again" replaces it.
 5. "Review and confirm" shows the counts; "Confirm as contract" freezes wish, brief, answers, requirements and workflow as contract version 1. Changing the workflow and confirming again makes version 2. "Edit the wish" under the project name moves the project back to step 1.
@@ -56,6 +56,7 @@ Reload the page at any step: nothing is lost. A wrong or missing key, a rate lim
 
 | ID | Decision | Date |
 |---|---|---|
+| D-50 | US-02.03: `POST /api/projects/{id}/question-items`, `PUT/DELETE .../question-items/{questionId}` (add, rewrite, delete one question; at most 8; only status `questions_ready`, 409 otherwise; an edit drops that question's answer; delete renumbers). Regenerate = "Ask again" (existing call). Saving answers with no questions is 400 | 2026-11-15 |
 | D-49 | US-01.08: `PATCH /api/projects/{id}` takes name and/or wish; a changed wish sets status draft (renaming or the same wish does not). Questions of an earlier wish stay visible only as the prompt to ask again (the old questions are replaced then); requirements and workflow remain until redone; a confirmed contract is untouched and the next confirmation is version N+1 | 2026-11-15 |
 | D-48 | Left out of M6 slice 1 (stories need later milestones or were cut in D-45): links and files (US-01.03), GitHub sign-in (US-01.06), opencode (D-21; only Claude Code is shown), GitHub column of the list | 2026-11-15 |
 | D-47 | Deleting a project removes everything the domains hold for it: each domain implements `engine.shared.ProjectCleanup`, `ProjectService.delete` runs them in one transaction. Contracts stay undeletable (V5 trigger) except inside that transaction: V6 lets the delete pass when `engine.deleting_project` is set for the transaction. Rename = `PATCH /api/projects/{id}`, create takes an optional `name` | 2026-11-15 |

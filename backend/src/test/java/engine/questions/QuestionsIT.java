@@ -163,4 +163,78 @@ class QuestionsIT {
         assertThat(http.call("PUT", "/api/projects/" + id + "/answers", "{\"answers\":[]}").statusCode())
                 .isEqualTo(409);
     }
+
+    private static final String OWN = "{\"category\":\"feature\",\"answerType\":\"single_choice\","
+            + "\"text\":\"Which language?\",\"options\":[\"English\",\"German\"],"
+            + "\"proposal\":[\"German\"],\"explanation\":\"Own question\"}";
+
+    @Test
+    void questionsAreFixedOnceTheAnswersAreSaved() throws Exception {
+        UUID id = projectWithBrief();
+        JsonNode questions = http.json("POST", "/api/projects/" + id + "/questions", null);
+        String first = questions.get(0).get("id").asString();
+        http.call("PUT", "/api/projects/" + id + "/answers", answers(questions, "", "null"));
+
+        // the answers were saved (status answered): questions are fixed now
+        assertThat(http.call("POST", "/api/projects/" + id + "/question-items", OWN).statusCode()).isEqualTo(409);
+        assertThat(http.call("PUT", "/api/projects/" + id + "/question-items/" + first, OWN).statusCode())
+                .isEqualTo(409);
+        assertThat(http.call("DELETE", "/api/projects/" + id + "/question-items/" + first, null).statusCode())
+                .isEqualTo(409);
+    }
+
+    @Test
+    void addEditAndDeleteChangeTheListAndRenumber() throws Exception {
+        UUID id = projectWithBrief();
+        JsonNode questions = http.json("POST", "/api/projects/" + id + "/questions", null);
+        String first = questions.get(0).get("id").asString();
+
+        JsonNode added = http.json("POST", "/api/projects/" + id + "/question-items", OWN);
+        assertThat(added).hasSize(4);
+        assertThat(added.get(3).get("text").asString()).isEqualTo("Which language?");
+        assertThat(added.get(3).get("seq").asInt()).isEqualTo(4);
+
+        JsonNode edited = http.json("PUT", "/api/projects/" + id + "/question-items/" + first, OWN);
+        assertThat(edited.get(0).get("text").asString()).isEqualTo("Which language?");
+        assertThat(edited.get(0).get("proposal").asString()).isEqualTo("German");
+
+        JsonNode removed = http.json("DELETE", "/api/projects/" + id + "/question-items/" + first, null);
+        assertThat(removed).hasSize(3);
+        assertThat(removed.get(0).get("seq").asInt()).isEqualTo(1);
+        assertThat(removed.get(2).get("seq").asInt()).isEqualTo(3);
+        assertThat(http.call("DELETE", "/api/projects/" + id + "/question-items/" + first, null).statusCode())
+                .isEqualTo(404);
+    }
+
+    @Test
+    void editingDropsTheAnswerAndBadInputIsRefused() throws Exception {
+        UUID id = projectWithBrief();
+        JsonNode questions = http.json("POST", "/api/projects/" + id + "/questions", null);
+        String first = questions.get(0).get("id").asString();
+
+        String badProposal = OWN.replace("[\"German\"]", "[\"French\"]");
+        assertThat(http.call("PUT", "/api/projects/" + id + "/question-items/" + first, badProposal)
+                .statusCode()).isEqualTo(400);
+        assertThat(http.call("POST", "/api/projects/" + id + "/question-items", "{}").statusCode())
+                .isEqualTo(400);
+        assertThat(http.call("PUT", "/api/projects/" + id + "/question-items/" + UUID.randomUUID(), OWN)
+                .statusCode()).isEqualTo(404);
+    }
+
+    @Test
+    void aNinthQuestionIsRefusedAndAnEmptyListCannotBeAnswered() throws Exception {
+        UUID id = projectWithBrief();
+        http.json("POST", "/api/projects/" + id + "/questions", null);
+        for (int i = 0; i < 5; i++) {
+            assertThat(http.call("POST", "/api/projects/" + id + "/question-items", OWN).statusCode())
+                    .isEqualTo(201);
+        }
+        assertThat(http.call("POST", "/api/projects/" + id + "/question-items", OWN).statusCode()).isEqualTo(409);
+
+        for (JsonNode question : http.json("GET", "/api/projects/" + id + "/questions", null)) {
+            http.call("DELETE", "/api/projects/" + id + "/question-items/" + question.get("id").asString(), null);
+        }
+        assertThat(http.call("PUT", "/api/projects/" + id + "/answers", "{\"answers\":[]}").statusCode())
+                .isEqualTo(400);
+    }
 }

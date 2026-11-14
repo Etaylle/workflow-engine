@@ -104,5 +104,18 @@
 	"wish.send": "Send to the AI",
 	"wish.edit": "Edit the wish",
 	"wish.editWarning": "Changing the wish moves the project back to the first step: the brief and the questions are written again from the new wish. A confirmed contract stays as it is; confirming again makes a new version.",
-	"questions.stale": "The wish changed. Claude writes the brief and the questions again; the earlier questions and answers are replaced."
+	"questions.stale": "The wish changed. Claude writes the brief and the questions again; the earlier questions and answers are replaced.",
+	"questions.edit": "Edit",
+	"questions.add": "Add a question",
+	"questions.askAgain": "Ask again (replaces all questions)",
+	"questions.editText": "Question",
+	"questions.editType": "Answer type",
+	"questions.typeSingle": "One option",
+	"questions.typeMultiple": "Several options",
+	"questions.typeText": "Free text",
+	"questions.editCategory": "Kind",
+	"questions.categoryRequirement": "Requirement",
+	"questions.categoryFeature": "Feature",
+	"questions.editOptions": "Options (one per line, 2 to 6)",
+	"questions.editProposal": "Proposed answer (one per line; one line unless several options)"
 }

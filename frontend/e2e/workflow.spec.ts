@@ -16,6 +16,19 @@ test('wish to questions, requirements, workflow and confirmed contract, survivin
 		page.getByTestId('question-1').getByRole('radio', { name: 'Online at the order' })
 	).toBeChecked();
 	await expect(page.getByTestId('brief')).toContainText('Brief');
+	// US-02.03: edit, add and delete single questions before answering
+	await page.getByTestId('edit-3').click();
+	await page.getByTestId('editor-text').fill('How long until pickup?');
+	await page.getByTestId('editor-save').click();
+	await expect(page.getByTestId('question-3')).toContainText('How long until pickup?');
+	await page.getByTestId('add-question').click();
+	await page.getByTestId('editor-text').fill('Which language?');
+	await page.getByTestId('editor-options').fill('English\nGerman');
+	await page.getByTestId('editor-proposal').fill('German');
+	await page.getByTestId('editor-save').click();
+	await expect(page.getByTestId('question-4')).toContainText('Which language?');
+	await page.getByTestId('remove-4').click();
+	await expect(page.getByTestId('question-4')).toHaveCount(0);
 	await page.getByTestId('question-3').locator('textarea').fill('45 minutes');
 	await page.getByTestId('save-answers').click();
 	await expect(page.getByTestId('answers-saved')).toBeVisible();
