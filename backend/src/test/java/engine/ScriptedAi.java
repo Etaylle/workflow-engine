@@ -3,6 +3,9 @@ package engine;
 import engine.projects.Brief;
 import engine.projects.BriefWriter;
 import engine.projects.StubBriefWriter;
+import engine.questions.QuestionDraft;
+import engine.questions.QuestionWriter;
+import engine.questions.StubQuestionWriter;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
@@ -42,6 +45,20 @@ public class ScriptedAi {
         public Brief write(String apiKey, String wish, String correction) {
             return next(correction, new StubBriefWriter().write(apiKey, wish, correction));
         }
+    }
+
+    /** The question writer of the tests. */
+    public static class ScriptedQuestionWriter extends Script<QuestionDraft> implements QuestionWriter {
+        @Override
+        public QuestionDraft write(String apiKey, String wish, String brief, String correction) {
+            return next(correction, new StubQuestionWriter().write(apiKey, wish, brief, correction));
+        }
+    }
+
+    @Bean
+    @Primary
+    ScriptedQuestionWriter scriptedQuestionWriter() {
+        return new ScriptedQuestionWriter();
     }
 
     @Bean
