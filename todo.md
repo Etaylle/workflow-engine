@@ -2,7 +2,7 @@
 
 Updated after each slice and each decision. Newest first. The plan: `ai-docs/plan.md`. How we work: `CLAUDE.md` 2.
 
-Last update: 2026-11-15 (Claude): M6 slices 1 to 3 done (All projects with rename/delete, wish form and edit, app shell, edit/add/delete single questions); D-46 to D-50. M2 planning complete 2026-11-14 (real Claude calls not tried).
+Last update: 2026-11-15 (Claude): M6 slices 1 to 4 done (All projects with rename/delete, wish form and edit, app shell, edit/add/delete single questions, workflow editor); D-46 to D-51. M2 planning complete 2026-11-14 (real Claude calls not tried).
 
 ## How to test (owner)
 
@@ -19,7 +19,7 @@ Last update: 2026-11-15 (Claude): M6 slices 1 to 3 done (All projects with renam
 2. "Research and ask questions": Claude writes the brief and at most 8 questions; the AI's proposal is preselected on each. Edit, delete or add single questions ("Add a question", "Ask again" replaces all), change answers that do not fit, "Save answers".
 3. "Write the requirements with Claude": requirements grouped by epic.
 4. "Write the workflow with Claude": swimlane diagram. "Write it again" replaces it.
-5. "Review and confirm" shows the counts; "Confirm as contract" freezes wish, brief, answers, requirements and workflow as contract version 1. Changing the workflow and confirming again makes version 2. "Edit the wish" under the project name moves the project back to step 1.
+5. "Review and confirm" shows the counts; "Confirm as contract" freezes wish, brief, answers, requirements and workflow as contract version 1. "Edit the workflow" under the diagram changes steps, lanes and arrows; confirming again makes version 2. "Edit the wish" under the project name moves the project back to step 1.
 
 Reload the page at any step: nothing is lost. A wrong or missing key, a rate limit or an invalid answer shows a message and leaves the project where it was.
 
@@ -56,6 +56,7 @@ Reload the page at any step: nothing is lost. A wrong or missing key, a rate lim
 
 | ID | Decision | Date |
 |---|---|---|
+| D-51 | US-04.03/04.04/04.05 (reduced): `PUT /api/projects/{id}/workflow` replaces the workflow by an edited one (lanes, nodes, arrows), same validator as Claude's draft (400 with the rule broken), status valid, project `workflow_drafted`; after a confirmation the next confirm is version N+1. The edit is a list editor under the diagram (steps with name, what happens, lane, type; add step after, delete with reconnect, arrows, lanes), not drag and drop. Not done: acceptance criteria, AI test scenarios, story type (US-04.03), delete of a lane, moving boxes | 2026-11-15 |
 | D-50 | US-02.03: `POST /api/projects/{id}/question-items`, `PUT/DELETE .../question-items/{questionId}` (add, rewrite, delete one question; at most 8; only status `questions_ready`, 409 otherwise; an edit drops that question's answer; delete renumbers). Regenerate = "Ask again" (existing call). Saving answers with no questions is 400 | 2026-11-15 |
 | D-49 | US-01.08: `PATCH /api/projects/{id}` takes name and/or wish; a changed wish sets status draft (renaming or the same wish does not). Questions of an earlier wish stay visible only as the prompt to ask again (the old questions are replaced then); requirements and workflow remain until redone; a confirmed contract is untouched and the next confirmation is version N+1 | 2026-11-15 |
 | D-48 | Left out of M6 slice 1 (stories need later milestones or were cut in D-45): links and files (US-01.03), GitHub sign-in (US-01.06), opencode (D-21; only Claude Code is shown), GitHub column of the list | 2026-11-15 |

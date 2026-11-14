@@ -4,6 +4,7 @@ package engine.workflows;
 import engine.shared.AnswersPort;
 import engine.shared.ApiProblem;
 import engine.shared.ClaudeCall;
+import engine.shared.InvalidAiOutputException;
 import engine.shared.ProjectPort;
 import engine.shared.RequirementsPort;
 import engine.shared.SessionKey;
@@ -49,6 +50,25 @@ class WorkflowService {
         String material = material(projectId);
         WorkflowDraft draft = ClaudeCall.validated("workflow",
                 correction -> writer.write(key, wish, material, correction), WorkflowValidator::validate);
+        WorkflowView view = store.replace(projectId, draft);
+        projects.markStatus(projectId, "workflow_drafted");
+        return view;
+    }
+
+    /**
+     * Replaces the workflow by one the client edited. The rules are the same as for Claude's draft;
+     * a confirmed workflow becomes valid again, so confirming makes the next contract version.
+     */
+    WorkflowView edit(UUID projectId, WorkflowDraft draft) {
+        String status = projects.statusOf(projectId).orElseThrow(() -> notFound(projectId));
+        if (!Set.of("workflow_drafted", "confirmed").contains(status)) {
+            throw new ApiProblem(409, "No workflow to edit", "Generate the workflow first.");
+        }
+        try {
+            WorkflowValidator.validate(draft);
+        } catch (InvalidAiOutputException e) {
+            throw new ApiProblem(400, "Workflow invalid", e.getMessage());
+        }
         WorkflowView view = store.replace(projectId, draft);
         projects.markStatus(projectId, "workflow_drafted");
         return view;

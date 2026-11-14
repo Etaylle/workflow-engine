@@ -210,6 +210,39 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+    put:
+      operationId: editWorkflow
+      summary: Replace the workflow by the one the client edited (same rules as Claude's draft)
+      description: >
+        Allowed once a workflow exists. The status becomes valid; a confirmed contract is never
+        touched, and confirming again makes the next version. Node keys only link the edges.
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WorkflowInput"
+      responses:
+        "200":
+          description: The stored workflow with positions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Workflow"
+        "400":
+          description: A rule is broken (one start, an end, known lanes, reachable, no dead ends)
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: The project has no workflow yet
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
     get:
       operationId: getWorkflow
       summary: The current workflow of the project
@@ -675,6 +708,31 @@ components:
         options: {type: array, items: {type: string}, description: 2 to 6 for the choice types, empty for text}
         proposal: {type: array, items: {type: string}, description: One element for single_choice and text, one or more options for multiple_choice}
         explanation: {type: string, nullable: true}
+    WorkflowInput:
+      type: object
+      required: [lanes, nodes, edges]
+      properties:
+        lanes: {type: array, items: {type: string}}
+        nodes:
+          type: array
+          items:
+            type: object
+            required: [key, lane, kind, title]
+            properties:
+              key: {type: string}
+              lane: {type: string}
+              kind: {type: string, enum: [start_event, task, end_event]}
+              title: {type: string}
+              description: {type: string, nullable: true}
+              taskType: {type: string, enum: [software, manual], nullable: true}
+        edges:
+          type: array
+          items:
+            type: object
+            required: [from, to]
+            properties:
+              from: {type: string}
+              to: {type: string}
     SaveAnswersRequest:
       type: object
       required: [answers]

@@ -87,6 +87,8 @@ export async function deleteProject(projectId: string): Promise<void> {
 export const listProjects = () => json<Project[]>('/api/projects');
 export const generateWorkflow = (projectId: string) =>
 	json<Workflow>(`/api/projects/${projectId}/workflow`, 'POST');
+export const editWorkflow = (projectId: string, body: unknown) =>
+	json<Workflow>(`/api/projects/${projectId}/workflow`, 'PUT', body);
 export const confirmWorkflow = (projectId: string) =>
 	json<Contract>(`/api/projects/${projectId}/workflow/confirm`, 'POST');
 export const listContracts = (projectId: string) =>

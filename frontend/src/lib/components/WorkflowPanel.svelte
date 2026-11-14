@@ -11,6 +11,7 @@
 	import { describeError } from '#lib/api/problem.js';
 	import { locale } from '#lib/i18n/state.svelte.js';
 	import WorkflowDiagram from './WorkflowDiagram.svelte';
+	import WorkflowEditor from './WorkflowEditor.svelte';
 
 	import { rank } from '#lib/planning/steps.js';
 	import {
@@ -26,6 +27,7 @@
 	let contracts = $state<Contract[]>([]);
 	let busy = $state<'idle' | 'loading' | 'generating' | 'confirming'>('loading');
 	let error = $state<string | null>(null);
+	let editing = $state(false);
 
 	async function load() {
 		busy = 'loading';
@@ -101,6 +103,21 @@
 
 	{#if workflow}
 		<WorkflowDiagram {workflow} />
+		{#if editing}
+			<WorkflowEditor
+				{workflow}
+				saved={() => {
+					editing = false;
+					void load();
+					changed();
+				}}
+				cancel={() => (editing = false)}
+			/>
+		{:else}
+			<button onclick={() => (editing = true)} data-testid="edit-workflow">
+				{locale.t('workflow.edit')}
+			</button>
+		{/if}
 		{#if workflow.status === 'valid'}
 			{#if workflow.confirmedContractVersion}
 				<p>

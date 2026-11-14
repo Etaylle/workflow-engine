@@ -7,10 +7,12 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-/** Operations generateWorkflow, getWorkflow, confirmWorkflow and listContracts of the API. */
+/** Operations generateWorkflow, getWorkflow, editWorkflow, confirmWorkflow and listContracts of the API. */
 @RestController
 class WorkflowController {
 
@@ -29,6 +31,11 @@ class WorkflowController {
     WorkflowView get(@PathVariable UUID id) {
         return service.find(id).orElseThrow(
                 () -> new ApiProblem(404, "No workflow", "The project has no workflow yet."));
+    }
+
+    @PutMapping("/api/projects/{id}/workflow")
+    WorkflowView edit(@PathVariable UUID id, @RequestBody WorkflowDraft draft) {
+        return service.edit(id, draft);
     }
 
     @PostMapping("/api/projects/{id}/workflow/confirm")

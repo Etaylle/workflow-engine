@@ -210,6 +210,52 @@ class WorkflowIT {
         assertThat(call("POST", "/api/projects/" + id + "/workflow/confirm", null).statusCode()).isEqualTo(409);
     }
 
+    private static final String EDITED = "{\"lanes\":[\"Student\"],\"nodes\":["
+            + "{\"key\":\"s\",\"lane\":\"Student\",\"kind\":\"start_event\",\"title\":\"Hungry\"},"
+            + "{\"key\":\"t\",\"lane\":\"Student\",\"kind\":\"task\",\"title\":\"Order\","
+            + "\"description\":\"Choose lunch from the weekly menu\",\"taskType\":\"software\"},"
+            + "{\"key\":\"e\",\"lane\":\"Student\",\"kind\":\"end_event\",\"title\":\"Fed\"}],"
+            + "\"edges\":[{\"from\":\"s\",\"to\":\"t\"},{\"from\":\"t\",\"to\":\"e\"}]}";
+
+    @Test
+    void editedWorkflowIsStoredAndAConfirmedOneMakesVersionTwo() throws Exception {
+        UUID id = plannedProject("A canteen app");
+        assertThat(call("PUT", "/api/projects/" + id + "/workflow", EDITED).statusCode()).isEqualTo(409);
+        call("POST", "/api/projects/" + id + "/workflow", null);
+        call("POST", "/api/projects/" + id + "/workflow/confirm", null);
+
+        HttpResponse<String> edited = call("PUT", "/api/projects/" + id + "/workflow", EDITED);
+
+        assertThat(edited.statusCode()).isEqualTo(200);
+        JsonNode view = JSON.readTree(edited.body());
+        assertThat(view.get("status").asString()).isEqualTo("valid");
+        assertThat(view.get("nodes")).hasSize(3);
+        assertThat(view.get("nodes").get(1).get("description").asString()).isEqualTo("Choose lunch from the weekly menu");
+        assertThat(view.get("confirmedContractVersion").asInt()).isEqualTo(1);
+        assertThat(http.statusOf(id)).isEqualTo("workflow_drafted");
+        assertThat(call("POST", "/api/projects/" + id + "/workflow/confirm", null).statusCode()).isEqualTo(201);
+        assertThat(JSON.readTree(call("GET", "/api/projects/" + id + "/contracts", null).body())).hasSize(2);
+        assertThat(snapshot(id, 1)).contains("Order a meal").doesNotContain("Choose lunch from the weekly menu");
+        assertThat(snapshot(id, 2)).contains("Choose lunch from the weekly menu");
+    }
+
+    @Test
+    void editedWorkflowBreakingARuleAnswers400AndKeepsTheStoredOne() throws Exception {
+        UUID id = plannedProject("A canteen app");
+        call("POST", "/api/projects/" + id + "/workflow", null);
+
+        HttpResponse<String> noEnd = call("PUT", "/api/projects/" + id + "/workflow",
+                EDITED.replace("\"kind\":\"end_event\"", "\"kind\":\"task\",\"taskType\":\"manual\""));
+        HttpResponse<String> unknownLane = call("PUT", "/api/projects/" + id + "/workflow",
+                EDITED.replace("\"lane\":\"Student\",\"kind\":\"end_event\"", "\"lane\":\"Nobody\",\"kind\":\"end_event\""));
+
+        assertThat(noEnd.statusCode()).isEqualTo(400);
+        assertThat(noEnd.body()).contains("end_event");
+        assertThat(unknownLane.statusCode()).isEqualTo(400);
+        assertThat(JSON.readTree(call("GET", "/api/projects/" + id + "/workflow", null).body()).get("nodes"))
+                .hasSize(6);
+    }
+
     private String snapshot(UUID projectId, int version) {
         return jdbc.sql("select snapshot::text from workflows.contracts"
                         + " where project_id = :p and contract_version = :v")

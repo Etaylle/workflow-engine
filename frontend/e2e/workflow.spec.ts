@@ -56,6 +56,22 @@ test('wish to questions, requirements, workflow and confirmed contract, survivin
 	await diagram.screenshot({ path: 'test-results/workflow-diagram.png' });
 	await expect(page.getByTestId('review-summary')).toContainText('3 answers (2 by AI proposal)');
 
+	// US-04.03/04: edit a step, add one after it, delete another with reconnect, save
+	await page.getByTestId('edit-workflow').click();
+	await page.getByTestId('step-title-3').fill('Choose a meal');
+	await page.getByTestId('add-after-2').click();
+	await expect(page.getByTestId('step-7')).toBeVisible();
+	await page.getByTestId('delete-step-7').click();
+	await expect(page.getByTestId('step-7')).toHaveCount(0);
+	await page.getByTestId('editor-save-workflow').click();
+	await expect(page.getByTestId('diagram').getByText('Choose a meal')).toBeVisible();
+	await expect(page.getByTestId('workflow-editor')).toHaveCount(0);
+	await page.getByTestId('edit-workflow').click();
+	await page.getByTestId('delete-step-6').click();
+	await page.getByTestId('editor-save-workflow').click();
+	await expect(page.getByTestId('workflow-edit-error')).toContainText('end_event');
+	await page.getByRole('button', { name: 'Cancel' }).click();
+
 	await page.getByTestId('confirm').click();
 	await expect(page.getByTestId('confirmed')).toContainText('contract version 1');
 
