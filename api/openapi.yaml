@@ -1,0 +1,103 @@
+openapi: 3.0.3
+info:
+  title: Workflow Engine API
+  version: 0.1.0
+  description: Written first; the backend and the frontend follow this file.
+servers:
+  - url: /
+paths:
+  /api/status:
+    get:
+      operationId: getStatus
+      summary: Name, build id and time of the running engine
+      responses:
+        "200":
+          description: The engine answers
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EngineStatus"
+  /api/ai/check:
+    post:
+      operationId: checkAiConnection
+      summary: Keep the user's Anthropic key for the session and make one tiny call with it
+      description: >
+        The key is held in engine memory only (never stored, never logged). On success the key
+        stays for the session; on failure it is discarded.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AiCheckRequest"
+      responses:
+        "200":
+          description: Claude answered with this key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiCheckResult"
+        "400":
+          description: No key given
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "401":
+          description: Anthropic rejected the key
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "502":
+          description: Anthropic could not be reached or failed
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+components:
+  schemas:
+    EngineStatus:
+      type: object
+      required: [name, buildId, serverTime]
+      properties:
+        name:
+          type: string
+        buildId:
+          type: string
+          description: The build that runs; "dev" for a local build without BUILD_ID
+        serverTime:
+          type: string
+          format: date-time
+          description: UTC
+    AiCheckRequest:
+      type: object
+      required: [apiKey]
+      properties:
+        apiKey:
+          type: string
+          minLength: 1
+    AiCheckResult:
+      type: object
+      required: [ok, model]
+      properties:
+        ok:
+          type: boolean
+        model:
+          type: string
+          description: The model that answered the check
+    Problem:
+      description: Error format of every operation (RFC 9457, application/problem+json)
+      type: object
+      required: [title, status]
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string

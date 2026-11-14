@@ -1,0 +1,19 @@
+{
+	"app.title": "Workflow Engine",
+	"app.pageTitle": "Workflow Engine",
+	"language.label": "Language",
+	"status.heading": "Engine status",
+	"status.loading": "Asking the engine...",
+	"status.error": "The engine does not answer.",
+	"status.name": "Name",
+	"status.build": "Build",
+	"status.time": "Server time (UTC)",
+	"ai.heading": "AI connection",
+	"ai.explain": "Enter your Anthropic key. The engine keeps it in memory for this session only.",
+	"ai.keyLabel": "Anthropic key",
+	"ai.check": "Check connection",
+	"ai.checking": "Checking...",
+	"ai.ok": "Connected: Claude answered (model {model}).",
+	"ai.failed": "Check failed: {detail}",
+	"ai.unreachable": "The engine does not answer."
+}

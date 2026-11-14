@@ -1,0 +1,19 @@
+{
+	"app.title": "Workflow-Engine",
+	"app.pageTitle": "Workflow-Engine",
+	"language.label": "Sprache",
+	"status.heading": "Status der Engine",
+	"status.loading": "Die Engine wird gefragt...",
+	"status.error": "Die Engine antwortet nicht.",
+	"status.name": "Name",
+	"status.build": "Build",
+	"status.time": "Serverzeit (UTC)",
+	"ai.heading": "KI-Verbindung",
+	"ai.explain": "Geben Sie Ihren Anthropic-Schlüssel ein. Die Engine hält ihn nur für diese Sitzung im Speicher.",
+	"ai.keyLabel": "Anthropic-Schlüssel",
+	"ai.check": "Verbindung prüfen",
+	"ai.checking": "Prüfung läuft...",
+	"ai.ok": "Verbunden: Claude hat geantwortet (Modell {model}).",
+	"ai.failed": "Prüfung fehlgeschlagen: {detail}",
+	"ai.unreachable": "Die Engine antwortet nicht."
+}

@@ -1,0 +1,169 @@
+#!/usr/bin/env bash
+# Single entry for build, checks, tests and the local environment (CLAUDE.md section 4).
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+RUN_DIR="$ROOT/.run"
+PORT="${ENGINE_PORT:-8080}"
+E2E_PORT="${ENGINE_E2E_PORT:-8081}"
+DB_HOST="${ENGINE_DB_HOST:-localhost}"
+DB_PORT="${ENGINE_DB_PORT:-5432}"
+DB_USER="${ENGINE_DB_USER:-engine}"
+PG_SERVICE="postgresql@17"
+
+log() { printf '== %s\n' "$*"; }
+die() {
+	printf 'error: %s\n' "$*" >&2
+	exit 1
+}
+
+db_url() { printf 'jdbc:postgresql://%s:%s/%s' "$DB_HOST" "$DB_PORT" "$1"; }
+
+psql_admin() { psql -h "$DB_HOST" -p "$DB_PORT" -U "$(whoami)" -d postgres -v ON_ERROR_STOP=1 -qtA "$@"; }
+
+ensure_postgres() {
+	if ! pg_isready -q -h "$DB_HOST" -p "$DB_PORT"; then
+		log "starting PostgreSQL service $PG_SERVICE"
+		command -v brew >/dev/null || die "PostgreSQL is not running on $DB_HOST:$DB_PORT and brew is missing; start it and retry"
+		brew services start "$PG_SERVICE" >/dev/null
+		local i
+		for i in $(seq 1 30); do
+			pg_isready -q -h "$DB_HOST" -p "$DB_PORT" && break
+			sleep 1
+			[ "$i" -lt 30 ] || die "PostgreSQL did not come up within 30 seconds"
+		done
+	fi
+	local exists
+	exists="$(psql_admin -c "select 1 from pg_roles where rolname='$DB_USER'")"
+	[ -n "$exists" ] || psql_admin -c "create role $DB_USER login createdb"
+	local db
+	for db in engine engine_test; do
+		exists="$(psql_admin -c "select 1 from pg_database where datname='$db'")"
+		[ -n "$exists" ] || psql_admin -c "create database $db owner $DB_USER"
+	done
+}
+
+gradle() { (cd "$ROOT/backend" && ./gradlew --console=plain "$@"); }
+npm_frontend() { (cd "$ROOT/frontend" && npm "$@"); }
+
+build() {
+	log "build: frontend and backend jar"
+	gradle bootJar
+}
+
+java_bin() {
+	local home
+	home="$(gradle -q printJavaHome)"
+	[ -x "$home/bin/java" ] || die "no Java 21 found via the Gradle toolchain"
+	printf '%s/bin/java' "$home"
+}
+
+jar_path() {
+	local jar
+	jar="$(find "$ROOT/backend/build/libs" -name '*.jar' ! -name '*-plain.jar' | head -n 1)"
+	[ -n "$jar" ] || die "no jar in backend/build/libs; run: ci/run build"
+	printf '%s' "$jar"
+}
+
+wait_for() {
+	local url="$1" i
+	for i in $(seq 1 60); do
+		curl -fsS "$url" >/dev/null 2>&1 && return 0
+		sleep 1
+	done
+	die "$url did not answer within 60 seconds; see $RUN_DIR/*.log"
+}
+
+# start_engine <name> <port> <database> [extra env assignments...]
+start_engine() {
+	local name="$1" port="$2" db="$3"
+	shift 3
+	mkdir -p "$RUN_DIR"
+	stop_engine "$name"
+	log "starting engine '$name' on port $port (database $db)"
+	env ENGINE_PORT="$port" ENGINE_DB_URL="$(db_url "$db")" "$@" \
+		nohup "$(java_bin)" -jar "$(jar_path)" >"$RUN_DIR/$name.log" 2>&1 &
+	echo $! >"$RUN_DIR/$name.pid"
+	wait_for "http://localhost:$port/api/status"
+}
+
+stop_engine() {
+	local name="$1" pid_file="$RUN_DIR/$1.pid"
+	if [ -f "$pid_file" ]; then
+		kill "$(cat "$pid_file")" 2>/dev/null || true
+		rm -f "$pid_file"
+	fi
+}
+
+cmd_env_up() {
+	ensure_postgres
+	build
+	start_engine engine "$PORT" engine
+	log "engine runs at http://localhost:$PORT"
+}
+
+cmd_env_down() {
+	stop_engine engine
+	stop_engine e2e
+	log "engine stopped (PostgreSQL service left running)"
+}
+
+cmd_test_unit() {
+	log "backend unit and architecture tests"
+	gradle test
+	log "frontend format, lint, type check, unit tests"
+	npm_frontend ci --silent
+	npm_frontend run format:check
+	npm_frontend run lint
+	npm_frontend run check
+	npm_frontend test
+}
+
+cmd_test_integration() {
+	ensure_postgres
+	log "backend integration tests on engine_test"
+	ENGINE_DB_URL="$(db_url engine_test)" gradle integrationTest
+}
+
+cmd_test_e2e() {
+	ensure_postgres
+	build
+	start_engine e2e "$E2E_PORT" engine_test ENGINE_AI_STUB=true
+	trap 'stop_engine e2e' EXIT
+	log "end-to-end test (browser) against the engine with the AI stub"
+	npm_frontend ci --silent
+	(cd "$ROOT/frontend" && npx playwright install chromium >/dev/null &&
+		ENGINE_E2E_URL="http://localhost:$E2E_PORT" npx playwright test)
+}
+
+cmd_smoke() {
+	log "smoke: status API and static page on port $PORT"
+	curl -fsS "http://localhost:$PORT/api/status" | grep -q '"name":"workflow-engine"' ||
+		die "GET /api/status did not return the engine name"
+	curl -fsS "http://localhost:$PORT/" | grep -qi '<html' || die "the page is not served at /"
+}
+
+cmd_all_local() {
+	cmd_test_unit
+	cmd_test_integration
+	cmd_env_up
+	cmd_smoke
+	cmd_test_e2e
+	log "all-local is green; engine runs at http://localhost:$PORT"
+}
+
+usage() {
+	printf 'usage: ci/run {all-local|test-unit|test-integration|test-e2e|env-up|env-down}\n' >&2
+	exit 2
+}
+
+[ $# -eq 1 ] || usage
+case "$1" in
+all-local) cmd_all_local ;;
+test-unit) cmd_test_unit ;;
+test-integration) cmd_test_integration ;;
+test-e2e) cmd_test_e2e ;;
+env-up) cmd_env_up ;;
+env-down) cmd_env_down ;;
+*) usage ;;
+esac
