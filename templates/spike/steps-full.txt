@@ -1,0 +1,32 @@
+=== 01-define | none | 0.4
+Step 1 DEFINE (role Product Owner and Business Analyst). Read CONTRACT.md. Write docs/01-STORY.md: the user story of the task "Order a meal" with the "so that" clause, numbered acceptance criteria as Given/When/Then scenarios (happy path and the errors: unknown meal, payment refused), and what is out of scope. Under 60 lines. No code.
+=== 02-plan | none | 0.4
+Step 2 PLAN (role Lead Developer). Read docs/01-STORY.md and the template. Write docs/02-PLAN.md: task specs per area (database, API, backend, frontend, tests) and the order of work. Under 50 lines. No code.
+=== 03-design | none | 0.4
+Step 3 DESIGN (role UX/UI Designer). Write docs/03-DESIGN.md: the screen flow (menu, pick, pay, confirmation), states (loading, empty, error), component list and the text of every label. Under 50 lines. No code.
+=== 04-contract | none | 0.4
+Step 4 CONTRACT (role API Contract Owner). Write api/openapi.yaml (OpenAPI 3.1) with the endpoints for the story: list the menu, place an order, with problem+json errors. Keep it minimal and consistent with docs/02-PLAN.md. No code.
+=== 05-data | none | 0.5
+Step 5 DATA (role Database Engineer). Add the Flyway migration backend/src/main/resources/db/migration/V2__orders.sql for meals (with seed rows of five meals) and orders (status ordered, forward-only, indexes on foreign keys). Do not write Java.
+=== 06-build | check | 3.0
+Step 6 BUILD (roles Backend and Frontend Developer). Implement the story following api/openapi.yaml, the migration and docs/03-DESIGN.md: backend endpoints and the frontend screens. Keep ./check.sh green. Write the minimum of tests needed to compile; the Tester completes them in the next step.
+=== 07-environment | none | 0.3
+Step 7 ENVIRONMENT (role DevOps Engineer). Check that ./check.sh and the application start (cd backend && ./gradlew bootRun is not needed; just review the build files and application.yaml). Change them only if the story needs it, otherwise write docs/07-ENV.md with one line saying nothing was needed.
+=== 08-test | check | 2.0
+Step 8 TEST (role Tester). Write the tests that prove every acceptance criterion of docs/01-STORY.md: backend tests on the real PostgreSQL and frontend logic tests with Vitest. Map each criterion to its test in docs/08-TESTMAP.md. Run ./check.sh until CHECK PASSED.
+=== 09-verification | none | 1.0
+Step 9 TEAM VERIFICATION (roles Product Owner, Architect, Backend, Frontend, Tester, DevOps). Review the workspace once per role and write docs/09-VERDICTS.md with one verdict (approve or findings) per role with evidence. Do not change code in this step.
+=== 10-pipeline | check | 1.0
+Step 10 PIPELINE (role DevOps Engineer). Run ./check.sh from the workspace root as the pipeline. If it fails, fix the cause without weakening any test; fix all warnings. End on CHECK PASSED.
+=== 11-review | none | 1.0
+Step 11 REVIEW (role Reviewer). Review the whole change against the project rules in CLAUDE.md (complexity, naming, no secrets, tests meaningful). Write docs/11-REVIEW.md listing findings with severity. Do not change code.
+=== 12-fix | check | 1.5
+Step 12 FIX AND VERIFY (roles authors and Debug Engineer). Fix every finding of docs/09-VERDICTS.md and docs/11-REVIEW.md with severity high or medium, and note in docs/12-FIXES.md what was fixed. Run ./check.sh until CHECK PASSED.
+=== 13-accept | check | 1.0
+Step 13 ACCEPT (role Product Owner). Start the application (cd backend && ./gradlew bootRun in the background on port 18080 with the APP_DB_URL from the environment), call the API with curl for the happy path and one error, stop the application, and write docs/13-ACCEPT.md with the result per acceptance criterion. Fix defects you find and finish on ./check.sh passing.
+=== 14-document | none | 0.4
+Step 14 DOCUMENT (role Technical Writer). Write README.md: what the application does, how to build and run it, the endpoints of the story. Under 40 lines.
+=== 15-merge | check | 0.4
+Step 15 MERGE AND DEPLOY (role Lead Developer). Confirm the workspace is complete and clean (no stray files, no secrets, .gitignore covers build output), then run ./check.sh once more and write docs/15-MERGE.md with one line per check. Do not run git commands that change history.
+=== 16-audit | check | 1.5
+Step 16 AUDIT AND VERIFY (role Auditor). Check the evidence of all earlier steps: every acceptance criterion has a verdict and a test, the last ./check.sh run is green, nothing in the docs contradicts the code. Write docs/16-AUDIT.md with the final verdict (DONE or NOT DONE) and the reason.

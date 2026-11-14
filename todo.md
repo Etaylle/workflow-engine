@@ -29,7 +29,7 @@ Reload the page at any step: nothing is lost. A wrong or missing key, a rate lim
 
 | Item | State |
 |---|---|
-| Milestone | M0, M1 and M2 done 2026-11-14; next M3 (build spike, not started) |
+| Milestone | M0, M1 and M2 done 2026-11-14; M3 build spike measured 2026-11-15 (see "M3 spike results"); next the run (M4) |
 | M2 done | Brief (`POST/GET /api/projects/{id}/brief`), questions (`POST/GET .../questions`, `PUT .../answers`), requirements (`POST/GET .../requirements`), workflow now from answers and requirements; contract snapshot holds wish, brief, answers, requirements, workflow. Frontend: one project page with the steps, status-driven so a reload keeps the place. Diagram redrawn with swimlane bands (screenshot checked). `ci/run all-local` green (counts in the report of this session). **Not tried: any real Claude call of M2** (4 calls: brief, questions, requirements, workflow) |
 | M0 done | `backend/` (Spring Boot 4.1.2, Java 21 by Gradle toolchain, wrapper 8.14.7), the four planning migrations (18 tables), `GET /api/status` from `api/openapi.yaml`, health; `./gradlew test` 2 of 2 green (unit, architecture), `./gradlew integrationTest` 3 of 3 green on PostgreSQL 17 |
 | M0 also done | `frontend/` (SvelteKit 3, Svelte 5, English and German, status call, AI check), `POST /api/ai/check` (key in memory only, Anthropic Java SDK, `claude-haiku-5-5`; stub with `ENGINE_AI_STUB=true`), `ci/run`, one Playwright journey; `ci/run all-local` green (backend 5 unit + 3 integration, frontend 5 Vitest, 1 end-to-end). Not tried: the AI check with a real valid key (only the 401 path against the live API) |
@@ -54,6 +54,19 @@ Reload the page at any step: nothing is lost. A wrong or missing key, a rate lim
 | GitHub | The owner's own repository for this project | the first push | Create it when M0 is green |
 | OI-2, 3, 8, 9 | Open issues of `requirements.md` Appendix A (presentation access, audit report in the ZIP, MCP door, model per agent) | M3 to M6 | Decide when the milestone starts |
 
+## M3 spike results
+
+Build spike of 2026-11-15: task "Order a meal" of the canteen contract (`templates/spike/contract-canteen.md`, from the stubs), built by Claude Code 2.1.325 headless (`--model sonnet`, one invocation per step, `acceptEdits`, tools limited to the workspace and a short Bash allowlist) from `templates/java-svelte-postgres/` in a workspace folder, a git commit after each green step. Driver: `templates/spike/run-profile.sh <short|full>` (repeatable; step prompts in `steps-short.txt`, `steps-full.txt`). After each gated step the driver ran `./check.sh` itself; I re-ran it on both finished workspaces.
+
+| Profile | Steps | Minutes (wall) | Cost (USD, `total_cost_usd`) | Fix loops | Green at the end |
+|---|---|---|---|---|---|
+| Short | 4 (plan, build with tests, continuous integration, independent check) | 3.6 | 0.54 | 0 | Yes: `./check.sh` prints CHECK PASSED; 7 backend tests and 9 frontend tests pass |
+| 16 steps | 16 (stages of `workflow.md` 5.2, one invocation each, roles named in the prompt) | 7.9 | 1.10 | 0 | Yes: `./check.sh` prints CHECK PASSED; 8 backend tests pass |
+
+What went wrong: nothing blocking. Both profiles were green on the first attempt of every gated step. The 16-step run produced extra documents (story, design, contract, verdicts, review, audit) and its own audit found only documentation slips (a wrong test class named in `13-ACCEPT.md`, a missing `docs/14-*`) and minor code items (payment simulation flag, no transaction around meal lookup and insert, no Svelte component test). The short profile's independent check found the same kind of gap (no component test) and reported it honestly. Setup problems found while preparing: the template needed `useJUnitPlatform()` (zero tests ran at first), a committed `package-lock.json` for `npm ci`, and Gradle, npm and PostgreSQL need to run outside the Claude Code Bash sandbox.
+
+Not measured: the container half (Docker not running), a second task, rate-limit or credit exhaustion behaviour, a task with a real defect (no fix loop was triggered), and the cost on an API key (the owner's sign-in was used; `total_cost_usd` is the figure Claude Code reports). One small task on a template that already runs is the best case: expect real projects to cost several times more.
+
 ## Decisions taken
 
 | ID | Decision | Date |
@@ -66,6 +79,11 @@ Reload the page at any step: nothing is lost. A wrong or missing key, a rate lim
 | D-48 | Left out of M6 slice 1 (stories need later milestones or were cut in D-45): links and files (US-01.03), GitHub sign-in (US-01.06), opencode (D-21; only Claude Code is shown), GitHub column of the list | 2026-11-15 |
 | D-47 | Deleting a project removes everything the domains hold for it: each domain implements `engine.shared.ProjectCleanup`, `ProjectService.delete` runs them in one transaction. Contracts stay undeletable (V5 trigger) except inside that transaction: V6 lets the delete pass when `engine.deleting_project` is set for the transaction. Rename = `PATCH /api/projects/{id}`, create takes an optional `name` | 2026-11-15 |
 | D-46 | Frontend shell: global `src/app.css` (tokens, buttons, cards, pills), a hash router (`#projects` list, `#new` wish form, `#<id>` project), header with step chips from the project status. The AI check section and the status block of the old page moved: key test is on the wish form, engine name and build in the page footer | 2026-11-15 |
+| D-M3-5 | `execution` needs fewer tables than the draft in `ai-docs/skeleton/`. Create at M4: `runs`, `task_runs`, `step_runs`, `agent_calls` (one row per Claude Code invocation: step, attempt, seconds, cost, turns, outcome; this is what the spike recorded and what the cost limit sums), `checkpoints` (commit sha per green step), `console_lines`, `human_questions` (with the error class folded into the question or `step_runs.result`). Leave as drafts until a screen needs them: `ci_runs` (the check output is a log per step), `run_errors`, `decisions`, `criterion_tests`, `verdicts`, `member_reports`, `audit_reports`, `findings`, `run_metrics` (computed from `agent_calls`), `jobs`. Verdicts and audit text live as documents in the workspace (`docs/`) in the short profile | 2026-11-15 |
+| D-M3-4 | Sandbox for the MVP: the workspace folder on the engine machine with Claude Code's own permission mode (`acceptEdits`, a tool list, a short Bash allowlist, working directory only), as run in the spike; no Docker needed for it. The container (fixed toolchain, isolation from the machine) stays the target for starting the engine elsewhere (M8) and is not measured yet. Run the generated project's database as its own database or schema per run, never the engine's | 2026-11-15 |
+| D-M3-3 | Default cost limit per run: USD 10, changeable by the client, enforced by the orchestrator as the sum of `agent_calls`, with `--max-budget-usd` on every invocation (USD 2 per step, USD 3.5 for a build step) and a stop-and-ask when the sum is reached. Basis: USD 0.54 (short) and 1.10 (16 steps) for one small task; the limit is about ten times that, to cover bigger tasks and fix loops. Re-check after the first real run | 2026-11-15 |
+| D-M3-2 | Default step profile: the short one (plan, build with tests, continuous integration, independent check). It was green first time at half the cost and less than half the time of the 16 steps (3.6 against 7.9 minutes, USD 0.54 against 1.10) with the same final result. The 16 steps stay seeded as a selectable profile (audit trail, more documents). Reopen if short-profile runs show defects the extra steps would have caught. Keep the independent check as a separate invocation without the builder's session | 2026-11-15 |
+| D-M3-1 | The project template is `templates/java-svelte-postgres/` (Java 21, Spring Boot 4.1.2, Gradle wrapper, Svelte 5 with Vite and Vitest, Flyway, one `/api/health`, one test each side, `check.sh`, a short builder `CLAUDE.md`); the step driver is `templates/spike/run-profile.sh`. The builder is told to leave git to the orchestrator; the orchestrator commits after a green gate | 2026-11-15 |
 | D-45 | Left out of the M2 stories to stay on the path: attachments and links in the brief (US-01.07 keeps only the brief table fields goal, actors, domain terms, risks), web research with sources (US-02.04: the questions call uses Claude's own knowledge), edit/add/delete of single questions (US-02.03), technology choice, languages and colours (US-02.05/06), project plan document, download as DOCX/PDF (US-03.02 to 03.04), cost limit, time rules, GitHub and Render on the review page (US-04.06 shows counts and the diagram, confirm only) | 2026-11-14 |
 | D-44 | Status gates: brief only in `draft`; questions in `draft` or `questions_ready` (asking again replaces them); answers in `questions_ready` or `answered` (every question needs one answer, saved all at once); requirements in `answered` or `requirements_ready`; workflow in `requirements_ready`, `workflow_drafted` or `confirmed`. Anything else is 409. Accepting the proposal (value equal to it) is stored as `decided_by = ai`, any other value as `client` | 2026-11-14 |
 | D-43 | Domains share data through ports in `engine.shared`: `ProjectPort` (wish, status, brief text, mark status), `AnswersPort` (implemented by `questions`), `RequirementsPort` (implemented by `documents`). `ClaudeCall` in `engine.shared` is the one place that builds the client from the session key, reads structured output, maps errors (401, 429, 502) and runs the one retry (`validated`); all four planning calls use it. `InvalidAiOutputException` moved there | 2026-11-14 |
@@ -116,7 +134,7 @@ Reload the page at any step: nothing is lost. A wrong or missing key, a rate lim
 ## Next (in order)
 
 1. Live check of M1 and M2 with a real key (owner, see "How to test").
-2. M3 build spike.
+2. M4: the run, with D-M3-1 to D-M3-5 (the Docker half of the spike is still open).
 
 ## Done
 

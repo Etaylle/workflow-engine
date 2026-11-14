@@ -1,0 +1,8 @@
+=== plan | none | 0.8
+Step PLAN. Read CONTRACT.md and the code of the template. Write docs/PLAN.md: the acceptance criteria of the task "Order a meal" (numbered, each verifiable), the API (endpoints, request and response), the database tables (migration V2), the backend classes, the frontend components, and the list of tests that prove each criterion. Keep it under 80 lines. Do not write production code or tests in this step.
+=== build | check | 3.5
+Step BUILD WITH TESTS. Implement docs/PLAN.md completely: migration, backend, frontend and the tests that prove every criterion (backend tests against the real PostgreSQL, frontend logic tests with Vitest). Run ./check.sh and fix until it prints CHECK PASSED.
+=== ci | check | 1.5
+Step CONTINUOUS INTEGRATION. Run ./check.sh from the workspace root as the pipeline would. If it fails, find the cause and fix it without weakening any test. Check there are no compiler or type warnings in the output and fix them. End when it prints CHECK PASSED.
+=== check | check | 2.0
+Step INDEPENDENT CHECK. You did not write this code. Review the workspace against the acceptance criteria in docs/PLAN.md and CONTRACT.md: is every criterion implemented, is each one proven by a test that would fail if the behaviour were broken, does the application behave as the contract says? Write docs/CHECK.md with a verdict per criterion (pass or fail, with evidence) and an overall verdict. Fix real defects you find (code or tests) and run ./check.sh until it prints CHECK PASSED.

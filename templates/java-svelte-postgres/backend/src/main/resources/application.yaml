@@ -1,0 +1,12 @@
+spring:
+  application:
+    name: app
+  datasource:
+    url: ${APP_DB_URL:jdbc:postgresql://localhost:5432/spike_canteen}
+    username: ${APP_DB_USER:engine}
+    password: ${APP_DB_PASSWORD:}
+  mvc:
+    problemdetails:
+      enabled: true
+server:
+  port: ${APP_PORT:18080}
