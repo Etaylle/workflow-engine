@@ -1,12 +1,15 @@
 package engine.workflows;
 
-import engine.shared.InvalidAiOutputException;
 
+import engine.shared.AnswersPort;
 import engine.shared.ApiProblem;
+import engine.shared.ClaudeCall;
 import engine.shared.ProjectPort;
+import engine.shared.RequirementsPort;
 import engine.shared.SessionKey;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import tools.jackson.databind.json.JsonMapper;
@@ -18,50 +21,49 @@ class WorkflowService {
     private final WorkflowWriter writer;
     private final WorkflowStore store;
     private final ProjectPort projects;
+    private final AnswersPort answers;
+    private final RequirementsPort requirements;
     private final SessionKey sessionKey;
     private final JsonMapper json;
 
-    WorkflowService(
-            WorkflowWriter writer,
-            WorkflowStore store,
-            ProjectPort projects,
-            SessionKey sessionKey,
-            JsonMapper json) {
+    WorkflowService(WorkflowWriter writer, WorkflowStore store, ProjectPort projects,
+            AnswersPort answers, RequirementsPort requirements, SessionKey sessionKey, JsonMapper json) {
         this.writer = writer;
         this.store = store;
         this.projects = projects;
+        this.answers = answers;
+        this.requirements = requirements;
         this.sessionKey = sessionKey;
         this.json = json;
     }
 
-    /** One planning call; one retry with the reason when the answer is invalid. */
+    /** One planning call from the planning material; one retry with the reason when invalid. */
     WorkflowView generate(UUID projectId) {
         String wish = projects.wishOf(projectId).orElseThrow(() -> notFound(projectId));
-        String key = sessionKey.get().orElseThrow(() -> new ApiProblem(409, "Anthropic key missing",
-                "No Anthropic key is set for this session. Enter your key and try again."));
-        WorkflowDraft draft = writeValid(key, wish);
+        String status = projects.statusOf(projectId).orElseThrow(() -> notFound(projectId));
+        if (!Set.of("requirements_ready", "workflow_drafted", "confirmed").contains(status)) {
+            throw new ApiProblem(409, "Requirements missing", "The workflow is drawn from the"
+                    + " requirements; answer the questions and write the requirements first.");
+        }
+        String key = ClaudeCall.requireKey(sessionKey);
+        String material = material(projectId);
+        WorkflowDraft draft = ClaudeCall.validated("workflow",
+                correction -> writer.write(key, wish, material, correction), WorkflowValidator::validate);
         WorkflowView view = store.replace(projectId, draft);
         projects.markStatus(projectId, "workflow_drafted");
         return view;
     }
 
-    private WorkflowDraft writeValid(String key, String wish) {
-        String correction = null;
-        for (int attempt = 1; attempt <= 2; attempt++) {
-            try {
-                WorkflowDraft draft = writer.write(key, wish, correction);
-                WorkflowValidator.validate(draft);
-                return draft;
-            } catch (InvalidAiOutputException e) {
-                if (attempt == 2) {
-                    throw new ApiProblem(502, "Invalid workflow from Claude",
-                            "Claude's workflow was invalid twice (" + e.getMessage()
-                                    + "). Try again or reword the wish.", e);
-                }
-                correction = e.getMessage();
-            }
-        }
-        throw new IllegalStateException("unreachable");
+    private String material(UUID projectId) {
+        StringBuilder text = new StringBuilder("Brief:\n")
+                .append(projects.briefOf(projectId).orElse("(none)")).append("\n\nAnswers of the client:");
+        answers.answersOf(projectId).forEach(
+                line -> text.append("\n- ").append(line.question()).append(" -> ").append(line.answer()));
+        text.append("\n\nRequirements:");
+        requirements.requirementsOf(projectId).forEach(r -> text.append("\n- ").append(r.key())
+                .append(" (").append(r.priority()).append(", ").append(r.epic()).append(") ")
+                .append(r.text()));
+        return text.toString();
     }
 
     Optional<WorkflowView> find(UUID projectId) {
@@ -77,7 +79,9 @@ class WorkflowService {
             throw new ApiProblem(409, "Nothing to confirm",
                     "The workflow is already confirmed and has not changed since.");
         }
-        String snapshot = json.writeValueAsString(new WorkflowStore.Snapshot(wish, view));
+        String snapshot = json.writeValueAsString(new WorkflowStore.Snapshot(wish,
+                projects.briefOf(projectId).orElse(null), answers.answersOf(projectId),
+                requirements.requirementsOf(projectId), view));
         ContractView contract = store.confirm(projectId, snapshot).orElseThrow(() -> new ApiProblem(
                 409, "Nothing to confirm", "The workflow changed while confirming; try again."));
         projects.markStatus(projectId, "confirmed");

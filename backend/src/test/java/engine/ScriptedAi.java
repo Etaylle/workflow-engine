@@ -1,11 +1,17 @@
 package engine;
 
+import engine.documents.RequirementDraft;
+import engine.documents.RequirementWriter;
+import engine.documents.StubRequirementWriter;
 import engine.projects.Brief;
 import engine.projects.BriefWriter;
 import engine.projects.StubBriefWriter;
 import engine.questions.QuestionDraft;
 import engine.questions.QuestionWriter;
 import engine.questions.StubQuestionWriter;
+import engine.workflows.StubWorkflowWriter;
+import engine.workflows.WorkflowDraft;
+import engine.workflows.WorkflowWriter;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
@@ -53,6 +59,41 @@ public class ScriptedAi {
         public QuestionDraft write(String apiKey, String wish, String brief, String correction) {
             return next(correction, new StubQuestionWriter().write(apiKey, wish, brief, correction));
         }
+    }
+
+    /** The requirement writer of the tests; it also records the material it was given. */
+    public static class ScriptedRequirementWriter extends Script<RequirementDraft>
+            implements RequirementWriter {
+        public final List<String> materials = new ArrayList<>();
+
+        @Override
+        public RequirementDraft write(String apiKey, String wish, String material, String correction) {
+            materials.add(material);
+            return next(correction, new StubRequirementWriter().write(apiKey, wish, material, correction));
+        }
+    }
+
+    /** The workflow writer of the tests; it also records the material it was given. */
+    public static class ScriptedWorkflowWriter extends Script<WorkflowDraft> implements WorkflowWriter {
+        public final List<String> materials = new ArrayList<>();
+
+        @Override
+        public WorkflowDraft write(String apiKey, String wish, String material, String correction) {
+            materials.add(material);
+            return next(correction, StubWorkflowWriter.canteen());
+        }
+    }
+
+    @Bean
+    @Primary
+    ScriptedWorkflowWriter scriptedWorkflowWriter() {
+        return new ScriptedWorkflowWriter();
+    }
+
+    @Bean
+    @Primary
+    ScriptedRequirementWriter scriptedRequirementWriter() {
+        return new ScriptedRequirementWriter();
     }
 
     @Bean

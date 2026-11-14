@@ -6,11 +6,11 @@ import java.util.List;
 public class StubWorkflowWriter implements WorkflowWriter {
 
     @Override
-    public WorkflowDraft write(String apiKey, String wish, String correction) {
+    public WorkflowDraft write(String apiKey, String wish, String material, String correction) {
         return canteen();
     }
 
-    static WorkflowDraft canteen() {
+    public static WorkflowDraft canteen() {
         return new WorkflowDraft(
                 List.of("Student", "Kitchen"),
                 List.of(

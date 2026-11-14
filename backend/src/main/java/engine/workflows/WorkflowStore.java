@@ -1,5 +1,7 @@
 package engine.workflows;
 
+import engine.shared.AnswersPort;
+import engine.shared.RequirementsPort;
 import java.sql.Timestamp;
 import java.time.Clock;
 import java.util.HashMap;
@@ -119,8 +121,9 @@ class WorkflowStore {
         return new WorkflowView(id, projectId, status, version, contract, lanes, nodes, edges);
     }
 
-    /** Frozen copy of the wish and the workflow. */
-    record Snapshot(String wish, WorkflowView workflow) {
+    /** Frozen copy of everything the contract rests on: wish, brief, answers, requirements, workflow. */
+    record Snapshot(String wish, String brief, List<AnswersPort.AnswerLine> answers,
+            List<RequirementsPort.RequirementLine> requirements, WorkflowView workflow) {
     }
 
     /**

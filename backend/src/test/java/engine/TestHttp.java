@@ -44,4 +44,19 @@ public final class TestHttp {
     public String statusOf(UUID project) throws Exception {
         return json("GET", "/api/projects/" + project, null).get("status").asString();
     }
+
+    /** Creates a project and takes it through brief, questions (all proposals accepted), answers. */
+    public UUID answeredProject(String wish) throws Exception {
+        UUID id = createProject(wish);
+        call("POST", "/api/projects/" + id + "/brief", null);
+        JsonNode questions = json("POST", "/api/projects/" + id + "/questions", null);
+        StringBuilder body = new StringBuilder("{\"answers\":[");
+        for (int i = 0; i < questions.size(); i++) {
+            body.append(i == 0 ? "" : ",").append("{\"questionId\":\"")
+                    .append(questions.get(i).get("id").asString()).append("\",\"acceptProposal\":true}");
+        }
+        assertThat(call("PUT", "/api/projects/" + id + "/answers", body.append("]}").toString())
+                .statusCode()).isEqualTo(200);
+        return id;
+    }
 }
