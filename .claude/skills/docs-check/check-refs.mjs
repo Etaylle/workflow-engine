@@ -37,7 +37,10 @@ function walk(dir, out = []) {
 }
 
 const all = walk(root);
-const docs = all.filter((f) => f.endsWith('.md'));
+// ai-docs/reference/ holds documents of the earlier setup: they are link targets, but their own references
+// to removed rule documents are not checked.
+const REFERENCE_DIR = path.join('ai-docs', 'reference') + path.sep;
+const docs = all.filter((f) => f.endsWith('.md') && !f.includes(REFERENCE_DIR));
 const byName = new Map();
 for (const f of all) { const b = path.basename(f); if (!byName.has(b)) byName.set(b, []); byName.get(b).push(f); }
 

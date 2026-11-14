@@ -17,6 +17,6 @@ What it checks: Markdown links and backticked paths in every `.md` file outside 
 When it reports a broken reference:
 
 1. Find where the file went: `find ai-docs .claude -name '<name>'`.
-2. Fix the reference in the document if you own it; otherwise propose the fix to the owner (AGT-042).
-3. A planned document that does not exist yet (`security.md`, a runbook) goes into the `PLANNED` list at the top of the script, with the reason, by a human or the Lead.
+2. Fix the reference in the document.
+3. A planned document that does not exist yet (`security.md`, a runbook) goes into the `PLANNED` list at the top of the script, with the reason.
 4. Run the check again and report the command and its result.

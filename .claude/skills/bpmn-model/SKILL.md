@@ -5,14 +5,14 @@ description: "The BPMN 2.0 model of the workflow engine itself (level 1: run a c
 
 # The BPMN model: contract for states and transitions
 
-Files: `ai-docs/bpmn/workflow-engine-lifecycle.bpmn` (+ `.png`) and `ai-docs/bpmn/build-one-task.bpmn` (+ `.png`). Element tables, modelling rules and sources: `ai-docs/README.md` section 8. Decisions behind them: ADR-032 to ADR-039 (`architecture` skill). The model is descriptive (`isExecutable="false"`): the engine is Spring Boot code, not a BPMN engine; the code must behave as the model says.
+Files: `ai-docs/bpmn/workflow-engine-lifecycle.bpmn` (+ `.png`) and `ai-docs/bpmn/build-one-task.bpmn` (+ `.png`). Element tables, modelling rules and sources: `ai-docs/README.md` section 5. Decisions behind them: ADR-032 to ADR-039 (`ai-docs/reference/architecture.md` 5). The model is descriptive (`isExecutable="false"`): the engine is Spring Boot code, not a BPMN engine; the code must behave as the model says.
 
 ## How to use it
 
-1. Look at the PNG of the level you work on (`Read` the image), then the element table in `ai-docs/README.md` 8.
+1. Look at the PNG of the level you work on (`Read` the image), then the element table in `ai-docs/README.md` 5.
 2. For exact names, ids, gateways and flows, search the XML: `grep -n 'name="Ask the client"' ai-docs/bpmn/build-one-task.bpmn`.
 3. Map states to the status columns of `ai-docs/software-elements.md` 6 and keep every end state reachable (7). Allowed transitions are domain rules tested in code (DBS-VOC-004); write one test per BPMN path that ends in an end event.
-4. A change to the flow is an architecture change: stop and ask the Architect (AGT-040); the model, ADRs and screens change together.
+4. A change to the flow is an architecture change: stop and ask the owner; the model, ADRs and screens change together.
 
 ## Level 1: Run a client project (`workflow-engine-lifecycle`)
 

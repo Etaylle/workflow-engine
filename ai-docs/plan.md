@@ -1,64 +1,51 @@
-# The plan: goals, epics, stories and tasks of the workflow engine
+# The plan of the workflow engine
 
-The plan of the work, in the hierarchy of `workflow.md` 2: **goal** (`G-nn`) → **epic** (`E-nn`) → **user story** (`US-ee.ss`, the unit that is built, merged and deployed) → **task** (`T-ee.ss.n`, the work of one agent on one story). Where the work stands now: `../todo.md`. How to start or resume: `../kickoff-prompt.md`.
+Where the work stands: [`../todo.md`](../todo.md). How we work: [`../CLAUDE.md`](../CLAUDE.md) 2. This plan replaces the plan of 13 November 2026 (goals G-01 to G-04, epic E-00 with its story cards and task specs, the gates and the three local environments); the reasons are at the end.
 
-| Folder | One file per | Template | Written by |
-|---|---|---|---|
-| `ai-docs/goals/` | goal | `workflow.md` 17.1 | Product Owner (with the Lead) |
-| `ai-docs/epics/` | epic | `workflow.md` 17.2 | Lead (scope by the Product Owner) |
-| `ai-docs/stories/` | story card | `ai-docs/stories/_template.md` (`workflow.md` 4.1) | Lead, with `/start-story` |
-| `ai-docs/tasks/` | task spec | `workflow.md` 17.4 | Lead; `completion_notes` by the agent |
+## Milestones
 
-Detail is refined just in time (WFL-005): the goals and all epics are written; the stories of the active epic are precise cards; stories of later epics are one line in their epic file and get a card when their epic becomes active.
+The owner's target for 20 November 2026 is that the workflow works: a wish becomes a workflow in the browser (D-30). So the planning path comes first, then the build, proven by a spike before it is built out. One session is about 3 hours of one developer with Claude Code. The session numbers are estimates; they are replaced by measured values in `todo.md`.
 
-## The plan at a glance
-
-| Goal | Epic | Content | Status |
-|---|---|---|---|
-| [G-01](goals/G-01.md) Technical setup | [E-00](epics/E-00.md) | Repository, toolchain, skeleton page, AI check, local pipeline, local dev, test and prod, spike US-00.S1 | Planned |
-| [G-02](goals/G-02.md) MVP business requirements | [E-01](epics/E-01.md) | `projects`: all projects, wish, files, session key, GitHub sign-in (screens 0, 1) | Proposed |
-| | [E-02](epics/E-02.md) | `questions`: research, questions, technology choice (screen 2) | Proposed |
-| | [E-03](epics/E-03.md) | `documents`: requirements and project document (screen 3) | Proposed |
-| | [E-04](epics/E-04.md) | `workflows`: BPMN-like workflow, edit a task, contract (screens 4, 5, 8) | Proposed |
-| | [E-05](epics/E-05.md) | `settings`: models per tier, editable AI team and development workflow (screens 6, 7) | Proposed |
-| | [E-06](epics/E-06.md) | `execution`: sandbox, the run of `build-one-task`, stop, resume, push, ZIP, report (screens 9 to 13) | Proposed |
-| | [E-07](epics/E-07.md) | Case epic "From wish to result": the cross-domain journey end to end | Proposed |
-| [G-03](goals/G-03.md) Audit and testing | [E-08](epics/E-08.md) | Integration, audit and verification | Proposed |
-| [G-04](goals/G-04.md) CI/CD and infrastructure | [E-09](epics/E-09.md) | Completion of the delivery path on the local machine (test and prod already exist, ADR-041); a remote host only if wanted | Proposed |
-| | [E-10](epics/E-10.md) | Release of the MVP through dev, test, prod | Proposed |
-
-States: goal and epic `Proposed → Planned → Active → Gate → Closed` (`workflow.md` 11); story `Draft → Ready → In progress → Verification → Done`; task `open → in progress → done | blocked` (17.4).
-
-## Where each piece is built and deployed (as the documents define it)
-
-| Unit | Built and checked | Deployed to | Rule |
-|---|---|---|---|
-| Task (`T-…`) | In the story branch by its agent; `ci/run` steps of its area | Not deployed alone: a task is part of a story | WFL-136, AGT-031 |
-| Story (`US-…`) | `ci/run all-local` (local containers: build, check, images, `env-up layers`, migrate, seed, tests, smoke, report) | **local** containers, then after the merge **dev** on the local machine (`deploy dev`, `verify dev`, pointer `env/dev`) | WFL-130, INF-BRN-013, CIC 4.1 |
-| Epic (`E-…`) | Epic gate (`workflow.md` 11) on the integrated state | **test** (`promote dev test`, `verify test`), then **prod** after the Product Owner's approval (`promote test prod`, `verify prod`) | WFL-131, WFL-133, INF-ENV-005, CIC-140, CIC-142 |
-
-All environments run on the local machine with Docker until the presentation (ADR-041): `dev`, `test` and `prod` are separate compose projects with their own volume, env file and ports, created in Epic 0 (US-00.10, US-00.14). The deployment commands run on the local machine. A remote host is not planned; if one is wanted later (for example `amberneurons-engine`), its first deployment is the first story of G-04.
-
-## Target for 20 November 2026: from the wish to the reviewed workflow (PO decisions D-11, D-13)
-
-By 20 November the engine shows the first part of the BPMN model (level 1, `bpmn/workflow-engine-lifecycle.png`) working end to end with Claude: **Receive wish → Check API key → Create project → Prepare questions → Receive answers → Plan requirements and workflow → Ready to run (review) → Freeze contract**. Not every function of these screens is there yet: each story below is the thinnest version that makes the step work. AI is available from the first build (US-00.15) and used in every step. Execution (Prepare build space, Build each task) is **prepared, not built**: its tables and records exist from the skeleton (US-00.03), the Run button on Ready to run is shown but disabled ("execution follows"), and E-06 starts after 20 November.
-
-| # | Story | BPMN level 1 | Screen | Thin version for 20 Nov |
+| # | Milestone | Content | Proof | Sessions |
 |---|---|---|---|---|
-| E-00 | US-00.01–06, 15, 08, 10 (09 in parallel) | — | skeleton page | Repository, toolchain, database, backend, frontend, AI check with own key, local pipeline, dev |
-| 1 | US-01.01 | Receive wish, Create project | 1 | Name, document language, wish; app shell en/de |
-| 2 | US-01.05 | Check API key, Key valid? | 1 | Session key on screen 1 (reuses US-00.15) |
-| 3 | US-01.07 | Prepare questions (brief) | 1 → 2 | Project brief by Claude |
-| 4 | US-02.01 | Prepare questions | 2 | Questions by Claude, validated, one retry |
-| 5 | US-02.02 | Receive answers | 2 | Answer and save; the stack is the default template (Java × Svelte) shown read-only until US-02.05 |
-| 6 | US-03.01 | Plan requirements | 3 | Requirements by Claude, grouped by epic, shown in the browser |
-| 7 | US-04.01 | Plan workflow | 4 | Workflow generated by Claude with the workflow tools, validated |
-| 8 | US-04.02 | Plan workflow | 4 | The workflow shown as a BPMN-like diagram (lanes, events, tasks, arrows) |
-| 9 | US-04.06 | Receive confirmed contract (review) | 8 | Review of wish, answers, stack, requirements and workflow before execute; Run shown disabled |
-| 10 | US-04.07 | Freeze contract | 8 | Confirm: immutable contract snapshot |
+| M0 | Walking skeleton | Repository layout, Gradle and npm builds, PostgreSQL with the planning schemas, backend with health and one API operation from `api/openapi.yaml`, SvelteKit page in English and German that calls it, AI check with the user's own key, `ci/run all-local` | The page runs from a clean clone with one command; tests green | 3 |
+| M1 | Thin workflow path | Wish and session key → Claude writes the workflow in one call → shown as a diagram → confirm as contract (US-01.01, 01.05, 04.01, 04.02, 04.07), each in its thinnest version | The canteen wish becomes a confirmed workflow in the browser, with a real Claude key typed into the page | 4 |
+| M2 | Planning to the contract, complete | Brief, questions (at most 8 at a time), answers, requirements, review page (US-01.07, 02.01, 02.02, 03.01, 04.06); the workflow is generated from the answers and requirements | The journey of screens 1 to 4 and 8 with a real key | 6 |
+| M3 | Build spike | Without any screen: one business task of a confirmed canteen contract built by Claude Code headless from the Java × Svelte template, first in a workspace folder on the machine, then in one container; once with the 16 steps, once with the short profile. Decides the sandbox, the default step profile, the default cost limit and the tables of `execution` | Minutes and cost per task for both profiles, recorded in `todo.md` | 2 |
+| M4 | One run end to end, thin | US-06.01 to 04, 07, 12 in their thinnest version: sandbox, template, orchestrator, one task after the other, live status with a link to try the result, ZIP | A run on the canteen contract ends with software that builds and passes its tests | 6 |
+| M5 | Runs that survive | US-06.05, 06, 09, 10: error classes and fix loops, asking the client, stop, resume, limits, waiting for tokens | Each case shown with a stub and once live | 6 |
+| M6 | Complete planning and settings | The remaining stories of E-01 to E-05 | Acceptance scenarios of `requirements.md` 11.1 for screens 0 to 8 | 8 |
+| M7 | Delivery | US-06.11 and the rest of US-06.12: GitHub push per task, Render link, final report | A public repository and a deployed result from one run | 3 |
+| M8 | Verification and release | E-07; a check of every Must requirement against a test; a clean-clone start on another machine; tag v1.0.0 | Reference run within the time target; the engine runs from GitHub without help | 4 |
 
-After 20 November, in this order unless the PO changes it: the rest of E-00 (US-00.13, 11, 14, 07, 12, S1) and the E-00 gate; the remaining stories of E-01 to E-04 (all projects page, files, harness choice, GitHub sign-in, question editing, research, technology choice, project document, downloads, task editing, validation, edit operations); E-05 settings; E-06 execution (after the spike); E-07.
+About 42 sessions in total. The backlog of each domain is in `epics/E-01.md` to `E-07.md`; the story ids there stay as names of the parts.
 
-**Process for this target (D-13).** Business stories start as soon as the local pipeline and dev exist (US-00.08, US-00.10); the remaining Epic 0 stories and the E-00 gate follow after 20 November (deviation from WFL-070, decided by the PO). Each story still goes through its full loop (`kickoff-prompt.md` 4: tests, verification, review, deployment to dev); no gate or test is weakened. Domain epics E-01 to E-04 stay Active in parallel until their remaining stories are done; their gates and the promotion to test and prod come after 20 November.
+## Until 20 November 2026 (assignment #1)
 
-**Developers.** From Epic 0 on, other developers work on the engine with their own Claude login and their own key in `.env` (D-12); everyone works through pull requests on `github.com/ekarimova/workflow-engine` (D-09, US-00.09) and keeps `todo.md` true. An example workflow is not shown in the product for now; it may be used as test data where a test needs one (D-10).
+M0 and M1 are the must; M2 as far as the time reaches. Neither needs Docker (the tests and the application use the PostgreSQL installed on the machine) nor a key in a file (automated tests use a stub; for the live check the key is typed into the page and held for the session only).
+
+## What Docker and the key are for
+
+| Thing | Needed for | Needed from |
+|---|---|---|
+| A Claude API key | Every user of the product enters one on screen 1 (BR-08; a product for others cannot use a claude.ai login, CON-04). Development needs it only for the live check of a slice; the cheapest model is enough for that | The first live check of M1 |
+| Docker | Running generated code apart from the machine and with a fixed toolchain (M3, M4), and starting the engine on another machine with one command (M8) | M3, second half |
+| Claude Code on this machine | The first half of the build spike: it builds in a workspace folder with its own sandbox and the owner's existing sign-in, so the spike costs no API money | M3, first half |
+
+## Risks
+
+| Risk | Answer |
+|---|---|
+| The time and cost of one built task are unknown; the earlier architecture decision E-ADR-09 judged that 16 steps do not fit 4 hours | M3 measures both step profiles before anything else of the run is built |
+| Privileged Docker-in-Docker for the sandbox | M3 builds in a workspace folder first, then in a single container with PostgreSQL; Docker-in-Docker only if the template's tests need it |
+| The schemas of `execution` and `settings` were designed before any run existed (verdicts, member reports, audit findings per task) | They stay drafts in `skeleton/` until M3 has shown what a run produces; run events get a sequence number for SSE replay |
+| AI answers are not deterministic and cost money | Every AI result is validated against its schema with one retry; automated tests use a stub; a cost limit per run with a default from M3 |
+| One machine, one developer | One environment; `ci/run all-local` is the only gate; small slices |
+| Nine template setups are a Must in `requirements.md` (TR-11) | The MVP has one (D-21); the requirement is changed when the Word master is updated |
+
+## Why the earlier plan was replaced
+
+- It asked for 10 setup stories and 10 business stories in 6 days, each through 16 stages with a verdict of every role, with a build time of about 3 hours a day.
+- One person was Product Owner, approving Architect and the only one who merges, and nobody may merge their own work.
+- The technology rule documents (about 11,000 lines) were generic templates without anything on Spring AI, SSE, long AI runs or the sandbox, partly against the chosen stack (a Web Component per domain in SvelteKit) and partly against taken decisions.
+- The largest technical risk (sandbox, harness, the 4-hour run) was planned last and never measured.

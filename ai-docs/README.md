@@ -1,11 +1,6 @@
-# ai-docs: everything needed to build the workflow engine
+# ai-docs: the documents of the workflow engine
 
-| | |
-|---|---|
-| Document | `ai-docs/README.md` (the only README of the documents) |
-| Version / status | 2.0, 13 November 2026. 2.0 unites the former ai-docs/README.md, README-STARTER-KIT.md, bpmn/README.md, ui-mockup/README.md and audit/README.md |
-| Purpose | The index of all documents, where each one lives, the reading order, all product decisions on one page, the UI mockup, the BPMN model, the audit records and the setup. Detail and reasons stay in the documents named in each row. |
-| Authority | This page summarises. If it differs from a document it points to, that document wins and this page is corrected (`architecture.md` 2). |
+Version 3.0, 14 November 2026. The index of the documents, the product decisions on one page, the UI mockup and the BPMN model. How we work and what holds: [`../CLAUDE.md`](../CLAUDE.md). The plan: [`plan.md`](plan.md).
 
 ## 1. The product in five lines
 
@@ -28,102 +23,27 @@ Course: Hochschule Campus Wien, SDE, Advanced Software Development. Assignment #
 | Stop and time | Stop at any time exports the ZIP of the last finished task. 4 hours is a target: a warning, then the run continues and reports overtime. A run resumes up to 3 times after a restart (the key is asked for again). | ADR-027, ADR-028 |
 | Result | A ZIP cleaned of agent files, a final report with metrics, the repository link and the Render link. | ADR-029; FR-EXP |
 | Generated projects | Backend Java, C# or Python × frontend Angular, Svelte or Nuxt; PostgreSQL fixed; from prepared templates in `templates/`. | ADR-025, ADR-030 |
-| App wording | The app never shows configuration file names ("Reset to initial", "recommended"). English and German. | Section 7 of this page; `i18n.md` |
+| App wording | The app never shows configuration file names ("Reset to initial", "recommended"). English and German. | Section 4 of this page |
 | Security, observability | Not built in the MVP. Correctness rules stay: validation, error handling, no secrets in code, logs or Git. | ADR-020 to ADR-022 |
 | Environments | Everything runs on the local machine with Docker until the presentation: local, and dev, test, prod as compose projects; stories deploy to dev, finished epics are promoted to test and prod. No remote host; a later name may be amberneurons-engine. | ADR-041 |
-| Documents | Product documents in `ai-docs/`; the team's rule documents (area contracts) as Claude Code skills in `.claude/skills/<area>/`; the agent rules in `agents.md` at the root. Markdown is what agents read; the Word files in `word/` are the masters for human review. | ADR-040 (amended 13 November 2026) |
+| Documents | Product documents in `ai-docs/`. Markdown is what agents read; the Word files in `word/` are the masters for human review. | ADR-040 |
 
 ## 3. Where everything is
 
-```text
-CLAUDE.md                        project memory, loaded in every session; project facts in section 9
-kickoff-prompt.md                how to start or continue work (`/next`)
-todo.md                          where the work stands: current goal/epic/story/task, decisions, next, done, deployments
-agents.md                        agent rules (AGT): scope, guardrails, run discipline, project inventory (section 8)
-.env.example, .gitignore         placeholders only; secrets stay out of Git
-.claude/
-  settings.json                  permissions + global guard hook (all sessions)
-  hooks/guard.mjs, selftest.mjs  the guard and its self-test (node .claude/hooks/selftest.mjs)
-  agents/                        the nine role subagents (lead, architect, backend-developer, frontend-developer,
-                                 tester, reviewer, devops, ux-ui-designer, auditor)
-  skills/
-    <area>/SKILL.md + <area>.md  the 13 rule documents as skills: architecture, workflow, team, ux-ui, frontend, api,
-                                 backend, db, i18n, tests, ci-cd, infrastructure, audit (SKILL.md = when to use + key
-                                 sections; <area>.md = the full document, the source of truth)
-    start-story/                 /start-story US-ee.ss
-    team-verification/           /team-verification US-ee.ss
-    audit-report/                /audit-report AP2 E-00 (runs in the auditor subagent)
-    kickoff-epic0/               /kickoff-epic0: the first plan-mode prompt for Epic 0
-    agent-rules/                 the way into agents.md (root): sections to read first, how to find an AGT rule
-    screen-build/                one screen → image, page, design source, software-elements section, domain, BPMN
-    bpmn-model/                  the BPMN model as the contract for run, task and step states
-    find-rule/                   look up a rule ID (WFL-050, BKD-MIG-009 …) in the right document
-    docs-check/                  check that every file reference in the documents resolves (check-refs.mjs)
-    project-learnings/           lessons learned on this repository; read before restructuring or setup work
-ai-docs/
-  README.md                      this page
-  plan.md                        the plan: goals, epics, how stories and epics are deployed
-  goals/                         one file per goal (G-01 … G-04, workflow.md 17.1)
-  epics/                         one file per epic (E-00 … E-10, workflow.md 17.2) with its ordered stories
-  requirements.md                requirements specification 0.3 (Markdown of the Word file)
-  engine-architecture.md         arc42 architecture 0.3 (Markdown of the Word file); 6.8 = both BPMN diagrams
-  software-elements.md           screen element → component → API → class → table → AI agent
-  bpmn/                          BPMN 2.0 model of the engine (section 8)
-  ui-mockup/                     the 14 MVP screens (section 7)
-  images/                        figures of requirements.md and engine-architecture.md
-  word/                          the four Word masters: concept 0.3, summary 1.2, requirements 0.3, arc42 0.3
-  skeleton/backend/              V1 schema per domain (42 tables, tested on PostgreSQL 16), domain records, enums,
-                                 AI output records (Java 21), seeds (default AI team, 16-step development workflow)
-  skeleton/frontend/             TypeScript models per domain (tsc --strict)
-  stories/                       story cards (template _template.md, workflow.md 4.1) with DoR, checkpoint, verdicts, evidence
-  tasks/                         task specs written by the lead (workflow.md 17.4)
-  audit/                         audit records (section 9)
-```
+| Path | Content |
+|---|---|
+| `requirements.md` | Requirements of the engine (BR, FR, QR, TR, IR), open issues |
+| `engine-architecture.md` | Architecture of the engine (arc42, E-ADR) |
+| `software-elements.md` | Screen element → component → API operation → class → table → AI agent |
+| `plan.md`, `epics/` | Milestones M0 to M7 and the backlog per domain |
+| `ui-mockup/` | The 14 screens: images, static pages, design source (section 4) |
+| `bpmn/` | BPMN 2.0 model of the engine (section 5) |
+| `skeleton/` | Tables, domain records, AI output records and frontend models to start from |
+| `audit/deferred-risks.md` | Risks accepted by deferring security and observability |
+| `reference/` | Documents of the earlier setup: the decision register (`architecture.md` 5) and the 16 development steps and team that generated projects are built with (`workflow.md` 5.2, `team.md`). They cite rule documents that were removed on 14 November 2026 |
+| `word/` | Word masters of the requirements and the architecture for human review |
 
-Bare document names in the documents (`backend.md` 4.2, `workflow.md` WFL-050) mean the file of that name above: `requirements.md`, `engine-architecture.md`, `software-elements.md` in `ai-docs/`; `agents.md` at the root; every other area document in `.claude/skills/<area>/<area>.md`. The skill `find-rule` resolves a rule ID to its file.
-
-The skeleton is the starting point of the code, not the code itself: Epic 0 keeps it and builds the monorepo layout of `engine-architecture.md` 5.1 (`backend/`, `frontend/`, `api/`, `ci/` …) around it.
-
-## 4. Reading order
-
-| Step | Read | Why |
-|---|---|---|
-| 1 | `../CLAUDE.md` | The rules every session keeps; project facts in section 9 |
-| 2 | This page, then `../todo.md` and `plan.md` | The product, its decisions, where everything is, where the work stands |
-| 3 | `architecture.md` sections 2, 4.1, 5, 6 | Authority, the two BPMN diagrams, the decision register (ADR-001 to ADR-041), the invariants |
-| 4 | `workflow.md` 4, 5, 8, 9 and `team.md` | How a story runs (16 stages), who does what |
-| 5 | `../agents.md` | Agent rules, permissions, the project inventory (section 8) |
-| 6 | For the story at hand: `requirements.md` (the IDs), `software-elements.md` (screen → component → API → class → table → AI agent), the screen in `ui-mockup/` (section 7), the BPMN model (section 8) | What to build |
-| 7 | The area document of the work: `backend.md`, `db.md`, `api.md`, `frontend.md`, `ux-ui.md`, `i18n.md`, `tests.md`, `ci-cd.md`, `infrastructure.md` (all in `.claude/skills/<area>/`) | How to build it |
-
-## 5. Build order
-
-The full plan with goals, epics, stories and tasks is `plan.md` (`goals/`, `epics/`, `stories/`, `tasks/`); the current position is `../todo.md`.
-
-| Order | What | Detail |
-|---|---|---|
-| 0 | Epic 0, technical setup (due 20 November 2026): repository, toolchain, database and first migration, backend and frontend skeleton, compose, local pipeline; spike for the agent harness | `infrastructure.md` 17; skill `/kickoff-epic0` |
-| 1 | `projects`: all projects, wish, files, session key, GitHub sign-in | Screens 0, 1; `software-elements.md` 3.0, 3.1 |
-| 2 | `questions`: research, questions, technology choice | Screen 2 |
-| 3 | `documents`: requirements, project document | Screen 3 |
-| 4 | `workflows`: BPMN-like workflow, edit a task, contract | Screens 4, 5, 8 |
-| alongside | `settings`: Claude models per tier, editable AI team and development workflow | Screens 6, 7 |
-| 5 | `execution`: sandbox, the run of `bpmn/build-one-task`, console, questions to the client, GitHub push, ZIP, report | Screens 9 to 13; section 8 |
-
-Each slice follows the chain of `software-elements.md` 1: screen element → Svelte component → API operation → backend class → table, and names the AI agent that writes the data.
-
-## 6. Open points before or during the build
-
-- Result of the harness spike US-00.S1: Claude Code, opencode or both as default (OI-4).
-- Default cost limit and ceiling values (OI-5).
-- `GITHUB_OAUTH_CLIENT_ID` of the engine's GitHub OAuth app (device flow); without it the GitHub card is hidden.
-- Exact Claude model ids in `settings.provider_models` (placeholders in the seed).
-- `requirements.md` does not yet list every feature of `software-elements.md` 0.2 (story types, error types, evidence, audit report, metrics, lessons, edit conflicts, dialogs); add the requirement before the story starts.
-- A reference run against the 4-hour target with 16 steps per task (ADR-039 reopen trigger).
-- The guard hook's path rules still name the old paths of the area documents; a human runs the script named in the skill `project-learnings` (agents may not edit the guard, AGT-081).
-- All open decisions and their state: `../todo.md`.
-
-## 7. UI mockup of the MVP (`ui-mockup/`)
+## 4. UI mockup of the MVP (`ui-mockup/`)
 
 The reference for the screens: what each page shows, in which order, and how the pages link. Use it together with `software-elements.md`, which maps every element on these screens to its Svelte component, API operation, backend class, table and AI agent.
 
@@ -166,15 +86,15 @@ Pages 6 and 7 are also opened from 10 and 11 during a run (read the running cont
 
 **Rules for building from these screens**
 
-- The screens are a reference for content, order and states, not a pixel specification. The design system and the rules of `ux-ui.md` and `frontend.md` decide the final look.
-- Every text on a screen comes from the translation resource (`i18n.md`); the header has a language switch.
+- The screens are a reference for content, order and states, not a pixel specification. The design source in `ui-mockup/source/` decides the final look.
+- Every text on a screen comes from the translation resource (English and German message files); the header has a language switch.
 - The app never shows file names of the engine's own setup; it says "Reset to initial" and "recommended".
 - The example data (canteen pre-order, "Pay", times, costs, commits) is invented demo content, not test data.
 - Each screen element is built in the story of its domain (see `software-elements.md` 3). Check the matching image before the story starts and attach it to the story card.
 
-The BPMN 2.0 diagrams of the engine itself are on the same design canvas (`ui-mockup/source/canvas.json` lists them) and in `bpmn/` (section 8).
+The BPMN 2.0 diagrams of the engine itself are on the same design canvas (`ui-mockup/source/canvas.json` lists them) and in `bpmn/` (section 5).
 
-## 8. BPMN 2.0 model of the engine (`bpmn/`)
+## 5. BPMN 2.0 model of the engine (`bpmn/`)
 
 How the workflow engine itself runs one client project, end to end, and how its AI team builds one task. Version 1.0, final for the MVP. Related: `requirements.md`, `engine-architecture.md` 6.8, `architecture.md` 4.1 (ADR-032 to ADR-039), `workflow.md` (the 16 development steps), `team.md`.
 
@@ -245,76 +165,3 @@ The model follows the BPMN 2.0.2 specification (OMG), Bruce Silver's Method and 
 Checks that were run on both files (script in the starter kit history, not part of the product): XML parses, every reference resolves, every element has diagram interchange, incoming/outgoing lists match the sequence flows, every node is in exactly one lane, every node reachable from a start and able to reach an end, no line passes through a shape, no lines cross, no label overlaps a shape, line or other label. Then three rounds of rendering and visual inspection.
 
 Sources: OMG, BPMN 2.0.2, formal/13-12-09; B. Silver, BPMN Method and Style, 2nd ed., Cody-Cassidy Press; J. Mendling, H. A. Reijers, W. M. P. van der Aalst, Seven Process Modeling Guidelines (7PMG), Information and Software Technology 52 (2010); M. Dumas, M. La Rosa, J. Mendling, H. A. Reijers, Fundamentals of Business Process Management, 2nd ed., Springer 2018; W. J. Hopp, M. L. Spearman, Factory Physics (Little's law, work-in-progress limits: one task at a time).
-
-## 9. Audit records (`audit/`)
-
-Written by the Auditor only (`audit.md` 11, AUD-090). Method: `audit.md` 6. Templates: `audit.md` 12.
-
-| File | Content |
-|---|---|
-| `audit/findings.md` | Register of all findings and their state (12.4) |
-| `audit/patterns.md` | Repeated causes, proposals, results |
-| `audit/deferred-risks.md` | The deferred-risk register (12.5) |
-| `audit/reports/AR-<point>-<scope>-<date>.md` | Audit reports |
-
-Register of simplifications of this project (AUD-020): none yet.
-
-## 10. Setup and first session
-
-**Check the setup.** `CLAUDE.md` and `.claude/` must be at the project root, otherwise Claude Code does not find them (use the terminal; Finder hides dot folders).
-
-```bash
-ls -la                              # CLAUDE.md, agents.md, .claude, ai-docs, .gitignore, .env.example
-node .claude/hooks/selftest.mjs     # must end with "All N cases passed."
-node .claude/skills/docs-check/check-refs.mjs   # every document reference resolves
-```
-
-**API key with a spending limit (for testing the engine).** The engine stores no user keys: each user enters an Anthropic key on screen 1 for their session only (ADR-033). The key in `.env` is only for the engine's own automated tests; use a separate key with a hard cap, not your personal default key.
-
-1. Sign in at **platform.claude.com** (Claude Console). This is separate from claude.ai; API usage is paid with Console credits (Billing), not with a Pro or Max subscription.
-2. Organization settings → **Billing** → buy a small amount of credit and set an organization **spend limit**.
-3. **Workspaces** → create a workspace, for example `workflow-engine-dev` (the Default workspace cannot have its own limit).
-4. In that workspace: **Spend limits** → *Change limit* → for example 20 USD per month (lower than the organization limit).
-5. In that workspace: **API Keys** → *Create Key* → name `engine-local`. Copy it once.
-6. `cp .env.example .env` and paste the key after `ANTHROPIC_API_KEY=`. `.env` is git-ignored and the guard blocks agents from reading or writing it.
-
-Do **not** put the key into `~/.zshrc` or export it in the terminal where you start Claude Code: if `ANTHROPIC_API_KEY` is set there, Claude Code bills that key instead of your subscription.
-
-**GitHub CLI (`gh`).**
-
-```bash
-brew install gh
-gh auth login          # GitHub.com → HTTPS → Login with a web browser
-gh auth status
-gh repo create workflow-engine --private --source=. --remote=origin --push
-```
-
-Then protect `main` on GitHub (Settings → Branches → require a pull request). Claude Code uses `gh pr create` and `gh pr view`; pushing and merging always ask you first (`.claude/settings.json`).
-
-**First session.**
-
-1. `node .claude/hooks/selftest.mjs` (all cases pass).
-2. `claude` in the project root. `/agents` shows the nine roles, `/hooks` the guard, `/skills` the skills.
-3. Switch to plan mode (Shift+Tab) and run `/kickoff-epic0`. Approve or change the plan.
-4. Story by story: `/start-story US-00.01` → the subagents build → `/team-verification US-00.01` → you review the diff and create the pull request.
-5. At the end of Epic 0: `/audit-report AP2 E-00`.
-
-| Piece | What it does | Note |
-|---|---|---|
-| Main session | You and Claude Code: start skills and subagents, approve plans | Subagents cannot start other subagents, so the main session orchestrates; the `lead` subagent plans and writes task specs |
-| Subagents | One file per role; tools and model from `agents.md` 13 and TEAM-051 (`opus` for lead, architect, auditor; `sonnet` for the others) | Each has a path guard hook in its frontmatter and preloads the skills of its area |
-| Area skills | The 13 rule documents; Claude loads the short `SKILL.md` when the work matches and opens the full document by section or rule ID | The document in the skill folder is the source of truth, not `SKILL.md` |
-| Global guard | Every session: no secrets, no newly disabled or skipped tests (JUnit disable annotations, `it.skip`, Gradle `ignoreFailures`), no force push or push to `main`, no `reset --hard`, no volume removal, no `curl \| sh`, no reading `.env`, no edits of the guard itself | A blocked call returns the reason to Claude; it is logged in `.claude/hooks/blocked.log` |
-| Path guard | Per role, the write areas of `agents.md` 11; shell writes are checked best-effort (redirections, `rm`, `mv`, `cp`, `sed -i`) | The Reviewer still rejects out-of-scope files (AGT-070) |
-| Workflow skills | `/start-story`, `/team-verification`, `/audit-report`, `/kickoff-epic0` are started by you only (`disable-model-invocation`) | `/audit-report` runs in the auditor's own context for independence |
-
-If a guardrail blocks something legitimate, change the rule in `.claude/hooks/guard.mjs` yourself, add a case to `selftest.mjs`, and run the self-test. Agents are not allowed to change the guard.
-
-**Known limits.** The hooks use Node; no `jq` or Python needed. Claude Code's tool names and hook details change between versions: if `/hooks` does not show the guard, or a case behaves differently in practice than in the self-test, check the current hooks documentation and adjust `settings.json`. The path guard for shell commands is a heuristic. No key, token or personal data belongs in this repository; the guard catches common key formats, not all of them.
-
-## 11. Change history of the documents
-
-- **13 November 2026, plan.** `plan.md`, `goals/`, `epics/`, the 14 story cards and 24 task specs of E-00; `kickoff-prompt.md` (replaces the content of the skill `kickoff-epic0`) and `todo.md` at the root.
-- **13 November 2026, structure.** One README (this page) replaces five. The engine documents moved from ai-docs/engine-docs/ to `ai-docs/`; the code skeleton to `ai-docs/skeleton/`; the 13 area documents to `.claude/skills/<area>/` with a `SKILL.md` each; the duplicate copies of `README.md` and `agents.md` were removed (`agents.md` stays at the root); kickoff-prompt.md became the skill `/kickoff-epic0`. Every path reference was updated (ADR-040 amended, AGT-004, AGT-042, `agents.md` 8). New skills: `agent-rules`, `screen-build`, `bpmn-model`, `find-rule`, `docs-check`, `project-learnings`, `kickoff-epic0`; each subagent preloads the skills of its area (`skills:` in `.claude/agents/*.md`).
-- **13 November 2026, second round of the starter kit.** The documents folder is `ai-docs/` (every `docs/` path in the documents, hooks, skills and agents was changed; ADR-040). `architecture.md` 0.3: ADR-032 to ADR-040 and section 4.1 with both BPMN diagrams; ADR-024 replaced by ADR-039, ADR-023 partly by ADR-038. Broken references fixed: `db.md` (WFL-288 → ARC-060, WFL-291 → WFL-080), `architecture.md` (WFL-291 removed, CIC-265 → CIC-011, CIC-040), `agents.md` (WFL-290 → AGT-042). `agents.md` section 8: three rows added (documents folder, product references, product decisions an agent must not break).
-- **Starter kit, first round.** `architecture.md` 0.2: ADR-023 to ADR-031 (engine profile; apply only to the engine's unattended runs and templates); the document map and plan list `requirements.md`, `engine-architecture.md`, `audit.md` and `CLAUDE.md` as existing. `audit.md`: AUD-002 cited the non-existent WFL-283; now WFL-117. `team.md`, `workflow.md`: the former separate decisions file → the decision register in `architecture.md` 5; the former process file → `workflow.md` and `CLAUDE.md`; stale "not yet written" notes removed (also in `ci-cd.md`, `db.md`, `agents.md`). `agents.md` section 8 (project inventory) filled; `CLAUDE.md` sections 5 and 9 filled. Defaults chosen: Gradle with Kotlin DSL, local only for G-01 until WFL-173 is decided.

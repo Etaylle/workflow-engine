@@ -1,84 +1,82 @@
 # todo: where the work stands
 
-Kept up to date by everyone who works on the engine (human or agent): after each task, story, decision or deployment. To start Phase 0: `claude`, then `/kickoff-epic0`; to continue: `/next` (`kickoff-prompt.md`). Newest entries first. The plan: `ai-docs/plan.md`.
+Updated after each slice and each decision. Newest first. The plan: `ai-docs/plan.md`. How we work: `CLAUDE.md` 2.
 
-Last update: 2026-11-14, main session (Claude): PO decisions D-09 to D-13 recorded; target for 20 November = wish to reviewed workflow.
+Last update: 2026-11-14 (Claude): M0 walking skeleton complete (frontend, AI check, ci/run, end-to-end test); D-32 to D-34.
 
 ## Current position
 
-| Level | Item | State |
+| Item | State |
+|---|---|
+| Milestone | M0 Walking skeleton done 2026-11-14; next M1 thin workflow path |
+| M0 done | `backend/` (Spring Boot 4.1.2, Java 21 by Gradle toolchain, wrapper 8.14.7), the four planning migrations (18 tables), `GET /api/status` from `api/openapi.yaml`, health; `./gradlew test` 2 of 2 green (unit, architecture), `./gradlew integrationTest` 3 of 3 green on PostgreSQL 17 |
+| M0 also done | `frontend/` (SvelteKit 3, Svelte 5, English and German, status call, AI check), `POST /api/ai/check` (key in memory only, Anthropic Java SDK, `claude-haiku-5-5`; stub with `ENGINE_AI_STUB=true`), `ci/run`, one Playwright journey; `ci/run all-local` green (backend 5 unit + 3 integration, frontend 5 Vitest, 1 end-to-end). Not tried: the AI check with a real valid key (only the 401 path against the live API) |
+| Product code | skeleton only (M0): `backend/`, `frontend/`, `api/`, `ci/` are created in M0; the tables and records to start from are in `ai-docs/skeleton/` |
+| Git | Local only (D-24). The remote `origin` still points to the earlier project repository; do not push to it |
+
+## This machine
+
+| Tool | Found 2026-11-14 | Needed |
 |---|---|---|
-| Goal | [G-01 Technical setup](ai-docs/goals/G-01.md) | Planned (due 2026-11-20) |
-| Epic | [E-00 Technical project setup](ai-docs/epics/E-00.md) | Planned; kickoff plan approved 2026-11-13, changed 2026-11-14 (D-09 to D-12) |
-| Story | [US-00.01 Repository and layout](ai-docs/stories/US-00.01.md) | Draft (Definition of Ready not checked) |
-| Task | [T-00.01.2](ai-docs/tasks/T-00.01.2.md) (human: push `main` to GitHub, pointer branches, branch protection, collaborators), then [T-00.01.1](ai-docs/tasks/T-00.01.1.md) | open |
+| Java | Temurin 17 | 21: Gradle downloads it into the project (toolchain) |
+| Gradle | not installed | the wrapper in `backend/` (`./gradlew`); Gradle opens a local socket, so Claude Code runs it outside its sandbox or with `sandbox.network.allowLocalBinding` |
+| Node, npm | 24.13.0, 11.6.2 | ok |
+| Docker Desktop | installed, not running | not before the second half of M3 |
+| PostgreSQL | 17 (Homebrew) | used for tests while Docker is off |
 
-The Git repository exists (branch `main`, commits `99c096b`, `d014303`); `origin` = `github.com/ekarimova/workflow-engine` (public); working trunk `dev`, `main` protected (D-16). No product code exists: `backend/`, `frontend/`, `api/`, `ci/`, `infrastructure/` are not created. The code skeleton waits in `ai-docs/skeleton/`.
+## Decisions needed (owner)
 
-**Next action:** owner: add the collaborators on GitHub (T-00.01.2); then the Epic 0 developer clones (default branch `dev`) and runs `/kickoff-epic0` (starts US-00.01).
-
-## Decisions needed (human: Product Owner and approving Architect)
-
-| ID | Decision | Blocks | Recommendation | State |
-|---|---|---|---|---|
-| Public | `ekarimova/workflow-engine` is public; keep it public (course, other developers) or make it private until the presentation | nothing (no secret is in it) | Your choice; T-00.01.2 step 5 | open |
-| OI-2, 3, 5, 8, 9 | Open issues of `requirements.md` Appendix A (presentation access, audit report in the ZIP, cost limits, MCP door, model per agent) | E-04, E-06 | Decide when the epic is planned | open |
-| OI-4 | Default harness: Claude Code, opencode or both | E-06 | Answered by the spike US-00.S1 | open |
+| ID | Decision | Blocks | Recommendation |
+|---|---|---|---|
+| GitHub | The owner's own repository for this project | the first push | Create it when M0 is green |
+| OI-2, 3, 8, 9 | Open issues of `requirements.md` Appendix A (presentation access, audit report in the ZIP, MCP door, model per agent) | M3 to M6 | Decide when the milestone starts |
 
 ## Decisions taken
 
-| ID | Decision | Date | Recorded in |
-|---|---|---|---|
-| D-01 | Everything on the local machine with Docker until the presentation; maybe never remote. Dev, test, prod are compose projects on it. A later host name may be amberneurons-engine (.com, .at or .ai) | 2026-11-13 | ADR-041 (`architecture.md` 5), `CLAUDE.md` 9, `ai-docs/plan.md` |
-| D-02 | `workflow-engine` is its own Git repository and stays inside `~/DEV`; `~/DEV` ignores it (`~/DEV/.gitignore`, its staged entries of this folder removed from the index) | 2026-11-13 | `git init -b main`; first commit `99c096b` |
-| D-03 | Use what is installed: Java 21.0.12, Gradle wrapper (Kotlin DSL), Node 24.14.1, npm 11 (as in `ci-cd.md` 4); install only what a step needs | 2026-11-13 | `ai-docs/stories/US-00.02.md`, `CLAUDE.md` 9 |
-| D-05 | Every merged story to local and dev; every finished epic promoted to test and prod (PO approval for prod), all local | 2026-11-13 | ADR-041; story US-00.14 added to E-00 |
-| D-06 | Runs do not ask the client, except in the very rare case of a defect that is not fixable; when tokens run out (rate limit or credit) the run waits and continues instead of failing | 2026-11-13 | `requirements.md` 0.4: FR-EXE-04, FR-EXE-07, FR-EXE-08, new FR-EXE-11; E-06 (US-06.10) |
-| D-07 | Skeleton domain: `status` (`workflow.md` 9.2); replaced by the first business story (WFL-074) | 2026-11-13 | US-00.03 |
-| D-08 | Requirements and project documents are generated after the answers (screen 3) and updated from the contract at confirmation | 2026-11-13 | `requirements.md` 0.4: FR-DOC-01, FR-DOC-02; E-03 (US-03.04) |
-| D-12 | Other developers work on the engine from Epic 0 on, each with their own Claude login and their own Anthropic key (local `.env`, entered on the page at run time); all through pull requests | 2026-11-14 | US-00.09 (in the 20 Nov scope), `kickoff-prompt.md` 1 and 5 |
-| D-11 | AI from the very beginning; MVP to be shown to the client: new US-00.15 (AI connection check with the developer's own key) in Epic 0; in G-02 the AI stories go first (demo path) | 2026-11-14 | `ai-docs/stories/US-00.15.md`, `ai-docs/plan.md` (MVP for the client), E-01 |
-| D-10 | CON-01: no example workflow in the product for now; concentrate on the engine. An example workflow may be used as test data where a test needs one | 2026-11-14 | US-00.05 (out of scope) |
-| D-09 | GitHub: use the existing repository `github.com/ekarimova/workflow-engine` (already `origin`); pull-request pipeline in Epic 0 | 2026-11-14 | US-00.01, US-00.09, T-00.01.2 |
-| D-14 | Agents commit and push on story or docs branches and open the pull request; the human (or another developer) merges on GitHub; never a push to `main`. `/next` (skill `next`) is the one command to continue the work | 2026-11-14 | `kickoff-prompt.md`, `.claude/skills/next/SKILL.md` |
-| D-16 | Branches: `main` is not for commits and pushes (protected on GitHub, changed only by a pull request from `dev`, merged by the owner at an epic gate or release); `dev` is the working trunk and default branch; story and docs branches from `dev`, pull requests into `dev` | 2026-11-14 | `CLAUDE.md` 2 and 7, `kickoff-prompt.md` (branch rules), skills `next`, `kickoff-epic0` |
-| D-15 | The owner does not build Phase 0: another developer takes over Epic 0 with `/kickoff-epic0`, then `/next`. The owner stays Product Owner (decisions, pull-request review and merge) | 2026-11-14 | `kickoff-prompt.md`, `.claude/skills/kickoff-epic0/SKILL.md` |
-| D-13 | Target for 20 November: the path from prompt to workflow generation and review before execute works end to end with Claude (BPMN level 1 up to Freeze contract), thin versions; execution prepared, not built. Business stories start after US-00.10; US-00.13, 11, 14, 07, 12, S1 and the E-00 gate after 20 Nov | 2026-11-14 | `ai-docs/plan.md` (Target for 20 November), E-00 to E-04, E-06 |
+| ID | Decision | Date |
+|---|---|---|
+| D-34 | `ci/run` starts the engine jar with the Java 21 of the Gradle toolchain (`gradle printJavaHome`), because the system Java is 17; engine logs and pid files in `.run/` (ignored); tests use `engine_test`, the running app `engine`; end-to-end engine runs on port 8081 | 2026-11-14 |
+| D-33 | The frontend is built by Gradle (`frontendBuild`) and copied into the jar as `static/`: one process, one port. Frontend text lives in `frontend/src/lib/i18n/messages/{en,de}.json` with a small own translate function (no i18n library); a test keeps both files in step | 2026-11-14 |
+| D-32 | SvelteKit 3 differences: configuration is in `vite.config.ts` (no `svelte.config.js`), imports use `#lib/...js` (declared in `package.json` `imports`), not `$lib`. TypeScript 6 (npm resolved 6.x) | 2026-11-14 |
+| D-31 | The owner works alone: no team, no second reviewer (CON-02 and CON-06 of `requirements.md` do not apply) | 2026-11-14 |
+| D-30 | By 20 November 2026 the workflow must work: a wish becomes a workflow in the browser. Order: M0, M1 thin workflow path, M2 planning complete, then the build spike M3 and the run. No Docker and no key in a file are needed before M3; the build spike starts in a workspace folder with Claude Code's own sandbox, then one container (answers D-22) | 2026-11-14 |
+| D-28 | The schemas `settings` and `execution` are not created yet: they were designed before any run existed and stay drafts in `ai-docs/skeleton/` until M3. The backend creates only `projects`, `questions`, `documents` and `workflows` | 2026-11-14 |
+| D-27 | Planning calls use the official Anthropic Java SDK, not Spring AI (replaces TR-06): a client per call from the session key, structured output by class, less code between the engine and the API. Model tiers: best `claude-opus-5-5`, standard `claude-sonnet-5-5` | 2026-11-14 |
+| D-26 | Spring Boot 4.1 instead of 3 (replaces that part of TR-01): the 3.x line is out of open-source support since 30 June 2026; 4.1 is supported until July 2027. Java stays 21 | 2026-11-14 |
+| D-25 | One environment on the local machine (Docker Compose) until M7; no separate dev, test and prod, no promotion, no pointer branches (replaces D-05 and the environment part of ADR-041) | 2026-11-14 |
+| D-24 | Work only on the owner's local machine. No push to the earlier remote `ekarimova/workflow-engine`; commits go later to the owner's own GitHub repository (replaces D-09, D-12, D-14, D-15, D-16) | 2026-11-14 |
+| D-23 | Screens: a link to try the built software after each finished task; at most 8 questions at a time, each with the AI's proposal preselected; "Team and steps" is reachable from "Ready to run" and is not a required step | 2026-11-14 |
+| D-21 | Claude Code is the only harness in the MVP (answers OI-4; TR-07); one template setup Java × Svelte × PostgreSQL is the MVP, the others are shown as "coming soon" (TR-11, FR-STK-01, FR-STK-02) | 2026-11-14 |
+| D-20 | The technology rule documents (API, backend, database, frontend, i18n, tests, CI/CD, infrastructure, UX/UI, audit) are not used and were removed; quality rules are checks in the build (formatter, linter, type check, architecture test, tests) | 2026-11-14 |
+| D-19 | The development steps of a task are data. Two profiles are seeded, the 16 steps and a short one (plan, build with tests, continuous integration, independent check); the build spike M3 measures both; the faster one that passes is the default (ADR-039 reopen trigger checked early) | 2026-11-14 |
+| D-18 | Way of working: one developer with Claude Code, small vertical slices, `ci/run all-local` as the gate. The role agents, story cards, task specs, the 16 stages and the verdict rounds for building the engine were removed. The 16 steps and the team stay as product content in `ai-docs/reference/` | 2026-11-14 |
+| D-17 | Order of the work by risk: milestones M0 to M7 of `ai-docs/plan.md`; goals G-01 to G-04 and epic E-00 are replaced by them | 2026-11-14 |
+| D-13 | Target for 20 November: the path from the wish to the reviewed workflow works end to end with Claude; execution prepared, not built | 2026-11-14 |
+| D-11 | AI from the very beginning: an AI connection check with the user's own key in the skeleton | 2026-11-14 |
+| D-10 | No example workflow in the product for now; one may be used as test data (see D-22) | 2026-11-14 |
+| D-08 | Requirements and project documents are generated after the answers (screen 3) and updated from the contract at confirmation | 2026-11-13 |
+| D-07 | Skeleton domain `status`, replaced by the first business slice | 2026-11-13 |
+| D-06 | Runs do not ask the client, except when a defect is not fixable; when tokens run out the run waits and continues | 2026-11-13 |
+| D-01 | Everything on the local machine with Docker; no remote host (ADR-041) | 2026-11-13 |
 
-The Word master of the requirements (`ai-docs/word/Workflow-Engine-Requirements-Specification.docx`) does not yet contain the 0.4 changes (human).
+## Corrections still open in the documents
+
+| Document | Place | Open |
+|---|---|---|
+| Both Word masters in `ai-docs/word/` | whole file | Do not contain `requirements.md` 0.4 and 0.5 and `engine-architecture.md` 0.4 |
+| `engine-architecture.md` | figures 3 and 5.6, steps of 6.3; test strategy 8; references to the removed rule documents | Written for the earlier plan; update when M3 is designed |
+| `requirements.md` | BR-02 and QR-PERF-01 | The same 4-hour target once as Must and once as Should |
+| `requirements.md` | TR-01, TR-06, TR-07, TR-09, TR-10, TR-11, FR-STK-01, FR-STK-02, FR-TIME-06, CON-06 | Bring in line with D-18, D-21, D-26, D-27 and the results of M3 (sandbox, runner image, cost limit) |
+| `audit/deferred-risks.md` | column "Accepted by" | Placeholder "Product Owner, date" in 4 rows |
+| `skeleton/backend/settings/seeds/default_team_profile.sql` | member instructions | Name agent files that do not exist and configuration file names; clean when the seed is placed in M0 |
+| `ai-docs/reference/` | `architecture.md`, `workflow.md`, `team.md` | Documents of the earlier setup, kept for the decision register and as the source of the seeded team and steps; they cite removed documents |
 
 ## Next (in order)
 
-Kickoff plan of 2026-11-13, changed by the PO decisions D-09 to D-13 of 2026-11-14. Each story: `/start-story` → tasks → `ci/run all-local` → `/team-verification` → squash-merge (human) → `ci/run deploy dev` → update this file.
-
-1. Until 20 November, Epic 0 (setup): US-00.01 → US-00.02 → US-00.03 → US-00.04 → US-00.05 → US-00.15 (AI check, own key) → US-00.06 → US-00.08 → US-00.10 (local dev); US-00.09 (GitHub pull-request pipeline, onboarding) in parallel by DevOps.
-2. Until 20 November, from the wish to the reviewed workflow (D-13, `ai-docs/plan.md`): US-01.01 → US-01.05 → US-01.07 → US-02.01 → US-02.02 → US-03.01 → US-04.01 → US-04.02 (first BPMN-like diagram) → US-04.06 (review before execute, Run disabled) → US-04.07 (contract snapshot). Execution only prepared.
-3. After 20 November: US-00.13, US-00.11, US-00.14, US-00.07, US-00.12, US-00.S1; E-00 gate (`/audit-report AP2 E-00`, promote dev → test → prod, G-01 sign-off); remaining stories of E-01 to E-04; E-05; E-06 execution; E-07.
-
-## In progress
-
-- nothing
+1. M1 thin workflow path, until 20 November 2026 (live check: the owner types a key into the page).
+2. M2 planning complete, as far as the time reaches.
 
 ## Done
 
-- 2026-11-14 Plan and settings merged into `main` (pull request #1); branch `dev` created as default branch; `main` protected (D-16); `CLAUDE.md` 2: every session first checks `kickoff-prompt.md` and `todo.md` for `/kickoff-epic0` or `/next`.
-- 2026-11-14 `kickoff-prompt.md` shortened to `/next`; new skill `next`; `/start-story` gate follows D-13; skill `kickoff-epic0` rewritten as the Phase 0 kickoff for the developer who takes over Epic 0 (D-15).
-- 2026-11-14 PO decision D-13: target for 20 November = wish → questions → requirements → workflow → review → contract, thin, with Claude; `ai-docs/plan.md`, E-00 to E-04, E-06 updated.
-- 2026-11-14 PO decisions D-09 to D-12: new story US-00.15 with tasks T-00.15.1 to 4; US-00.09 into the 20 Nov scope with onboarding criteria; US-00.01, US-00.05, T-00.01.2, T-00.09.1, E-00, E-01, `ai-docs/plan.md` and `kickoff-prompt.md` updated.
-- 2026-11-14 Next list and the "20 Nov" column of `ai-docs/epics/E-00.md` set to the approved order. Cards US-00.05 and US-00.13 wait for the CON-01 answer.
-- 2026-11-13 Kickoff plan approved. D-04 applied by the human (guard path rules, 48 self-test cases pass, script deleted; commit `d014303`).
-
-- 2026-11-13 PO decisions D-01 to D-08 recorded (ADR-041, `requirements.md` 0.4, `CLAUDE.md` 9); own Git repository initialised; E-00 adapted (US-00.10 local dev, new US-00.14 local test and prod, US-00.09 only with GitHub); guard update script prepared and tested on a copy (48 cases pass).
-- 2026-11-13 Plan written: `ai-docs/plan.md`, goals G-01 to G-04, epics E-00 to E-10, the story cards and task specs of E-00; `kickoff-prompt.md` and this file at the root.
-- 2026-11-13 Documents restructured: one `ai-docs/README.md`; rule documents as skills in `.claude/skills/<area>/`; skeleton in `ai-docs/skeleton/`; new skills `screen-build`, `bpmn-model`, `find-rule`, `docs-check`, `agent-rules`, `project-learnings`, `kickoff-epic0`.
-
-## Deployments
-
-All environments are on the local machine (ADR-041).
-
-| Environment | Build id | Story or epic | Date | Result |
-|---|---|---|---|---|
-| local | — | — | — | not available (no code yet) |
-| dev | — | — | — | not available until US-00.10 |
-| test | — | — | — | not available until US-00.14 |
-| prod | — | — | — | not available until US-00.14 |
+- 2026-11-14 Lean setup: new `CLAUDE.md`, `ai-docs/plan.md` and this file; technology rule documents, role agents, process skills, story cards, task specs, goals and the epics E-00, E-08 to E-10 removed (Git history keeps them); `workflow.md` and `team.md` moved to `ai-docs/reference/`; `requirements.md` 0.5 and `engine-architecture.md` 0.4 aligned with the decisions taken.
+- 2026-11-13 Documents, mockups, BPMN model and code skeleton written.

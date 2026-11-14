@@ -1,6 +1,6 @@
 # Workflow Engine: Architecture documentation (arc42)
 
-> Version 0.3, 13 November 2026. Generated from the Word document of the same name (the Word file is the edited master until the review is finished; afterwards this Markdown file is the source). Owner: Architect.
+> Version 0.4, 14 November 2026. Generated from the Word document of the same name (the Word file is the edited master until the review is finished; afterwards this Markdown file is the source). Owner: Architect.
 
 ## About this document
 
@@ -15,7 +15,7 @@ The workflow engine turns a client's business idea into a small, working softwar
 | **Area**  | **Main functions**                                                                                                                 | **Requirements**                                   |
 |-----------|------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------|
 | Planning  | Wish with links and files; AI selection; research; 10–25 questions; stack selection; business workflow editor; contract; documents | FR-PRJ, FR-AI, FR-Q, FR-STK, FR-WF, FR-CON, FR-DOC |
-| Execution | Sandbox per run; build plan; fast lane per slice; checkpoints; time handling; resume; status display; stop                         | FR-EXE, FR-TIME, FR-RES, FR-STAT, FR-STOP          |
+| Execution | Sandbox per run; build plan; 16 development steps per task; checkpoints; time handling; resume; status display; stop                         | FR-EXE, FR-TIME, FR-RES, FR-STAT, FR-STOP          |
 | Delivery  | Clean ZIP of the last green state; optional GitHub push; next steps                                                                | FR-EXP                                             |
 
 ### 1.2 Quality goals
@@ -107,7 +107,7 @@ The workflow engine turns a client's business idea into a small, working softwar
 | Workflow engine, not a script | The engine walks a graph: the confirmed business workflow becomes a build plan whose steps are executed in order, each with defined status, retries and checkpoint | 5.2, 6.3     |
 | Client stays in control       | Planning as a state machine; an immutable contract snapshot is the only input of a run                                                                             | 8.1, 8.2     |
 | Never lose finished work      | A git commit per green step; stop, failure and resume all return to the last checkpoint; run state in the database                                                 | 8.7, 6.5     |
-| 4-hour target                 | Pre-built templates (Epic 0 done), fixed stacks, fast lane per slice, time awareness in prompts, warnings instead of hard stop                                     | 5.2, 8.8     |
+| 4-hour target                 | Pre-built templates (Epic 0 done), fixed stacks, bounded fix loops, time awareness in prompts, warnings instead of hard stop                                     | 5.2, 8.8     |
 | Isolation and hygiene         | One throwaway sandbox per run (runner, DinD, workspace); key only as environment variable; manifest-based export cleaning                                          | 7, 8.6, 8.10 |
 | Replaceable AI                | Spring AI for planning calls; AgentRunner interface with opencode and Claude Code adapters; version pinned                                                         | 5.2, 8.5     |
 | Simple, maintainable engine   | Modular monolith with six domains, contract-first API, PostgreSQL schema per domain, SSE instead of a broker                                                       | 5.1, 9       |
@@ -125,7 +125,7 @@ The workflow engine turns a client's business idea into a small, working softwar
 
 | **Building block**   | **Responsibility**                                                                                                                 | **Interfaces**                                                       |
 |----------------------|------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------|
-| Frontend (SvelteKit) | Four pages (wish, questions and stack, workflow, execution), project list, documents, next steps; workflow editor with Svelte Flow | Uses the engine REST API and SSE; client generated from the contract |
+| Frontend (SvelteKit) | The 14 screens of `README.md` 4 behind six steps (wish and AI, questions and stack, requirements, workflow, team and steps, run), project list, documents, next steps; workflow editor with Svelte Flow | Uses the engine REST API and SSE; client generated from the contract |
 | projects             | Projects, wish, links, files, stack choice, AI choice                                                                              | REST /api/projects, /attachments, /stack                             |
 | questions            | Research, question generation, answers; LLM gateway (Spring AI) with schema validation                                             | REST /questions; events to workflows                                 |
 | workflows            | Business workflow (steps, edges), validation, status machine of the planning phase, contract snapshot                              | REST /workflow, /confirmations                                       |
@@ -269,7 +269,7 @@ The AI is part of the engine in three layers. Layer A is code and owns every sta
 
 4.  CheckpointService runs ci/run build and tests through the shell; GuardrailChecker inspects the diff.
 
-5.  Red: a fix session (max 2 loops), then one retry of the step; still red: step FAILED, run FAILED.
+5.  Red: a fix session (max 2 loops), then one try with the best model; still red: the run pauses and asks the client one question (ADR-038, FR-EXE-08). The run ends FAILED only when the client chooses to stop (FR-EXE-07).
 
 6.  Green: tester and reviewer sessions follow the same pattern; then a git commit is the checkpoint and the business step turns green.
 
@@ -355,7 +355,7 @@ The two diagrams are the reference for the states, messages and error paths of t
 |-----------------------------|--------------------------------------|----------------------------------------------------|------------------------------------------------------------------------------------------------------|
 | Local (team)                | Developer laptop with Docker         | docker compose up                                  | Runs happen on the laptop                                                                            |
 | Local (other team, testers) | Their laptop with Docker             | git clone, cp .env.example .env, docker compose up | No key or token needed to start                                                                      |
-| Presentation                | One VPS with Docker, Caddy for HTTPS | Same compose file plus the proxy                   | Queue with 1–2 parallel runs; no login (accepted risk); not on Render: builds need privileged Docker |
+| Presentation                | The local machine with Docker (ADR-041: no remote host until the Product Owner wants one) | The same compose file | Queue with 1–2 parallel runs; no login (accepted risk); not on Render: builds need privileged Docker |
 
 ### 7.2 Mapping of building blocks to containers
 
@@ -403,7 +403,7 @@ The two diagrams are the reference for the states, messages and error paths of t
 
 | **Object** | **Statuses**                                                                                              |
 |------------|-----------------------------------------------------------------------------------------------------------|
-| Project    | DRAFT → QUESTIONS_READY → ANSWERED → WORKFLOW_DRAFTED → CONFIRMED → EXECUTING → DONE \| STOPPED \| FAILED |
+| Project    | DRAFT → QUESTIONS_READY → ANSWERED → REQUIREMENTS_READY → WORKFLOW_DRAFTED → CONFIRMED → EXECUTING → DONE \| STOPPED \| FAILED |
 | Run        | QUEUED → PREPARING → EXECUTING ⇄ PAUSED; RESUMING; WAITING_FOR_KEY; DONE \| STOPPED \| FAILED             |
 | Step run   | PENDING → RUNNING → DONE \| FAILED; INTERRUPTED; STOPPED; MANUAL                                          |
 
@@ -455,7 +455,7 @@ The two diagrams are the reference for the states, messages and error paths of t
 
 - The workspace contains the team's engineering documents, CLAUDE.md or AGENTS.md (opencode uses CLAUDE.md only when no AGENTS.md exists), the contract, the generated documents, story cards and task specs.
 
-- The engine profile (ADR-023 to ADR-031 of the team documents) adapts the process to unattended runs: the contract is the PO approval, no questions, fast lane, Epic 0 pre-built, goals G-03 and G-04 closed with a reason.
+- The engine profile (ADR-023 to ADR-031 of the team documents) adapts the process to unattended runs: the contract is the PO approval, a question to the client only when a defect is not fixable (ADR-038), the 16 development steps per task (ADR-039), Epic 0 pre-built, goals G-03 and G-04 closed with a reason.
 
 - Each prompt contains a context packet: only the documents and rule IDs the step needs (AGT-054).
 
@@ -514,7 +514,7 @@ The two diagrams are the reference for the states, messages and error paths of t
 | Unit (L1)           | Domain rules: workflow validation, state machines, build planner, time phases, cleaning rules            |
 | Integration (L2–L4) | Persistence with Testcontainers; API contract tests; LlmGateway with stubbed providers                   |
 | Harness (L5)        | AgentRunner adapters against a stub harness and, in a nightly job, against real opencode and Claude Code |
-| End-to-end (L6)     | Playwright: the four pages with a stub AI; one real reference run per release                            |
+| End-to-end (L6)     | Playwright: the journey through the six steps with a stub AI; one real reference run per release                            |
 | Templates           | CI matrix of the 9 setups                                                                                |
 
 ### 8.14 Logging
@@ -567,7 +567,7 @@ Engine decisions (E-ADR) are recorded here. The engine profile for the team's do
 | E-ADR-06 | AgentRunner interface; opencode default, Claude Code second adapter                                                                                                                                               | Model choice for the client; harness replaceable                                      | Own agent loop; one harness only                                |
 | E-ADR-07 | One sandbox per run: runner, DinD sidecar, workspace volume                                                                                                                                                       | Isolation, per-run key, hard stop possible, app tests need Docker                     | Shared runner; host socket in the sandbox                       |
 | E-ADR-08 | Templates in the engine repository, assembled into the image                                                                                                                                                      | One version, offline start, no token                                                  | Clone from GitHub per run                                       |
-| E-ADR-09 | Fast lane per slice (builder, tester, reviewer)                                                                                                                                                                   | The 16-stage process does not fit 4 hours                                             | Full 16 stages per story                                        |
+| E-ADR-09 | Replaced by E-ADR-23 (0.3): a run uses the 16 development steps per task. Was: fast lane per slice (builder, tester, reviewer) | Was: the 16-stage process does not fit 4 hours. This reason is checked again by the reference run (ADR-039 reopen trigger) | Full 16 stages per story (now chosen) |
 | E-ADR-10 | 4 hours as target with warnings; pause on cost limit or ceiling                                                                                                                                                   | Finished work is worth more than a hard stop                                          | Kill at 4 hours                                                 |
 | E-ADR-11 | Resume up to 3 times after an engine restart                                                                                                                                                                      | Builds take hours; restarts happen                                                    | Fail on restart                                                 |
 | E-ADR-12 | Git commit per green step; export from the last checkpoint                                                                                                                                                        | Simple, reliable checkpoints; partial ZIP always works                                | Snapshots of the volume                                         |
@@ -641,7 +641,7 @@ Engine decisions (E-ADR) are recorded here. The engine profile for the team's do
 | Contract snapshot | Immutable copy of everything the client confirmed                                                   |
 | DinD              | Docker-in-Docker: a Docker daemon inside a container                                                |
 | Engine profile    | The decisions that adapt the team's process to unattended runs                                      |
-| Fast lane         | Builder, tester and reviewer per slice, with at most 2 fix loops                                    |
+| Fast lane         | Replaced by the 16 development steps per task (E-ADR-23). Was: builder, tester and reviewer per slice, with at most 2 fix loops |
 | Feature slice     | Data, API, backend, frontend and tests for one business task                                        |
 | Run               | One execution of a confirmed project                                                                |
 | Sandbox           | Runner, DinD sidecar and workspace volume of one run                                                |
@@ -658,3 +658,4 @@ Engine decisions (E-ADR) are recorded here. The engine profile for the team's do
 | 0.1         | 11 November 2026 | First version, based on the requirements specification 0.1 and the project concept 0.1                                                                                                                                 |
 | 0.2         | 13 November 2026 | AI agents and orchestration (5.5), agent lifecycle (6.7), AI layers (8.15), E-ADR-16 to E-ADR-19, two new risks, glossary; based on requirements specification 0.2 and project concept 0.2                             |
 | 0.3         | 13 November 2026 | Claude only, session secrets in memory, GitHub and Render of the project starter, no login, builds on the engine machine (E-ADR-20 to E-ADR-23); BPMN 2.0 model of the engine (6.8); context and configuration updated |
+| 0.4         | 14 November 2026 | Aligned with ADR-038, ADR-039 and ADR-041: E-ADR-09 and the fast lane marked as replaced by E-ADR-23; a red step asks the client instead of failing the run (6.3); no remote presentation host (7.1); 14 screens behind six steps instead of four pages; project status REQUIREMENTS_READY (8.1). Figures 3 and 5.6 still show the fast lane. The Word master does not contain these changes yet |

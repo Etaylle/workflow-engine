@@ -11,9 +11,9 @@ The screens are the reference for content, order and states (not a pixel spec); 
 
 1. Find the screen in the table below. **Look at the image** (`Read` the PNG): that is what the client sees.
 2. Read only its section of `ai-docs/software-elements.md` (column "Map"): every element there becomes a component, an operation, a class and a table row in the story of its domain. Do not invent elements that are not in the map; an element that is missing is an `OPEN:` point for the Lead (WFL-027).
-3. Check the BPMN elements of the screen (column "BPMN") in `ai-docs/README.md` 8 and, for states, `software-elements.md` 6 (status values). End states of the model must stay reachable (`software-elements.md` 7).
+3. Check the BPMN elements of the screen (column "BPMN") in `ai-docs/README.md` 5 and, for states, `software-elements.md` 6 (status values). End states of the model must stay reachable (`software-elements.md` 7).
 4. For exact text, colour and spacing, open the design source `ai-docs/ui-mockup/source/<Source>`; for the click flow, `ai-docs/ui-mockup/pages/<name>.html`.
-5. Apply the rule documents: `ux-ui` (states, accessibility), `frontend`, `i18n` (every text from the translation resource; English and German), `api` (contract first), `backend`, `db`, `tests` (each acceptance criterion → a test).
+5. Build it as `CLAUDE.md` 2 and 3 say: every state of the screen (empty, loading, error) and keyboard use; every text from the English and German message files; the API operation in `api/openapi.yaml` first; a test for each behaviour shown.
 6. Never show the engine's own configuration file names in the app ("Reset to initial", "recommended"). The demo data on the mockups (canteen pre-order, "Pay", times, costs) is not test data.
 
 ## Screens

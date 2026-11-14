@@ -37,7 +37,7 @@ Screen element ─► Svelte component ─► API operation ─► use case (app
 | `projects` | `projects` | projects, project_attachments, project_briefs, github_connections (no table for keys or tokens: session memory only) | 0 All projects, 1 Wish and AI, 8 Ready to run (GitHub, Render) |
 | `questions` | `questions` | questions, answers, research_sources | 2 Questions and technology |
 | `documents` | `documents` | epics, requirements, generated_documents | 3 Requirements |
-| `workflows` | `workflows` | workflows, lanes, nodes, edges, acceptance_criteria, scenarios, node_requirements, contracts | 4 Workflow, 5 Edit a task, 6 Ready to run |
+| `workflows` | `workflows` | workflows, lanes, nodes, edges, acceptance_criteria, scenarios, node_requirements, contracts | 4 Workflow, 5 Edit a task, 8 Ready to run |
 | `settings` | `settings` | team_profiles, team_members, dev_workflow_steps, dev_workflow_step_members, workflow_rules, lessons, provider_models | 6 AI team, 7 Development workflow |
 | `execution` | `execution` | runs, task_runs, step_runs, ci_runs, console_lines, run_errors, human_questions, decisions, checkpoints, criterion_tests, verdicts, member_reports, audit_reports, findings, run_metrics, agent_calls, jobs | 9 Workflow in process, 10 Run details, 11 Task details, 12 Human action required |
 
@@ -225,6 +225,6 @@ The allowed transitions are rules of the domain, tested in code; the `CHECK` onl
 - The API paths above are a proposal for `api/openapi.yaml`; the Architect fixes them in Epic 0.
 - `provider_models.model_id` holds placeholders; set the exact model ids when the first provider is wired.
 - Asking the client during a run and the 16 steps per task are recorded as ADR-038 and ADR-039; measure a reference run against the 4-hour target.
-- The BPMN model (`README.md` 8, files in `bpmn/`) is the reference for run states and transitions; `RunStatus` and `TaskRunStatus` must keep its end states (Result sent, Partial result sent, Key rejected; Task done, Run failed).
+- The BPMN model (`README.md` 5, files in `bpmn/`) is the reference for run states and transitions; `RunStatus` and `TaskRunStatus` must keep its end states (Result sent, Partial result sent, Key rejected; Task done, Run failed).
 - `GITHUB_OAUTH_CLIENT_ID` must be set for the GitHub device flow; without it the GitHub card is hidden.
 - `requirements.md` 0.3 does not yet list the features of version 0.2 of this map (GitHub push, story types, error types, evidence, audit report, metrics, lessons, language, edit conflicts, dialogs). Add them as requirements before their stories are Ready.

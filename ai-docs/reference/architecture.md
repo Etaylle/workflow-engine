@@ -57,7 +57,7 @@ Rule IDs are `ARC-nnn`. Decision IDs are `ADR-nnn`.
 | `README.md` (in `ai-docs/`) | The index of this folder, the reading order and the product decisions on one page | | First, together with `CLAUDE.md` |
 | `ai-docs/word/` | The Word masters: project concept, stakeholder summary, requirements specification, architecture (arc42). The Markdown files are what agents read | | A human reviews or presents |
 | `ai-docs/software-elements.md` | The map from each screen element to component, API operation, backend class, table and AI agent; the skeleton files | | Building a slice of a screen |
-| `ai-docs/engine-architecture.md` | The arc42 architecture of the engine itself: building blocks, runtime, deployment, AI layers, E-ADR-01 to E-ADR-19 | E-ADR | Any engine design work |
+| `ai-docs/engine-architecture.md` | The arc42 architecture of the engine itself: building blocks, runtime, deployment, AI layers, E-ADR-01 to E-ADR-23 | E-ADR | Any engine design work |
 | `audit.md` | The audit method, checklists, report format | AUD | The Auditor's work |
 | `CLAUDE.md` (repository root), `README.md` (written in Epic 0) | The agents' project rules; the human introduction | | Always (CLAUDE.md) |
 
@@ -118,7 +118,7 @@ Each decision has a status (accepted, deferred), the reason in one line, where i
 | ADR-012 | An AI team with fixed roles; the best available model for Architect, Lead Developer and Auditor | Quality where decisions are made and checked | `team.md`, `agents.md` AGT-060 to AGT-063 | New roles by their switch-on conditions (`team.md`) |
 | ADR-013 | Provider-neutral pipeline: commands `ci/run <command>`, thin provider wrappers | Any provider (GitHub, GitLab, Jenkins with Gitblit, others) runs the same steps | `ci-cd.md` 4, 11 | A second provider is needed (`ci-cd.md` X13) |
 | ADR-014 | Build once, tag with the commit id, promote the same image set through dev, test, prod | What was tested is what runs | `ci-cd.md` 7, 10 | None expected |
-| ADR-015 | One trunk `main`, short story branches, and pointer branches `env/dev`, `env/test`, `env/prod`; no environment branch holds its own code | One history for all environments; Git shows what runs where | `infrastructure.md` 5, `ci-cd.md` CIC-011, CIC-040 | A requirement for a long-lived release line (a supported old version) |
+| ADR-015 | One working trunk `dev` and the release line `main`, which changes only through a pull request from `dev` (D-16); short story branches, and pointer branches `env/dev`, `env/test`, `env/prod`; no environment branch holds its own code | One history for all environments; Git shows what runs where | `infrastructure.md` 5, `ci-cd.md` CIC-011, CIC-040 | A requirement for a long-lived release line (a supported old version) |
 | ADR-016 | Containers on compose, over SSH to one host, layers or single container; the frontend container is the entry point | Smallest thing that deploys; portable to every host | `infrastructure.md` 8, 9, 11, `ci-cd.md` 9 | `infrastructure.md` IX1 to IX13 |
 | ADR-017 | Recovery by backup and restore (logical dump, second copy, drilled), RPO 24 hours and RTO 4 hours as defaults | Data safety without a platform | `infrastructure.md` 12, 14, `db.md` DBS-ACC-004 | A shorter RPO, or data that cannot be recreated (IX5) |
 | ADR-018 | No orchestrator and no message broker in the MVP; the outbox table and the job table carry messages and work | The cheapest correct solution; both have measurable triggers | `infrastructure.md` 15.3, 15.4, `backend.md` BKD-MVP-007 | Two of five criteria true (`infrastructure.md` 15) |
@@ -202,9 +202,9 @@ Each decision has a status (accepted, deferred), the reason in one line, where i
 | `agents.md`, `team.md` | 0.2, draft | Review, then mark 1.0 |
 | `api.md`, `frontend.md`, `ux-ui.md`, `i18n.md` | Drafts | Review |
 | `architecture.md` | 0.1, this document | Review |
-| `ai-docs/requirements.md` | 0.2, proposed for review | Review with the Product Owner; generated from the requirements specification (Word) |
+| `ai-docs/requirements.md` | 0.5, proposed for review | Review with the Product Owner; generated from the requirements specification (Word) |
 | `ai-docs/software-elements.md` | 0.1, draft for review | Review with the Architect; fixes the API paths in `api/openapi.yaml` |
-| `ai-docs/engine-architecture.md` | 0.2, draft for review | Review with the Architect; generated from the arc42 document (Word) |
+| `ai-docs/engine-architecture.md` | 0.4, draft for review | Review with the Architect; generated from the arc42 document (Word) |
 | `audit.md` | Draft | Review before the first epic gate |
 | `CLAUDE.md` | Created; section 9 filled | Kept current by the Lead (US-00.13 of `infrastructure.md` 17); it points here |
 | `README.md` | Not created | Written in Epic 0 for humans |

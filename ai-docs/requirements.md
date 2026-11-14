@@ -1,6 +1,6 @@
 # Workflow Engine: Requirements specification
 
-> Version 0.4, 13 November 2026. Generated from the Word document of the same name (the Word file is the edited master until the review is finished; afterwards this Markdown file is the source). Owner: Product Owner.
+> Version 0.5, 14 November 2026. Generated from the Word document of the same name (the Word file is the edited master until the review is finished; afterwards this Markdown file is the source). Owner: Product Owner.
 
 ## 1. Introduction
 
@@ -125,7 +125,7 @@ Clients who are not software developers want working software for a business nee
 | BRU-03 | A business task does one thing. Each software task becomes exactly one feature slice; a manual task is not built.                       | M     | Build plan has one slice per software task (test).          | WS         |
 | BRU-04 | A confirmed contract snapshot never changes. A later edit creates a new version that must be confirmed again.                           | M     | Snapshot immutable in database (test).                      | WS         |
 | BRU-05 | An edit of the prompt, the answers or the workflow invalidates every later stage, which must be completed again.                        | M     | Status falls back as specified in FR-CON-04 (test).         | WS         |
-| BRU-06 | During execution no question is asked to the client. The AI decides from the contract or takes a reasonable default and records it.     | M     | No client interaction in a run; DECISIONS.md filled (test). | WS         |
+| BRU-06 | During execution the AI decides from the contract or takes a reasonable default and records it. The client is asked only when a defect is not fixable (FR-EXE-08, ADR-038). | M     | A run without an unfixable defect has no client interaction; DECISIONS.md filled (test). | WS         |
 | BRU-07 | A delivered ZIP contains only work that built and passed its tests (last green checkpoint).                                             | M     | ZIP of a stopped run builds and passes tests (test).        | WS         |
 | BRU-08 | The database of a generated project is PostgreSQL.                                                                                      | M     | All templates use PostgreSQL (inspection).                  | WS         |
 | BRU-09 | The client's API key is never part of a generated project or a ZIP.                                                                     | M     | Key search in ZIP finds nothing (test).                     | WS         |
@@ -403,7 +403,7 @@ Quality requirements are grouped by the characteristics of ISO/IEC 25010. Securi
 | QR-USE-01 | A person without IT background should complete the planning phase (wish to confirmation) without help within 30 minutes.                    | S     | Usability test with 3 people.                 | WS         |
 | QR-USE-02 | The UI shall use plain language and show the MVP limits before confirmation.                                                                | M     | Review of all texts.                          | WS         |
 | QR-USE-03 | All pages shall be operable by keyboard, and text shall have a contrast of at least 4.5:1.                                                  | M     | Accessibility check (DOC ARC-023).            | DOC        |
-| QR-USE-04 | The UI shall be in English; all user-visible text shall come from the translation resource so that German can be added without code change. | M     | No hard-coded text (inspection, DOC ARC-022). | DOC        |
+| QR-USE-04 | The UI shall be in English and German; all user-visible text shall come from the translation resource so that a further language can be added without code change. | M     | No hard-coded text (inspection, DOC ARC-022); every text exists in both languages (check). | DOC        |
 
 ### 6.4 Security hygiene
 
@@ -444,7 +444,7 @@ Quality requirements are grouped by the characteristics of ISO/IEC 25010. Securi
 | TR-04  | The engine API shall be REST, defined first in one OpenAPI file, with problem-detail error responses.                                                                                           | M     | Contract check (DOC ADR-007).         | DOC        |
 | TR-05  | Live updates shall use server-sent events (SSE).                                                                                                                                                | M     | Inspection.                           | CON        |
 | TR-06  | Planning-phase AI calls shall use Spring AI with structured JSON output.                                                                                                                        | M     | Inspection.                           | CON        |
-| TR-07  | The build shall use an AgentRunner interface with an opencode adapter (default) and a Claude Code adapter.                                                                                      | M     | Both adapters pass the harness spike. | CON        |
+| TR-07  | The build shall use an AgentRunner interface with a Claude Code adapter and an opencode adapter; which one is the default, and whether both are in the MVP, is open issue OI-4.                    | M     | Each adapter in the MVP passes the harness spike. | CON        |
 | TR-08  | The opencode version shall be pinned in the runner image, and its permission setting shall allow all actions inside the sandbox.                                                                | M     | Image inspection.                     | EXT        |
 | TR-09  | The sandbox shall be created through the Docker API (docker-java) as runner, Docker-in-Docker sidecar and workspace volume, all labelled with the run ID.                                       | M     | Inspection.                           | CON        |
 | TR-10  | The runner image shall contain JDK, .NET SDK, Python, Node, Playwright browsers and git, and shall be built for amd64 and arm64.                                                                | M     | Image inspection.                     | CON        |
@@ -475,7 +475,7 @@ The user interface consists of four main pages. The mockups show the canteen exa
 
 | **ID**   | **Requirement**                                                                                                                          | **P** | **Acceptance criterion**           | **Source** |
 |----------|------------------------------------------------------------------------------------------------------------------------------------------|-------|------------------------------------|------------|
-| IR-UI-01 | The system shall guide the client through four pages: 1 Wish, 2 Questions and stack, 3 Workflow, 4 Execution, with a progress indicator. | M     | UI inspection against the mockups. | WS         |
+| IR-UI-01 | The system shall guide the client through six steps with a progress indicator: 1 Wish and AI, 2 Questions and stack, 3 Requirements, 4 Workflow, 5 Team and steps, 6 Run (the 14 screens of the mockups). | M     | UI inspection against the mockups. | WS         |
 | IR-UI-02 | Each page shall show the project name and allow returning to earlier pages.                                                              | M     | UI test.                           | WS         |
 
 ![Figure 3: Page 1, wish, attachments and AI selection](images/mockup-1-wish.png)
@@ -647,3 +647,4 @@ Then the run continues, shows the overtime and records it in the report
 | 0.2         | 13 November 2026 | Agents and orchestration (5.15 FR-AGT), providers incl. Gemini, GitHub Models and Copilot limits (FR-AI-02, 07, 08), MCP door (IR-EXT-06), QR-REL-05, QR-SEC-06, IR-EXT-07, open issues OI-7 to OI-9; source AGT = agent architecture discussion of 12 November 2026                                                                                                                                                                                                 |
 | 0.3         | 13 November 2026 | Product owner decisions: Claude only through Claude Code or opencode, no local models (FR-AI-02); API key for the session only (FR-AI-07, QR-SEC-01); no login, all projects visible (FR-AI-08); GitHub and Render of the project starter, public repository, push per finished task (FR-STK-08, FR-EXP-09, TR-16, IR-EXT-05, IR-EXT-07); a run may ask the client when stuck and uses the 16 development steps; BPMN model in ai-docs/bpmn; OI-1, OI-6, OI-7 closed |
 | 0.4         | 13 November 2026 | Product owner decisions: runs do not ask the client except in the rare case of an unfixable defect (FR-EXE-04, FR-EXE-07, FR-EXE-08 aligned with ADR-038, ADR-039); a run waits for tokens instead of failing (FR-EXE-11); requirements and project documents are generated after the answers and updated at confirmation (FR-DOC-01, FR-DOC-02). The Word master is to be updated accordingly |
+| 0.5         | 14 November 2026 | Aligned with decisions already taken: BRU-06 with ADR-038 and FR-EXE-08 (the client is asked when a defect is not fixable); QR-USE-04 English and German (ADR-009); IR-UI-01 six steps and 14 screens; TR-07 default harness open (OI-4). The Word master is to be updated accordingly |

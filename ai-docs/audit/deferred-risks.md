@@ -1,6 +1,6 @@
 # Deferred-risk register
 
-Format of `.claude/skills/audit/audit.md` 12.5. Rows are accepted by the Product Owner in writing; dates are filled at acceptance.
+Rows are accepted by the Product Owner in writing; dates are filled at acceptance.
 
 | Risk | Source | Accepted by | Reviewed at |
 |---|---|---|---|

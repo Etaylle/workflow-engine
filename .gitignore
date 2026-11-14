@@ -28,3 +28,6 @@ playwright-report/
 .idea/
 .vscode/
 *.iml
+
+# Local environment (pid files, logs)
+.run/
