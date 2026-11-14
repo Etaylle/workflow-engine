@@ -55,8 +55,254 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+  /api/projects:
+    post:
+      operationId: createProject
+      summary: Create a project from a wish; the Anthropic key, if given, is kept for the session
+      description: The key is held in engine memory only (never stored, never logged).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateProjectRequest"
+      responses:
+        "201":
+          description: The project exists (status draft)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "400":
+          description: The wish is empty or too long
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    get:
+      operationId: listProjects
+      summary: All projects, newest first (no login: everyone sees all)
+      responses:
+        "200":
+          description: The projects
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Project"
+  /api/projects/{id}:
+    get:
+      operationId: getProject
+      summary: One project
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      responses:
+        "200":
+          description: The project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "404":
+          description: No such project
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/projects/{id}/workflow:
+    post:
+      operationId: generateWorkflow
+      summary: Claude writes the business workflow from the wish (one planning call, one retry)
+      description: >
+        Replaces the draft workflow of the project; its status becomes valid. A confirmed
+        contract is never touched.
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      responses:
+        "200":
+          description: The validated workflow with positions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Workflow"
+        "401":
+          description: Anthropic rejected the key
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: No such project
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: No Anthropic key is set for this session
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "429":
+          description: Anthropic rate limit or credit exhausted
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "502":
+          description: Anthropic failed, or the workflow was invalid twice
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    get:
+      operationId: getWorkflow
+      summary: The current workflow of the project
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      responses:
+        "200":
+          description: The workflow
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Workflow"
+        "404":
+          description: No such project, or no workflow yet
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/projects/{id}/workflow/confirm:
+    post:
+      operationId: confirmWorkflow
+      summary: Freeze the valid workflow as the next contract version
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      responses:
+        "201":
+          description: The new contract version
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Contract"
+        "404":
+          description: No such project
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: No workflow, or it is already confirmed and unchanged
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/projects/{id}/contracts:
+    get:
+      operationId: listContracts
+      summary: The confirmed contract versions of the project, oldest first
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      responses:
+        "200":
+          description: The versions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Contract"
+        "404":
+          description: No such project
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
 components:
+  parameters:
+    ProjectId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
   schemas:
+    CreateProjectRequest:
+      type: object
+      required: [wish]
+      properties:
+        wish:
+          type: string
+          maxLength: 20000
+        apiKey:
+          type: string
+          description: Optional; kept in memory for the session
+    Project:
+      type: object
+      required: [id, name, wish, status, createdAt, updatedAt]
+      properties:
+        id: {type: string, format: uuid}
+        name: {type: string, description: The start of the wish}
+        wish: {type: string}
+        status:
+          type: string
+          enum: [draft, questions_ready, answered, requirements_ready, workflow_drafted, confirmed, executing, done, stopped, failed]
+        createdAt: {type: string, format: date-time}
+        updatedAt: {type: string, format: date-time}
+    Workflow:
+      type: object
+      required: [id, projectId, status, version, lanes, nodes, edges]
+      properties:
+        id: {type: string, format: uuid}
+        projectId: {type: string, format: uuid}
+        status: {type: string, enum: [valid, confirmed]}
+        version: {type: integer}
+        confirmedContractVersion:
+          type: integer
+          nullable: true
+          description: Latest confirmed contract version of the project, if any
+        lanes:
+          type: array
+          items:
+            type: object
+            required: [id, name]
+            properties:
+              id: {type: string, format: uuid}
+              name: {type: string}
+        nodes:
+          type: array
+          items:
+            type: object
+            required: [id, laneId, kind, title, posX, posY]
+            properties:
+              id: {type: string, format: uuid}
+              laneId: {type: string, format: uuid}
+              kind: {type: string, enum: [start_event, task, end_event]}
+              title: {type: string}
+              description: {type: string, nullable: true}
+              taskType: {type: string, nullable: true, enum: [software, manual]}
+              posX: {type: integer}
+              posY: {type: integer}
+        edges:
+          type: array
+          items:
+            type: object
+            required: [id, source, target]
+            properties:
+              id: {type: string, format: uuid}
+              source: {type: string, format: uuid}
+              target: {type: string, format: uuid}
+    Contract:
+      type: object
+      required: [id, projectId, version, confirmedAt]
+      properties:
+        id: {type: string, format: uuid}
+        projectId: {type: string, format: uuid}
+        version: {type: integer}
+        confirmedAt: {type: string, format: date-time}
     EngineStatus:
       type: object
       required: [name, buildId, serverTime]

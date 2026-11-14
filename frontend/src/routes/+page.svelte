@@ -1,6 +1,16 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { ApiError, checkAiConnection, getStatus, type EngineStatus } from '#lib/api/client.js';
+	import NewProject from '#lib/components/NewProject.svelte';
+	import ProjectList from '#lib/components/ProjectList.svelte';
+	import WorkflowPanel from '#lib/components/WorkflowPanel.svelte';
+	import {
+		ApiError,
+		checkAiConnection,
+		getStatus,
+		listProjects,
+		type EngineStatus,
+		type Project
+	} from '#lib/api/client.js';
 	import { LOCALES } from '#lib/i18n/i18n.js';
 	import { locale } from '#lib/i18n/state.svelte.js';
 
@@ -14,9 +24,34 @@
 	let load = $state<Load>({ state: 'loading' });
 	let check = $state<Check>({ state: 'idle' });
 	let apiKey = $state('');
+	let projects = $state<Project[]>([]);
+	let projectsFailed = $state(false);
+	let selectedId = $state<string | null>(null);
+	const selected = $derived(projects.find((p) => p.id === selectedId) ?? null);
+
+	async function reloadProjects() {
+		try {
+			projects = await listProjects();
+			projectsFailed = false;
+		} catch {
+			projectsFailed = true;
+		}
+	}
+
+	function open(id: string) {
+		selectedId = id;
+		location.hash = id;
+	}
+
+	async function created(project: Project) {
+		await reloadProjects();
+		open(project.id);
+	}
 
 	onMount(async () => {
 		locale.init();
+		selectedId = location.hash.slice(1) || null;
+		void reloadProjects();
 		try {
 			load = { state: 'ready', status: await getStatus() };
 		} catch {
@@ -75,6 +110,12 @@
 		{/if}
 	</section>
 
+	<NewProject {created} />
+	<ProjectList {projects} failed={projectsFailed} {selectedId} {open} />
+	{#if selected}
+		<WorkflowPanel project={selected} changed={reloadProjects} />
+	{/if}
+
 	<section aria-labelledby="ai-heading">
 		<h2 id="ai-heading">{locale.t('ai.heading')}</h2>
 		<p>{locale.t('ai.explain')}</p>
@@ -97,7 +138,7 @@
 
 <style>
 	main {
-		max-width: 40rem;
+		max-width: 60rem;
 		margin: 2rem auto;
 		padding: 0 1rem;
 		font-family: system-ui, sans-serif;

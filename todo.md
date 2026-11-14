@@ -2,16 +2,17 @@
 
 Updated after each slice and each decision. Newest first. The plan: `ai-docs/plan.md`. How we work: `CLAUDE.md` 2.
 
-Last update: 2026-11-14 (Claude): M0 walking skeleton complete (frontend, AI check, ci/run, end-to-end test); D-32 to D-34.
+Last update: 2026-11-14 (Claude): M1 thin workflow path complete (stub verified; real Claude call not tried); D-35 to D-39.
 
 ## Current position
 
 | Item | State |
 |---|---|
-| Milestone | M0 Walking skeleton done 2026-11-14; next M1 thin workflow path |
+| Milestone | M0 and M1 done 2026-11-14; next M2 planning complete |
 | M0 done | `backend/` (Spring Boot 4.1.2, Java 21 by Gradle toolchain, wrapper 8.14.7), the four planning migrations (18 tables), `GET /api/status` from `api/openapi.yaml`, health; `./gradlew test` 2 of 2 green (unit, architecture), `./gradlew integrationTest` 3 of 3 green on PostgreSQL 17 |
 | M0 also done | `frontend/` (SvelteKit 3, Svelte 5, English and German, status call, AI check), `POST /api/ai/check` (key in memory only, Anthropic Java SDK, `claude-haiku-5-5`; stub with `ENGINE_AI_STUB=true`), `ci/run`, one Playwright journey; `ci/run all-local` green (backend 5 unit + 3 integration, frontend 5 Vitest, 1 end-to-end). Not tried: the AI check with a real valid key (only the 401 path against the live API) |
-| Product code | skeleton only (M0): `backend/`, `frontend/`, `api/`, `ci/` are created in M0; the tables and records to start from are in `ai-docs/skeleton/` |
+| M1 done | Create project from wish (key kept in session), `POST /api/projects/{id}/workflow` (Claude Sonnet 5.5 via Anthropic Java SDK, structured output, validate, one retry; stub canteen with `ENGINE_AI_STUB=true`), Svelte Flow diagram (read-only, swimlane layout from the engine), confirm as immutable contract version (trigger in V5), project list survives reload (`#<id>`). `ci/run all-local` green: backend unit 15, integration 13, frontend Vitest 11, Playwright 2. **Not tried: the real Claude call** (owner: start the engine without `ENGINE_AI_STUB`, type a key into the new-project form, click "Write the workflow with Claude") |
+| Product code | M0 skeleton and M1 slice: `backend/`, `frontend/`, `api/`, `ci/` are created in M0; the tables and records to start from are in `ai-docs/skeleton/` |
 | Git | Local only (D-24). The remote `origin` still points to the earlier project repository; do not push to it |
 
 ## This machine
@@ -35,6 +36,11 @@ Last update: 2026-11-14 (Claude): M0 walking skeleton complete (frontend, AI che
 
 | ID | Decision | Date |
 |---|---|---|
+| D-39 | `engine.shared` holds what domains share: `SessionKey` (moved from `ai`), `ProjectPort` (workflows reads the wish and sets the project status through it; `projects` implements it), `ApiProblem` (problem+json). Domains still never call each other | 2026-11-14 |
+| D-38 | Workflow generation: one call, model `claude-sonnet-5-5`, no thinking or effort settings, 120 s timeout, SDK retries off; rules checked by `WorkflowValidator` (one start, an end, lanes known, reachable, no dead ends); on invalid output one retry with the reason; then 502. No server-side refusal fallback yet. Errors: 409 key missing, 401 key rejected, 429 rate limit, 502 failed/invalid. Positions come from a swimlane layout in the backend (x by steps from start, y by lane), stored in `nodes.pos_x/pos_y` | 2026-11-14 |
+| D-37 | Contracts: V5 makes `cost_limit_amount` nullable (the limit is chosen in M3) and adds a trigger that rejects UPDATE and DELETE on `workflows.contracts`. Snapshot = wish + workflow view. One workflow per project; generating again replaces the draft (status valid, version+1); confirming needs status valid, so an unchanged confirmed workflow answers 409; a changed one confirms as version N+1 | 2026-11-14 |
+| D-36 | Project name is the first line of the wish (60 characters); `agent_harness`, `provider`, `model` are set to claude_code, anthropic, claude-sonnet-5-5 until the settings domain exists. The key is optional on create and kept in memory only | 2026-11-14 |
+| D-35 | Frontend: one page (`/`) with new project, project list, workflow panel; the open project is in the URL hash. Playwright runs with one worker because the engine holds one session key. Error messages are mapped from problem status/title to message keys (`#lib/api/problem.ts`) | 2026-11-14 |
 | D-34 | `ci/run` starts the engine jar with the Java 21 of the Gradle toolchain (`gradle printJavaHome`), because the system Java is 17; engine logs and pid files in `.run/` (ignored); tests use `engine_test`, the running app `engine`; end-to-end engine runs on port 8081 | 2026-11-14 |
 | D-33 | The frontend is built by Gradle (`frontendBuild`) and copied into the jar as `static/`: one process, one port. Frontend text lives in `frontend/src/lib/i18n/messages/{en,de}.json` with a small own translate function (no i18n library); a test keeps both files in step | 2026-11-14 |
 | D-32 | SvelteKit 3 differences: configuration is in `vite.config.ts` (no `svelte.config.js`), imports use `#lib/...js` (declared in `package.json` `imports`), not `$lib`. TypeScript 6 (npm resolved 6.x) | 2026-11-14 |
@@ -73,7 +79,7 @@ Last update: 2026-11-14 (Claude): M0 walking skeleton complete (frontend, AI che
 
 ## Next (in order)
 
-1. M1 thin workflow path, until 20 November 2026 (live check: the owner types a key into the page).
+1. Live check of M1 with a real key (owner).
 2. M2 planning complete, as far as the time reaches.
 
 ## Done

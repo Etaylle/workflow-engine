@@ -1,4 +1,4 @@
-package engine.ai;
+package engine.shared;
 
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;

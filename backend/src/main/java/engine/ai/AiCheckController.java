@@ -1,5 +1,6 @@
 package engine.ai;
 
+import engine.shared.SessionKey;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import org.springframework.http.HttpStatusCode;

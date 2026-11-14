@@ -1,0 +1,223 @@
+package engine.workflows;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import engine.shared.ApiProblem;
+import engine.shared.SessionKey;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Deque;
+import java.util.List;
+import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.Primary;
+import org.springframework.jdbc.core.simple.JdbcClient;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
+
+/** The slice through HTTP and the real PostgreSQL; Claude is replaced by a scripted writer. */
+@Tag("integration")
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@Import(WorkflowIT.Scripted.class)
+class WorkflowIT {
+
+    /** Answers with the queued results in order; the canteen example when the queue is empty. */
+    static class ScriptedWriter implements WorkflowWriter {
+        final Deque<Object> script = new ArrayDeque<>();
+        final List<String> corrections = new ArrayList<>();
+
+        @Override
+        public WorkflowDraft write(String apiKey, String wish, String correction) {
+            corrections.add(correction);
+            Object next = script.poll();
+            if (next instanceof RuntimeException e) {
+                throw e;
+            }
+            return next == null ? StubWorkflowWriter.canteen() : (WorkflowDraft) next;
+        }
+    }
+
+    @TestConfiguration
+    static class Scripted {
+        @Bean
+        @Primary
+        ScriptedWriter scriptedWriter() {
+            return new ScriptedWriter();
+        }
+    }
+
+    private static final JsonMapper JSON = JsonMapper.builder().build();
+
+    @Autowired private ScriptedWriter writer;
+    @Autowired private SessionKey sessionKey;
+    @Autowired private JdbcClient jdbc;
+    @LocalServerPort private int port;
+
+    @BeforeEach
+    void reset() {
+        writer.script.clear();
+        writer.corrections.clear();
+        sessionKey.set("sk-test");
+    }
+
+    @Test
+    void projectIsCreatedListedAndReopened() throws Exception {
+        UUID id = createProject("Canteen ordering\nmore text");
+
+        JsonNode one = JSON.readTree(call("GET", "/api/projects/" + id, null).body());
+        assertThat(one.get("name").asString()).isEqualTo("Canteen ordering");
+        assertThat(one.get("status").asString()).isEqualTo("draft");
+        assertThat(call("GET", "/api/projects", null).body()).contains(id.toString());
+    }
+
+    @Test
+    void emptyWishIsRejectedAndNoKeyIsStored() throws Exception {
+        HttpResponse<String> response = call("POST", "/api/projects", "{\"wish\":\"   \",\"apiKey\":\"sk-x\"}");
+
+        assertThat(response.statusCode()).isEqualTo(400);
+        assertThat(response.headers().firstValue("content-type").orElse("")).contains("problem+json");
+        assertThat(sessionKey.get()).contains("sk-test");
+        assertThat(call("GET", "/api/projects/" + UUID.randomUUID(), null).statusCode()).isEqualTo(404);
+    }
+
+    @Test
+    void workflowIsGeneratedStoredAndSurvivesReload() throws Exception {
+        UUID id = createProject("A canteen app");
+
+        HttpResponse<String> generated = call("POST", "/api/projects/" + id + "/workflow", null);
+
+        assertThat(generated.statusCode()).isEqualTo(200);
+        JsonNode view = JSON.readTree(generated.body());
+        assertThat(view.get("status").asString()).isEqualTo("valid");
+        assertThat(view.get("nodes")).hasSize(6);
+        assertThat(view.get("edges")).hasSize(5);
+        assertThat(view.get("lanes")).hasSize(2);
+        JsonNode again = JSON.readTree(call("GET", "/api/projects/" + id + "/workflow", null).body());
+        assertThat(again.get("nodes")).hasSize(6);
+        assertThat(JSON.readTree(call("GET", "/api/projects/" + id, null).body()).get("status").asString())
+                .isEqualTo("workflow_drafted");
+    }
+
+    @Test
+    void missingKeyAnswers409() throws Exception {
+        UUID id = createProject("A canteen app");
+        sessionKey.clear();
+
+        HttpResponse<String> response = call("POST", "/api/projects/" + id + "/workflow", null);
+
+        assertThat(response.statusCode()).isEqualTo(409);
+        assertThat(response.body()).contains("Anthropic key missing");
+    }
+
+    @Test
+    void invalidOutputIsRetriedOnceWithTheReason() throws Exception {
+        UUID id = createProject("A canteen app");
+        writer.script.add(new WorkflowDraft(List.of(), List.of(), List.of()));
+
+        HttpResponse<String> response = call("POST", "/api/projects/" + id + "/workflow", null);
+
+        assertThat(response.statusCode()).isEqualTo(200);
+        assertThat(writer.corrections).hasSize(2);
+        assertThat(writer.corrections.get(0)).isNull();
+        assertThat(writer.corrections.get(1)).contains("lanes");
+    }
+
+    @Test
+    void outputInvalidTwiceAnswers502AndStoresNothing() throws Exception {
+        UUID id = createProject("A canteen app");
+        writer.script.add(new InvalidDraftException("first"));
+        writer.script.add(new InvalidDraftException("second"));
+
+        HttpResponse<String> response = call("POST", "/api/projects/" + id + "/workflow", null);
+
+        assertThat(response.statusCode()).isEqualTo(502);
+        assertThat(call("GET", "/api/projects/" + id + "/workflow", null).statusCode()).isEqualTo(404);
+    }
+
+    @Test
+    void rateLimitAndRejectedKeyKeepTheirStatus() throws Exception {
+        UUID id = createProject("A canteen app");
+        writer.script.add(new ApiProblem(429, "Rate limit reached", "slow down"));
+        assertThat(call("POST", "/api/projects/" + id + "/workflow", null).statusCode()).isEqualTo(429);
+        writer.script.add(new ApiProblem(401, "Anthropic key rejected", "bad key"));
+        assertThat(call("POST", "/api/projects/" + id + "/workflow", null).statusCode()).isEqualTo(401);
+    }
+
+    @Test
+    void confirmedContractNeverChangesAndANewConfirmationMakesVersionTwo() throws Exception {
+        UUID id = createProject("A canteen app");
+        call("POST", "/api/projects/" + id + "/workflow", null);
+        assertThat(call("POST", "/api/projects/" + id + "/workflow/confirm", null).statusCode()).isEqualTo(201);
+        String snapshotV1 = snapshot(id, 1);
+        assertThat(call("POST", "/api/projects/" + id + "/workflow/confirm", null).statusCode()).isEqualTo(409);
+
+        WorkflowDraft smaller = new WorkflowDraft(
+                List.of("Student"),
+                List.of(new WorkflowDraft.Node("s", "Student", "start_event", "Start", "", ""),
+                        new WorkflowDraft.Node("e", "Student", "end_event", "End", "", "")),
+                List.of(new WorkflowDraft.Edge("s", "e")));
+        writer.script.add(smaller);
+        call("POST", "/api/projects/" + id + "/workflow", null);
+        HttpResponse<String> second = call("POST", "/api/projects/" + id + "/workflow/confirm", null);
+
+        assertThat(second.statusCode()).isEqualTo(201);
+        assertThat(JSON.readTree(second.body()).get("version").asInt()).isEqualTo(2);
+        assertThat(snapshot(id, 1)).isEqualTo(snapshotV1);
+        assertThat(snapshot(id, 2)).isNotEqualTo(snapshotV1);
+        assertThat(JSON.readTree(call("GET", "/api/projects/" + id + "/contracts", null).body())).hasSize(2);
+    }
+
+    @Test
+    void databaseRefusesToChangeOrDeleteAContract() throws Exception {
+        UUID id = createProject("A canteen app");
+        call("POST", "/api/projects/" + id + "/workflow", null);
+        call("POST", "/api/projects/" + id + "/workflow/confirm", null);
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> jdbc.sql(
+                        "update workflows.contracts set snapshot = '{}'::jsonb where project_id = :p")
+                .param("p", id).update()).hasMessageContaining("never changes");
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> jdbc.sql(
+                        "delete from workflows.contracts where project_id = :p")
+                .param("p", id).update()).hasMessageContaining("never changes");
+    }
+
+    @Test
+    void confirmWithoutWorkflowAnswers409() throws Exception {
+        UUID id = createProject("A canteen app");
+
+        assertThat(call("POST", "/api/projects/" + id + "/workflow/confirm", null).statusCode()).isEqualTo(409);
+    }
+
+    private String snapshot(UUID projectId, int version) {
+        return jdbc.sql("select snapshot::text from workflows.contracts"
+                        + " where project_id = :p and contract_version = :v")
+                .param("p", projectId).param("v", version).query(String.class).single();
+    }
+
+    private UUID createProject(String wish) throws Exception {
+        String body = JSON.writeValueAsString(java.util.Map.of("wish", wish, "apiKey", "sk-test"));
+        HttpResponse<String> response = call("POST", "/api/projects", body);
+        assertThat(response.statusCode()).isEqualTo(201);
+        return UUID.fromString(JSON.readTree(response.body()).get("id").asString());
+    }
+
+    private HttpResponse<String> call(String method, String path, String body) throws Exception {
+        HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create("http://localhost:" + port + path))
+                .header("Content-Type", "application/json")
+                .method(method, body == null ? HttpRequest.BodyPublishers.noBody()
+                        : HttpRequest.BodyPublishers.ofString(body));
+        return HttpClient.newHttpClient().send(builder.build(), HttpResponse.BodyHandlers.ofString());
+    }
+}
