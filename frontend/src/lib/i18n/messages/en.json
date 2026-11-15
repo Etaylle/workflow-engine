@@ -380,5 +380,15 @@
 	"console.pause": "Pause scrolling",
 	"console.follow": "Follow output",
 	"console.older": "Show older lines",
-	"console.lines": "{count} lines"
+	"console.lines": "{count} lines",
+	"files.view": "File view",
+	"files.changes": "Changes",
+	"files.all": "All files",
+	"files.checkpoint": "Checkpoint",
+	"files.latest": "Latest checkpoint",
+	"files.binary": "binary",
+	"files.more": "and {count} more files",
+	"files.choose": "Choose a file to read it.",
+	"files.binaryNote": "This is a binary file and is not shown.",
+	"files.tooLarge": "This file is {size} and too large to show."
 }

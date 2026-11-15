@@ -380,5 +380,15 @@
 	"console.pause": "Scrollen anhalten",
 	"console.follow": "Ausgabe verfolgen",
 	"console.older": "Ältere Zeilen anzeigen",
-	"console.lines": "{count} Zeilen"
+	"console.lines": "{count} Zeilen",
+	"files.view": "Dateiansicht",
+	"files.changes": "Änderungen",
+	"files.all": "Alle Dateien",
+	"files.checkpoint": "Checkpoint",
+	"files.latest": "Letzter Checkpoint",
+	"files.binary": "binär",
+	"files.more": "und {count} weitere Dateien",
+	"files.choose": "Wähle eine Datei, um sie zu lesen.",
+	"files.binaryNote": "Das ist eine Binärdatei und wird nicht angezeigt.",
+	"files.tooLarge": "Diese Datei ist {size} groß und zu groß zum Anzeigen."
 }

@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
-/** Operations startRun, answerRunQuestion, stopRun, resumeRun, getLatestRun, getRun, listRunEvents, streamRunEvents and downloadRunZip and getRunReport. */
+/** Operations startRun, answerRunQuestion, stopRun, resumeRun, getLatestRun, getRun, listRunEvents, streamRunEvents and downloadRunZip and getRunReport, listRunCheckpoints, listRunFiles and getRunFile. */
 @RestController
 class RunController {
 
@@ -86,6 +86,23 @@ class RunController {
     @GetMapping("/api/runs/{runId}/report")
     RunReport report(@PathVariable UUID runId) {
         return service.report(runId);
+    }
+
+    @GetMapping("/api/runs/{runId}/checkpoints")
+    List<WorkspaceFiles.Checkpoint> checkpoints(@PathVariable UUID runId) {
+        return service.filesOf(runId).checkpoints();
+    }
+
+    @GetMapping("/api/runs/{runId}/files")
+    List<WorkspaceFiles.TreeEntry> tree(@PathVariable UUID runId,
+            @RequestParam(required = false) String ref) {
+        return service.filesOf(runId).tree(ref);
+    }
+
+    @GetMapping("/api/runs/{runId}/file")
+    WorkspaceFiles.FileContent file(@PathVariable UUID runId, @RequestParam String path,
+            @RequestParam(required = false) String ref) {
+        return service.filesOf(runId).file(ref, path);
     }
 
     @GetMapping("/api/runs/{runId}/zip")

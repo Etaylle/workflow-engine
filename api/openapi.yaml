@@ -1108,6 +1108,98 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+  /api/runs/{runId}/checkpoints:
+    get:
+      operationId: listRunCheckpoints
+      summary: The checkpoints (git commits) of the run workspace, newest first, with changed files
+      description: >
+        At most the latest 100 commits; per commit at most 300 files with lines added and removed
+        (binary files have 0 and `binary` true). Read from the git history of the workspace, so a
+        step that is still being built shows only after it is green.
+      parameters:
+        - $ref: "#/components/parameters/RunId"
+      responses:
+        "200":
+          description: The checkpoints
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Checkpoint"
+        "404":
+          description: No such run, or its workspace is gone
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/runs/{runId}/files:
+    get:
+      operationId: listRunFiles
+      summary: The files of the workspace at a checkpoint (read-only, at most 5000)
+      parameters:
+        - $ref: "#/components/parameters/RunId"
+        - name: ref
+          in: query
+          description: HEAD (the latest checkpoint, default) or a commit id from the checkpoints
+          schema: {type: string}
+      responses:
+        "200":
+          description: The files with their sizes, sorted by path
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/WorkspaceFile"
+        "400":
+          description: The checkpoint is not HEAD or a commit id
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: No such run, or its workspace is gone
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/runs/{runId}/file:
+    get:
+      operationId: getRunFile
+      summary: The text of one workspace file at a checkpoint (text only, at most 256 KiB)
+      description: >
+        Read from the git history, never from the folder. The path must be relative, without `.`,
+        `..`, empty parts or backslashes (400). Binary files and files over 256 KiB come without
+        content (`binary` or `tooLarge` true).
+      parameters:
+        - $ref: "#/components/parameters/RunId"
+        - name: path
+          in: query
+          required: true
+          schema: {type: string}
+        - name: ref
+          in: query
+          schema: {type: string}
+      responses:
+        "200":
+          description: The file
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkspaceFileContent"
+        "400":
+          description: Bad path or checkpoint
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: No such run or file
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
   /api/runs/{runId}/report:
     get:
       operationId: getRunReport
@@ -1519,6 +1611,39 @@ components:
               id: {type: string, format: uuid}
               source: {type: string, format: uuid}
               target: {type: string, format: uuid}
+    Checkpoint:
+      type: object
+      required: [sha, message, committedAt, fileCount, files]
+      properties:
+        sha: {type: string}
+        message: {type: string}
+        committedAt: {type: string, format: date-time}
+        fileCount: {type: integer}
+        files:
+          type: array
+          items:
+            type: object
+            required: [path, added, removed, binary]
+            properties:
+              path: {type: string}
+              added: {type: integer}
+              removed: {type: integer}
+              binary: {type: boolean}
+    WorkspaceFile:
+      type: object
+      required: [path, size]
+      properties:
+        path: {type: string}
+        size: {type: integer, format: int64}
+    WorkspaceFileContent:
+      type: object
+      required: [path, size, binary, tooLarge]
+      properties:
+        path: {type: string}
+        size: {type: integer, format: int64}
+        binary: {type: boolean}
+        tooLarge: {type: boolean}
+        content: {type: [string, "null"]}
     RunReport:
       type: object
       required: [runId, status, startedAt, seconds, costUsd, costLimitUsd, resumeCount, tasksDone, tasksTotal, stepsDone, stepsTotal, attempts, checkpoints, tasks, questions]

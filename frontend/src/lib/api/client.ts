@@ -392,3 +392,29 @@ export const updateProjectSettings = (
 	projectId: string,
 	change: { stepProfileId: string | null; costLimitUsd: number | null }
 ) => json<ProjectSettings>(`/api/projects/${projectId}/settings`, 'PUT', change);
+
+export type FileChange = { path: string; added: number; removed: number; binary: boolean };
+export type Checkpoint = {
+	sha: string;
+	message: string;
+	committedAt: string;
+	fileCount: number;
+	files: FileChange[];
+};
+export type WorkspaceFile = { path: string; size: number };
+export type WorkspaceFileContent = {
+	path: string;
+	size: number;
+	binary: boolean;
+	tooLarge: boolean;
+	content: string | null;
+};
+
+export const listRunCheckpoints = (runId: string) =>
+	json<Checkpoint[]>(`/api/runs/${runId}/checkpoints`);
+export const listRunFiles = (runId: string, ref: string) =>
+	json<WorkspaceFile[]>(`/api/runs/${runId}/files?ref=${encodeURIComponent(ref)}`);
+export const getRunFile = (runId: string, path: string, ref: string) =>
+	json<WorkspaceFileContent>(
+		`/api/runs/${runId}/file?path=${encodeURIComponent(path)}&ref=${encodeURIComponent(ref)}`
+	);

@@ -13,6 +13,7 @@
 		type RunEvent
 	} from '#lib/api/client.js';
 	import ConsolePane from '#lib/components/ConsolePane.svelte';
+	import FilesPane from '#lib/components/FilesPane.svelte';
 	import RunControls from '#lib/components/RunControls.svelte';
 	import RunReportCard from '#lib/components/RunReportCard.svelte';
 	import BuildWith from '#lib/components/BuildWith.svelte';
@@ -313,6 +314,8 @@
 								loadingOlder={older.busy}
 								{loadOlder}
 							/>
+						{:else if tab === 'files'}
+							<FilesPane runId={run.id} version={steps.done} />
 						{/if}
 					</div>
 				</div>

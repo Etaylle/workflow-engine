@@ -205,6 +205,27 @@ class RunIT {
     }
 
     @Test
+    void whatWasBuiltIsReadableAsCheckpointsTreeAndFileAndNothingOutsideTheWorkspace() throws Exception {
+        UUID project = confirmedProject();
+        String id = awaitEnd(http.json("POST", "/api/projects/" + project + "/runs", null)
+                .get("id").asString()).get("id").asString();
+
+        JsonNode checkpoints = http.json("GET", "/api/runs/" + id + "/checkpoints", null);
+        JsonNode tree = http.json("GET", "/api/runs/" + id + "/files", null);
+        JsonNode file = http.json("GET", "/api/runs/" + id + "/file?path=CONTRACT.md", null);
+
+        assertThat(checkpoints.get(0).get("message").asString()).startsWith("Task 2");
+        assertThat(checkpoints.get(0).get("sha").asString()).hasSize(40);
+        assertThat(tree).anyMatch(e -> e.get("path").asString().equals("CONTRACT.md"));
+        assertThat(file.get("content").asString()).contains("Notify the student");
+        for (String bad : List.of("../../etc/passwd", "%2e%2e/%2e%2e/etc/passwd", "/etc/passwd")) {
+            assertThat(http.call("GET", "/api/runs/" + id + "/file?path=" + bad, null).statusCode()).as(bad)
+                    .isIn(400, 404);
+        }
+        assertThat(http.call("GET", "/api/runs/" + id + "/files?ref=--output=x", null).statusCode()).isEqualTo(400);
+    }
+
+    @Test
     void aStepThatStaysBrokenMakesTheRunWaitWithOneQuestionAndLeavesLaterWorkPending() throws Exception {
         UUID project = confirmedProject();
         builder.failSteps.add("build");

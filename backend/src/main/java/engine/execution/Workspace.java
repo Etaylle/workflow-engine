@@ -90,7 +90,12 @@ final class Workspace {
         git("clean", "-q", "-fd");
     }
 
-    private String git(String... args) {
+    String git(String... args) {
+        return new String(gitBytes(args), StandardCharsets.UTF_8);
+    }
+
+    /** Runs git in the workspace and returns its standard output; a failure is an exception. */
+    byte[] gitBytes(String... args) {
         List<String> command = new java.util.ArrayList<>(List.of("git"));
         command.addAll(List.of(args));
         try {
@@ -103,7 +108,7 @@ final class Workspace {
                     throw new IllegalStateException("git " + args[0] + " failed in " + dir + ": "
                             + Files.readString(err).strip());
                 }
-                return Files.readString(out);
+                return Files.readAllBytes(out);
             } finally {
                 Files.deleteIfExists(out);
                 Files.deleteIfExists(err);

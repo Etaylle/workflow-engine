@@ -232,6 +232,16 @@ class RunService {
         return new Workspace(dir);
     }
 
+    /** The read-only view of what the run built so far (its git history); any run with a workspace. */
+    WorkspaceFiles filesOf(UUID runId) {
+        view(runId);
+        Path dir = Path.of(store.row(runId).orElseThrow().workspacePath());
+        if (!Files.isDirectory(dir.resolve(".git"))) {
+            throw new ApiProblem(404, "Workspace gone", "The workspace of this run no longer exists.");
+        }
+        return new WorkspaceFiles(new Workspace(dir));
+    }
+
     /** After a restart no run is under way any more: the key and the build process are gone. */
     @EventListener(ApplicationReadyEvent.class)
     void recoverInterrupted() {
