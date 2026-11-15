@@ -1,12 +1,13 @@
 package engine.documents;
 
+import engine.shared.AiTarget;
 import java.util.List;
 
 /** Offline writer for tests and ENGINE_AI_STUB=true: always the canteen example. */
 public class StubRequirementWriter implements RequirementWriter {
 
     @Override
-    public RequirementDraft write(String apiKey, String wish, String material, String correction) {
+    public RequirementDraft write(AiTarget target, String wish, String material, String correction) {
         return new RequirementDraft(List.of(
                 new RequirementDraft.Epic("Ordering", "Order", List.of(
                         new RequirementDraft.Item("functional", "must",

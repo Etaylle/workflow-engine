@@ -37,8 +37,43 @@ class StructuredOutputSchemasTest {
     }
 
     private static JsonNode schemaOf(Class<?> type) {
-        var format = ClaudeCall.params("s", "u", type).outputConfig().orElseThrow().format().orElseThrow();
+        var format = AnthropicCall.params("s", "u", type).outputConfig().orElseThrow().format().orElseThrow();
         return JSON.valueToTree(format.schema()._additionalProperties());
+    }
+
+    /** The schema the OpenAI SDK derives for the strict response format (OpenAI, Gemini, ...). */
+    private static JsonNode openAiSchemaOf(Class<?> type) throws com.fasterxml.jackson.core.JsonProcessingException {
+        var target = new AiTarget(AiProvider.OPENAI, "k", "https://api.openai.com/v1", "m");
+        var strict = OpenAiCall.params(target, "s", "u", type);
+        assertThat(strict.rawParams().responseFormat().orElseThrow().asJsonSchema().jsonSchema().strict())
+                .contains(true);
+        return JSON.readTree(OpenAiCall.schemaOf(strict));
+    }
+
+    @ParameterizedTest
+    @MethodSource("answerClasses")
+    void schemaMeetsTheStrictRulesOfOpenAiAndGemini(Class<?> type) throws Exception {
+        JsonNode schema = openAiSchemaOf(type);
+
+        List<String> problems = new ArrayList<>();
+        walk(schema, schema, "$", 0, problems);
+        assertThat(problems).isEmpty();
+        assertThat(schema.path("type").asText()).isEqualTo("object");
+        assertThat(schema.toString()).doesNotContain("\"format\"", "\"default\"");
+        assertThat(countProperties(schema)).as("OpenAI allows 5000 properties").isLessThan(5000);
+    }
+
+    @ParameterizedTest
+    @MethodSource("answerClasses")
+    void bothProvidersGetTheSameFields(Class<?> type) throws Exception {
+        assertThat(names(openAiSchemaOf(type).path("properties")))
+                .isEqualTo(names(schemaOf(type).path("properties")));
+    }
+
+    private static int countProperties(JsonNode node) {
+        int[] total = {0};
+        node.findParents("type").forEach(n -> total[0] += n.path("properties").size());
+        return total[0];
     }
 
     @ParameterizedTest

@@ -1,72 +1,240 @@
 <script lang="ts">
-	import { ApiError, checkAiConnection, deleteAiKey, setAiKey } from '#lib/api/client.js';
+	import {
+		ApiError,
+		checkAiConnection,
+		choosePlanningProvider,
+		deleteAiKey,
+		setAiKey,
+		type AiProviderId
+	} from '#lib/api/client.js';
 	import { engineKey } from '#lib/ai/key.svelte.js';
-	import { typedKey } from '#lib/ai/keyState.js';
+	import { keyWarning, typedKey } from '#lib/ai/keyState.js';
+	import { DEFAULT_PRESET, PRESETS, presetOfUrl, type PresetId } from '#lib/ai/presets.js';
 	import type { MessageKey } from '#lib/i18n/i18n.js';
 	import { locale } from '#lib/i18n/state.svelte.js';
 
-	let input = $state('');
-	let busy = $state(false);
-	let result = $state<{ ok: boolean; text: string } | null>(null);
-	const key = $derived(typedKey(input));
+	const saved = engineKey.keys?.openai;
+	const startPreset = saved?.set ? presetOfUrl(saved.baseUrl) : DEFAULT_PRESET;
 
-	async function act(done: MessageKey, call: (typed: string | null) => Promise<unknown>) {
-		busy = true;
-		result = null;
+	let inputs = $state<Record<AiProviderId, string>>({ anthropic: '', openai: '' });
+	let presetId = $state<PresetId>(startPreset.id);
+	let baseUrl = $state(saved?.set ? (saved.baseUrl ?? '') : startPreset.baseUrl);
+	let model = $state(saved?.set ? (saved.model ?? '') : startPreset.model);
+	let busy = $state<AiProviderId | null>(null);
+	let results = $state<Record<AiProviderId, { ok: boolean; text: string } | null>>({
+		anthropic: null,
+		openai: null
+	});
+
+	const preset = $derived(PRESETS.find((p) => p.id === presetId) ?? DEFAULT_PRESET);
+	const keys = $derived(engineKey.keys);
+	const bothSet = $derived(keys !== null && keys.anthropic.set && keys.openai.set);
+
+	function pick(id: PresetId) {
+		presetId = id;
+		const next = PRESETS.find((p) => p.id === id);
+		if (next && next.id !== 'custom') {
+			baseUrl = next.baseUrl;
+			model = next.model;
+		}
+	}
+
+	function body(provider: AiProviderId, key: string) {
+		return provider === 'openai' ? { apiKey: key, baseUrl, model } : { apiKey: key };
+	}
+
+	async function act(provider: AiProviderId, done: MessageKey, call: () => Promise<unknown>) {
+		busy = provider;
+		results[provider] = null;
 		try {
-			await call(key);
-			result = { ok: true, text: locale.t(done) };
-			input = '';
+			await call();
+			results[provider] = { ok: true, text: locale.t(done) };
+			inputs[provider] = '';
 		} catch (e) {
 			const detail = e instanceof ApiError ? e.message : locale.t('ai.unreachable');
-			result = { ok: false, text: locale.t('ai.failed', { detail }) };
+			results[provider] = { ok: false, text: locale.t('ai.failed', { detail }) };
 		} finally {
-			busy = false;
+			busy = null;
 			await engineKey.refresh();
 		}
 	}
+
+	const save = (p: AiProviderId) => {
+		const key = typedKey(inputs[p]);
+		if (key) void act(p, 'key.saved', async () => engineKey.adopt(await setAiKey(p, body(p, key))));
+	};
+	const test = (p: AiProviderId) => {
+		const key = typedKey(inputs[p]);
+		void act(p, 'key.works', () =>
+			checkAiConnection({
+				provider: p,
+				...(key ? { apiKey: key } : {}),
+				...(p === 'openai' ? { baseUrl, model } : {})
+			})
+		);
+	};
+	const remove = (p: AiProviderId) => void act(p, 'key.removed', () => deleteAiKey(p));
+	const choose = (p: AiProviderId) => void choosePlanningProvider(p).then(engineKey.adopt);
 </script>
 
 <div class="panel" role="dialog" aria-label={locale.t('key.title')} data-testid="key-panel">
-	<h2>{locale.t('key.title')}</h2>
-	<p class="note">{locale.t('key.note')}</p>
-	<label>
-		{locale.t('key.field')}
-		<input type="password" autocomplete="off" bind:value={input} data-testid="key-input" />
-	</label>
-	<div class="row">
-		<button
-			class="primary"
-			disabled={busy || key === null}
-			onclick={() => act('key.saved', (k) => setAiKey(k ?? ''))}
-			data-testid="key-save"
-		>
-			{locale.t('key.save')}
-		</button>
-		<button
-			disabled={busy || key === null}
-			onclick={() => act('key.works', (k) => checkAiConnection(k ?? ''))}
-			data-testid="key-test"
-		>
-			{busy ? locale.t('wish.testing') : locale.t('wish.test')}
-		</button>
-		<button
-			class="danger"
-			disabled={busy || !engineKey.state?.set}
-			onclick={() => act('key.removed', () => deleteAiKey())}
-			data-testid="key-remove"
-		>
-			{locale.t('key.remove')}
-		</button>
-		<button onclick={() => engineKey.closePanel()} data-testid="key-close">
+	<div class="head">
+		<h2>{locale.t('key.title')}</h2>
+		<button class="close" onclick={() => engineKey.closePanel()} data-testid="key-close">
 			{locale.t('key.close')}
 		</button>
 	</div>
-	{#if result}
-		<p class:ok={result.ok} role={result.ok ? 'status' : 'alert'} data-testid="key-panel-result">
-			{result.text}
-		</p>
+	<p class="note">{locale.t('key.note')}</p>
+
+	<section class="slot">
+		<h3>{locale.t('key.anthropic')}</h3>
+		<label>
+			{locale.t('key.field')}
+			<input
+				type="password"
+				autocomplete="off"
+				bind:value={inputs.anthropic}
+				data-testid="key-input"
+			/>
+		</label>
+		{#if keyWarning('anthropic', inputs.anthropic)}
+			<p class="warn" role="status">{locale.t(keyWarning('anthropic', inputs.anthropic)!)}</p>
+		{/if}
+		<div class="row">
+			<button
+				class="primary"
+				disabled={busy !== null || typedKey(inputs.anthropic) === null}
+				onclick={() => save('anthropic')}
+				data-testid="key-save"
+			>
+				{locale.t('key.save')}
+			</button>
+			<button
+				disabled={busy !== null || (typedKey(inputs.anthropic) === null && !keys?.anthropic.set)}
+				onclick={() => test('anthropic')}
+				data-testid="key-test"
+			>
+				{busy === 'anthropic' ? locale.t('wish.testing') : locale.t('wish.test')}
+			</button>
+			<button
+				class="danger"
+				disabled={busy !== null || !keys?.anthropic.set}
+				onclick={() => remove('anthropic')}
+				data-testid="key-remove"
+			>
+				{locale.t('key.remove')}
+			</button>
+		</div>
+		{#if results.anthropic}
+			<p
+				class:ok={results.anthropic.ok}
+				role={results.anthropic.ok ? 'status' : 'alert'}
+				data-testid="key-panel-result"
+			>
+				{results.anthropic.text}
+			</p>
+		{/if}
+	</section>
+
+	<section class="slot">
+		<h3>{locale.t('key.openai')}</h3>
+		<label>
+			{locale.t('key.preset')}
+			<select
+				value={presetId}
+				onchange={(e) => pick(e.currentTarget.value as PresetId)}
+				data-testid="key-preset"
+			>
+				{#each PRESETS as option (option.id)}
+					<option value={option.id}>{locale.t(option.label)}</option>
+				{/each}
+			</select>
+		</label>
+		<p class="hint">{locale.t(preset.hint)}</p>
+		<label>
+			{preset.name
+				? locale.t('key.fieldFor', { provider: preset.name })
+				: locale.t('key.fieldFor', { provider: locale.t('key.openai') })}
+			<input
+				type="password"
+				autocomplete="off"
+				bind:value={inputs.openai}
+				data-testid="key-input-openai"
+			/>
+		</label>
+		{#if keyWarning('openai', inputs.openai)}
+			<p class="warn" role="status">{locale.t(keyWarning('openai', inputs.openai)!)}</p>
+		{/if}
+		<label>
+			{locale.t('key.baseUrl')}
+			<input type="text" bind:value={baseUrl} data-testid="key-baseurl" />
+		</label>
+		<label>
+			{locale.t('key.model')}
+			<input type="text" bind:value={model} data-testid="key-model" />
+		</label>
+		<div class="row">
+			<button
+				class="primary"
+				disabled={busy !== null || typedKey(inputs.openai) === null}
+				onclick={() => save('openai')}
+				data-testid="key-save-openai"
+			>
+				{locale.t('key.save')}
+			</button>
+			<button
+				disabled={busy !== null || (typedKey(inputs.openai) === null && !keys?.openai.set)}
+				onclick={() => test('openai')}
+				data-testid="key-test-openai"
+			>
+				{busy === 'openai' ? locale.t('wish.testing') : locale.t('wish.test')}
+			</button>
+			<button
+				class="danger"
+				disabled={busy !== null || !keys?.openai.set}
+				onclick={() => remove('openai')}
+				data-testid="key-remove-openai"
+			>
+				{locale.t('key.remove')}
+			</button>
+		</div>
+		{#if results.openai}
+			<p
+				class:ok={results.openai.ok}
+				role={results.openai.ok ? 'status' : 'alert'}
+				data-testid="key-panel-result-openai"
+			>
+				{results.openai.text}
+			</p>
+		{/if}
+	</section>
+
+	{#if bothSet}
+		<fieldset class="choose" data-testid="key-choose">
+			<legend>{locale.t('key.choose')}</legend>
+			{#each ['anthropic', 'openai'] as const as provider (provider)}
+				<label class="pick">
+					<input
+						type="radio"
+						name="planning-provider"
+						checked={keys?.planning?.provider === provider}
+						onchange={() => choose(provider)}
+						data-testid={`choose-${provider}`}
+					/>
+					{engineKey.nameOf(locale.t('key.nameAnthropic'), provider)}
+				</label>
+			{/each}
+		</fieldset>
 	{/if}
+	<p class="note" data-testid="key-planning">
+		{#if keys?.planning}
+			{locale.t('key.planningWith')}
+			{engineKey.nameOf(locale.t('key.nameAnthropic'), keys.planning.provider)} · {keys.planning
+				.model}
+		{:else}
+			{locale.t('key.planningNone')}
+		{/if}
+	</p>
 </div>
 
 <style>
@@ -75,20 +243,53 @@
 		right: 1.25rem;
 		top: calc(100% + 0.4rem);
 		z-index: 20;
-		width: min(26rem, calc(100vw - 2.5rem));
+		width: min(30rem, calc(100vw - 2.5rem));
+		max-height: calc(100vh - 6rem);
+		overflow-y: auto;
 		background: var(--surface);
 		border: 1px solid var(--line);
 		border-radius: var(--radius);
 		box-shadow: 0 8px 28px rgba(29, 29, 27, 0.18);
 		padding: 1rem 1.25rem 1.1rem;
 	}
+	.head {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		gap: 1rem;
+	}
 	h2 {
 		font-size: 1.05rem;
-		margin: 0 0 0.3rem;
+		margin: 0;
 	}
-	.note {
-		margin: 0 0 0.8rem;
+	h3 {
+		font-size: 0.95rem;
+		margin: 0 0 0.5rem;
+	}
+	.slot {
+		border-top: 1px solid var(--line);
+		padding-top: 0.8rem;
+		margin: 0.8rem 0 0;
+	}
+	.slot label {
+		margin-bottom: 0.5rem;
+	}
+	.slot input,
+	.slot select {
+		width: 100%;
+	}
+	.note,
+	.hint {
+		margin: 0.4rem 0 0.6rem;
 		color: var(--muted);
+		font-size: 0.9rem;
+	}
+	.warn {
+		margin: 0 0 0.6rem;
+		color: var(--amber-ink);
+		background: var(--amber-soft);
+		border-radius: 8px;
+		padding: 0.4rem 0.7rem;
 		font-size: 0.9rem;
 	}
 	.row {
@@ -98,6 +299,14 @@
 	}
 	.ok {
 		color: var(--green-ink);
-		margin: 0.8rem 0 0;
+		margin: 0.6rem 0 0;
+	}
+	.choose {
+		margin-top: 0.9rem;
+	}
+	.pick {
+		display: inline-block;
+		margin: 0 1rem 0 0;
+		font-weight: 400;
 	}
 </style>

@@ -1,9 +1,10 @@
 package engine.documents;
 
-import engine.shared.ClaudeCall;
+import engine.shared.AiTarget;
+import engine.shared.PlanningCall;
 
 /** The requirements agent: one planning call from the wish, the brief and the answers. */
-public class AnthropicRequirementWriter implements RequirementWriter {
+public class AiRequirementWriter implements RequirementWriter {
 
     static final String SYSTEM_PROMPT =
             """
@@ -17,9 +18,9 @@ public class AnthropicRequirementWriter implements RequirementWriter {
             """;
 
     @Override
-    public RequirementDraft write(String apiKey, String wish, String material, String correction) {
+    public RequirementDraft write(AiTarget target, String wish, String material, String correction) {
         String user = "Wish:\n" + wish + "\n\n" + material;
-        return ClaudeCall.structured(
-                apiKey, SYSTEM_PROMPT, ClaudeCall.withCorrection(user, correction), RequirementDraft.class);
+        return PlanningCall.structured(
+                target, SYSTEM_PROMPT, PlanningCall.withCorrection(user, correction), RequirementDraft.class);
     }
 }

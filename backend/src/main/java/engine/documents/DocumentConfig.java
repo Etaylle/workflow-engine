@@ -12,6 +12,6 @@ class DocumentConfig {
     @Bean
     @ConditionalOnMissingBean
     RequirementWriter requirementWriter(@Value("${engine.ai.stub:false}") boolean stub) {
-        return stub ? new StubRequirementWriter() : new AnthropicRequirementWriter();
+        return stub ? new StubRequirementWriter() : new AiRequirementWriter();
     }
 }

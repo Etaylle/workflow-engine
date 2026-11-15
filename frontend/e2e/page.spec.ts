@@ -52,7 +52,7 @@ test('the key is changed from the header on a later step and the action is retri
 	await page.getByTestId('wish').fill('A key journey app');
 	await page.getByTestId('project-key').fill('sk-first-key-0001');
 	await page.getByTestId('create').click();
-	await expect(page.getByTestId('key-button')).toContainText('Key set (…0001)');
+	await expect(page.getByTestId('key-button')).toContainText('Claude (…0001)');
 
 	// the key is removed in the header: the next AI action says why it fails
 	await page.getByTestId('key-button').click();
@@ -60,13 +60,13 @@ test('the key is changed from the header on a later step and the action is retri
 	await expect(page.getByTestId('key-button')).toContainText('No key');
 	await page.getByTestId('key-close').click();
 	await page.getByTestId('ask').click();
-	await expect(page.getByTestId('ask-error')).toContainText('No Anthropic key');
+	await expect(page.getByTestId('ask-error')).toContainText('No AI key');
 
 	// the error offers the key panel; saving a new key lets the same button work
 	await page.getByTestId('open-key-panel').click();
 	await page.getByTestId('key-input').fill('sk-second-key-0002');
 	await page.getByTestId('key-save').click();
-	await expect(page.getByTestId('key-button')).toContainText('Key set (…0002)');
+	await expect(page.getByTestId('key-button')).toContainText('Claude (…0002)');
 	await page.getByTestId('key-close').click();
 	await page.getByTestId('ask').click();
 	await expect(page.getByTestId('question-1')).toBeVisible();
@@ -76,5 +76,34 @@ test('the key is changed from the header on a later step and the action is retri
 	await page.getByTestId('key-input').fill('bad');
 	await page.getByTestId('key-test').click();
 	await expect(page.getByTestId('key-panel-result')).toContainText('Check failed');
+	await expect(page.getByTestId('key-button')).toContainText('No key');
+});
+
+test('a Gemini key is saved with its preset, chosen for planning and removed', async ({ page }) => {
+	await page.goto('/#projects');
+	await page.getByTestId('key-button').click();
+	await expect(page.getByTestId('key-preset')).toHaveValue('gemini');
+	await expect(page.getByTestId('key-baseurl')).toHaveValue(
+		'https://generativelanguage.googleapis.com/v1beta/openai/'
+	);
+	await expect(page.getByTestId('key-model')).toHaveValue('gemini-flash-lite-latest');
+
+	await page.getByTestId('key-input-openai').fill('sk-ant-oops-0000');
+	await expect(page.getByTestId('key-panel')).toContainText('Anthropic key');
+	await page.getByTestId('key-input-openai').fill('AQ.gemini-secret-9999');
+	await page.getByTestId('key-save-openai').click();
+	await expect(page.getByTestId('key-button')).toContainText('Gemini (…9999)');
+	await expect(page.getByTestId('key-planning')).toContainText('gemini-flash-lite-latest');
+	await expect(page.getByTestId('key-panel')).not.toContainText('secret');
+
+	await page.getByTestId('key-input').fill('sk-ant-other-key-7777');
+	await page.getByTestId('key-save').click();
+	await page.getByTestId('choose-openai').check();
+	await expect(page.getByTestId('key-button')).toContainText('Gemini');
+	await page.getByTestId('choose-anthropic').check();
+	await expect(page.getByTestId('key-button')).toContainText('Claude (…7777)');
+
+	await page.getByTestId('key-remove').click();
+	await page.getByTestId('key-remove-openai').click();
 	await expect(page.getByTestId('key-button')).toContainText('No key');
 });

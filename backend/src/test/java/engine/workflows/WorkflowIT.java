@@ -50,7 +50,7 @@ class WorkflowIT {
     void reset() {
         writer.reset();
         writer.materials.clear();
-        sessionKey.set("sk-test");
+        sessionKey.setAnthropic("sk-test");
         http = new TestHttp(port);
     }
     @Test
@@ -69,7 +69,7 @@ class WorkflowIT {
 
         assertThat(response.statusCode()).isEqualTo(400);
         assertThat(response.headers().firstValue("content-type").orElse("")).contains("problem+json");
-        assertThat(sessionKey.get()).contains("sk-test");
+        assertThat(sessionKey.anthropicKey()).contains("sk-test");
         assertThat(call("GET", "/api/projects/" + UUID.randomUUID(), null).statusCode()).isEqualTo(404);
     }
 
@@ -94,12 +94,12 @@ class WorkflowIT {
     @Test
     void missingKeyAnswers409() throws Exception {
         UUID id = plannedProject("A canteen app");
-        sessionKey.clear();
+        sessionKey.clearAll();
 
         HttpResponse<String> response = call("POST", "/api/projects/" + id + "/workflow", null);
 
         assertThat(response.statusCode()).isEqualTo(409);
-        assertThat(response.body()).contains("Anthropic key missing");
+        assertThat(response.body()).contains("AI key missing");
     }
 
     @Test

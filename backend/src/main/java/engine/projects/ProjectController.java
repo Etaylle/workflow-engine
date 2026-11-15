@@ -42,7 +42,7 @@ public class ProjectController {
     public Project create(@RequestBody CreateProjectRequest request) {
         Project project = projects.create(request.wish(), request.name());
         if (request.apiKey() != null && !request.apiKey().isBlank()) {
-            sessionKey.set(request.apiKey().strip());
+            sessionKey.setAnthropic(request.apiKey().strip());
         }
         return project;
     }

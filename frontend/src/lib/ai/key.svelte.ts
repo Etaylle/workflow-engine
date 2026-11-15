@@ -1,13 +1,14 @@
-import { getAiKey, getStatus, type AiKeyState } from '#lib/api/client.js';
+import { getAiKeys, getStatus, type AiKeys, type AiProviderId } from '#lib/api/client.js';
+import { providerName } from './keyState.js';
 
 /** What the engine holds for the session and whether it runs in demo mode; shared by all screens. */
 export const engineKey = (() => {
-	let state = $state<AiKeyState | null>(null);
+	let keys = $state<AiKeys | null>(null);
 	let panelOpen = $state(false);
 	let demo = $state(false);
 	return {
-		get state() {
-			return state;
+		get keys() {
+			return keys;
 		},
 		get panelOpen() {
 			return panelOpen;
@@ -15,17 +16,30 @@ export const engineKey = (() => {
 		get demo() {
 			return demo;
 		},
+		/** Whether the engine holds any key. */
+		get anySet() {
+			return keys !== null && (keys.anthropic.set || keys.openai.set);
+		},
+		/** Display name of a provider; the first argument is the word for Anthropic's Claude. */
+		nameOf(claude: string, provider: AiProviderId): string {
+			return provider === 'anthropic' || keys === null
+				? claude
+				: (providerName(keys, provider) ?? claude);
+		},
 		openPanel() {
 			panelOpen = true;
 		},
 		closePanel() {
 			panelOpen = false;
 		},
+		adopt(next: AiKeys) {
+			keys = next;
+		},
 		async refresh() {
 			try {
-				state = await getAiKey();
+				keys = await getAiKeys();
 			} catch {
-				state = null;
+				keys = null;
 			}
 		},
 		async loadMode() {

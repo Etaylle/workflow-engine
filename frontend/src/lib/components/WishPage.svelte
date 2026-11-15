@@ -14,7 +14,9 @@
 	let apiKey = $state('');
 	let busy = $state(false);
 	let error = $state<string | null>(null);
-	const held = $derived(describeKey(engineKey.state));
+	const held = $derived(
+		describeKey(engineKey.keys, (p) => engineKey.nameOf(locale.t('key.nameAnthropic'), p))
+	);
 	let keyCheck = $state<{ state: 'idle' | 'busy' | 'ok' | 'failed'; detail: string }>({
 		state: 'idle',
 		detail: ''
@@ -23,7 +25,7 @@
 	async function testKey() {
 		keyCheck = { state: 'busy', detail: '' };
 		try {
-			await checkAiConnection(apiKey);
+			await checkAiConnection({ provider: 'anthropic', apiKey });
 			keyCheck = { state: 'ok', detail: '' };
 			void engineKey.refresh();
 		} catch (e) {
@@ -80,7 +82,7 @@
 				<strong>{locale.t('wish.claudeCode')}</strong>
 				<div class="lead">{locale.t('wish.claudeCodeNote')}</div>
 			</div>
-			{#if engineKey.state?.set}
+			{#if engineKey.anySet}
 				<p class="ok" role="status" data-testid="key-held">
 					{locale.t('key.setHere', { state: locale.t(held.key, held.params) })}
 				</p>

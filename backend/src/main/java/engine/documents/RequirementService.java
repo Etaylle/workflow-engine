@@ -2,7 +2,8 @@ package engine.documents;
 
 import engine.shared.AnswersPort;
 import engine.shared.ApiProblem;
-import engine.shared.ClaudeCall;
+import engine.shared.AiTarget;
+import engine.shared.PlanningCall;
 import engine.shared.ProjectPort;
 import engine.shared.RequirementsPort;
 import engine.shared.SessionKey;
@@ -38,10 +39,11 @@ class RequirementService implements RequirementsPort {
             throw new ApiProblem(409, "Requirements not possible", "Requirements are written from"
                     + " answered questions, and only until the workflow is drawn from them.");
         }
-        String key = ClaudeCall.requireKey(sessionKey);
+        AiTarget target = PlanningCall.requireTarget(sessionKey);
+        projects.recordAi(projectId, target);
         String material = material(projectId);
-        RequirementDraft draft = ClaudeCall.validated("requirements",
-                correction -> writer.write(key, wish, material, correction), RequirementValidator::validate);
+        RequirementDraft draft = PlanningCall.validated("requirements",
+                correction -> writer.write(target, wish, material, correction), RequirementValidator::validate);
         store.replace(projectId, draft);
         projects.markStatus(projectId, "requirements_ready");
         return store.find(projectId);

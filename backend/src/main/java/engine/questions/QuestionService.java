@@ -2,7 +2,8 @@ package engine.questions;
 
 import engine.shared.AnswersPort;
 import engine.shared.ApiProblem;
-import engine.shared.ClaudeCall;
+import engine.shared.AiTarget;
+import engine.shared.PlanningCall;
 import engine.shared.InvalidAiOutputException;
 import engine.shared.ProjectPort;
 import engine.shared.SessionKey;
@@ -54,9 +55,10 @@ class QuestionService implements AnswersPort {
         }
         String brief = projects.briefOf(projectId).orElseThrow(() -> new ApiProblem(409,
                 "Brief missing", "Write the brief first; the questions are based on it."));
-        String key = ClaudeCall.requireKey(sessionKey);
-        QuestionDraft draft = ClaudeCall.validated("questions",
-                correction -> writer.write(key, wish, brief, correction), QuestionValidator::validate);
+        AiTarget target = PlanningCall.requireTarget(sessionKey);
+        projects.recordAi(projectId, target);
+        QuestionDraft draft = PlanningCall.validated("questions",
+                correction -> writer.write(target, wish, brief, correction), QuestionValidator::validate);
         store.replace(projectId, draft);
         projects.markStatus(projectId, "questions_ready");
         return store.find(projectId);

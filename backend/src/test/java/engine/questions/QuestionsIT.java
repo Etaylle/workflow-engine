@@ -34,7 +34,7 @@ class QuestionsIT {
     @BeforeEach
     void reset() {
         writer.reset();
-        sessionKey.set("sk-test");
+        sessionKey.setAnthropic("sk-test");
         http = new TestHttp(port);
     }
 
@@ -74,12 +74,12 @@ class QuestionsIT {
         UUID id = http.createProject("A canteen app");
         assertThat(http.call("POST", "/api/projects/" + id + "/questions", null).statusCode()).isEqualTo(409);
         http.call("POST", "/api/projects/" + id + "/brief", null);
-        sessionKey.clear();
+        sessionKey.clearAll();
 
         HttpResponse<String> response = http.call("POST", "/api/projects/" + id + "/questions", null);
 
         assertThat(response.statusCode()).isEqualTo(409);
-        assertThat(response.body()).contains("Anthropic key missing");
+        assertThat(response.body()).contains("AI key missing");
     }
 
     @Test

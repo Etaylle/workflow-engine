@@ -12,6 +12,6 @@ class BriefConfig {
     @Bean
     @ConditionalOnMissingBean
     BriefWriter briefWriter(@Value("${engine.ai.stub:false}") boolean stub) {
-        return stub ? new StubBriefWriter() : new AnthropicBriefWriter();
+        return stub ? new StubBriefWriter() : new AiBriefWriter();
     }
 }

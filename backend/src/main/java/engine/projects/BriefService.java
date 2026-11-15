@@ -1,7 +1,8 @@
 package engine.projects;
 
 import engine.shared.ApiProblem;
-import engine.shared.ClaudeCall;
+import engine.shared.AiTarget;
+import engine.shared.PlanningCall;
 import engine.shared.SessionKey;
 import java.sql.Timestamp;
 import java.time.Clock;
@@ -39,9 +40,10 @@ class BriefService {
             throw new ApiProblem(409, "Brief is fixed", "The brief can only be written while the"
                     + " project is a draft; the questions are already based on it.");
         }
-        String key = ClaudeCall.requireKey(sessionKey);
-        Brief brief = ClaudeCall.validated("brief",
-                correction -> writer.write(key, project.wish(), correction), Brief::validate);
+        AiTarget target = PlanningCall.requireTarget(sessionKey);
+        projects.recordAi(projectId, target);
+        Brief brief = PlanningCall.validated("brief",
+                correction -> writer.write(target, project.wish(), correction), Brief::validate);
         Timestamp now = Timestamp.from(clock.instant());
         jdbc.sql("insert into projects.project_briefs (project_id, goal, actors, domain_terms, risks,"
                         + " created_at, updated_at) values (:p, :goal, cast(:actors as jsonb),"

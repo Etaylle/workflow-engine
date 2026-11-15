@@ -44,10 +44,13 @@ class ClaudeCodeBuilder implements Builder {
 
     @Override
     public void checkReady() {
-        if (sessionKey.get().isEmpty() && !settings.useSignIn()) {
+        if (sessionKey.anthropicKey().isEmpty() && !settings.useSignIn()) {
+            String other = sessionKey.compatible().isPresent()
+                    ? " The key of the other provider is only used for planning, not for building."
+                    : "";
             throw new ApiProblem(409, "No Anthropic key",
-                    "The build needs your Anthropic key. Enter it in the new project form or the AI"
-                            + " connection section; the engine keeps it in memory only.");
+                    "Building needs an Anthropic key (or the machine sign-in mode of the engine)."
+                            + " Enter it in the key panel; the engine keeps it in memory only." + other);
         }
     }
 
@@ -71,7 +74,7 @@ class ClaudeCodeBuilder implements Builder {
     private Map<String, String> childEnv(StepRequest request) {
         Map<String, String> env = new HashMap<>(request.appEnv());
         if (!settings.useSignIn()) {
-            sessionKey.get().ifPresent(key -> env.put("ANTHROPIC_API_KEY", key));
+            sessionKey.anthropicKey().ifPresent(key -> env.put("ANTHROPIC_API_KEY", key));
         }
         return env;
     }

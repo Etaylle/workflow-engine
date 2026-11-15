@@ -1,9 +1,10 @@
 package engine.questions;
 
-import engine.shared.ClaudeCall;
+import engine.shared.AiTarget;
+import engine.shared.PlanningCall;
 
 /** The questions agent: one planning call that asks what the wish leaves open. */
-public class AnthropicQuestionWriter implements QuestionWriter {
+public class AiQuestionWriter implements QuestionWriter {
 
     static final String SYSTEM_PROMPT =
             """
@@ -19,9 +20,9 @@ public class AnthropicQuestionWriter implements QuestionWriter {
             """;
 
     @Override
-    public QuestionDraft write(String apiKey, String wish, String brief, String correction) {
+    public QuestionDraft write(AiTarget target, String wish, String brief, String correction) {
         String material = "Wish:\n" + wish + "\n\nBrief:\n" + brief;
-        return ClaudeCall.structured(
-                apiKey, SYSTEM_PROMPT, ClaudeCall.withCorrection(material, correction), QuestionDraft.class);
+        return PlanningCall.structured(
+                target, SYSTEM_PROMPT, PlanningCall.withCorrection(material, correction), QuestionDraft.class);
     }
 }

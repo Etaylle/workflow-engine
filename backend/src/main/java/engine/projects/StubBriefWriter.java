@@ -1,12 +1,13 @@
 package engine.projects;
 
+import engine.shared.AiTarget;
 import java.util.List;
 
 /** Offline writer for tests and ENGINE_AI_STUB=true: always the canteen example. */
 public class StubBriefWriter implements BriefWriter {
 
     @Override
-    public Brief write(String apiKey, String wish, String correction) {
+    public Brief write(AiTarget target, String wish, String correction) {
         return new Brief(
                 "Let students order a meal in advance and pick it up without queuing.",
                 List.of("Student", "Kitchen"),

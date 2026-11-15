@@ -2,6 +2,7 @@ package engine.projects;
 
 import engine.shared.ApiProblem;
 import engine.shared.ProjectCleanup;
+import engine.shared.AiTarget;
 import engine.shared.ProjectPort;
 import java.sql.Timestamp;
 import java.time.Clock;
@@ -165,6 +166,15 @@ public class ProjectService implements ProjectPort {
                 .query((rs, row) -> new Brief(rs.getString(1), json.readValue(rs.getString(2), strings),
                         json.readValue(rs.getString(3), strings), json.readValue(rs.getString(4), strings)))
                 .optional();
+    }
+
+    @Override
+    public void recordAi(UUID projectId, AiTarget target) {
+        jdbc.sql("update projects.projects set provider = :provider, model = :model where id = :id")
+                .param("provider", target.provider().id())
+                .param("model", target.model())
+                .param("id", projectId)
+                .update();
     }
 
     @Override

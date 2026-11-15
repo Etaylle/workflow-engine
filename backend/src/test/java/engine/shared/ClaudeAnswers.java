@@ -17,7 +17,7 @@ public final class ClaudeAnswers {
 
     /** The class read from a finished answer whose text is the given JSON, via the real path. */
     public static <T> T read(Class<T> type, String json) {
-        return ClaudeCall.answer(message(type, json, "end_turn"));
+        return AnthropicCall.answer(message(type, json, "end_turn"));
     }
 
     /** The structured message of an answer with the given text and stop reason. */
@@ -29,7 +29,7 @@ public final class ClaudeAnswers {
                                     "id", "msg_test",
                                     "type", "message",
                                     "role", "assistant",
-                                    "model", ClaudeCall.MODEL,
+                                    "model", AnthropicCall.MODEL,
                                     "content", java.util.List.of(Map.of("type", "text", "text", text)),
                                     "stop_reason", stopReason,
                                     "stop_sequence", "",

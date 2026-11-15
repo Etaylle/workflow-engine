@@ -10,6 +10,6 @@ class AiConfig {
 
     @Bean
     AiConnection aiConnection(@Value("${engine.ai.stub:false}") boolean stub) {
-        return stub ? new StubAiConnection() : new AnthropicAiConnection();
+        return stub ? new StubAiConnection() : new RoutingAiConnection();
     }
 }

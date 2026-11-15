@@ -4,7 +4,15 @@ export type EngineStatus = {
 	serverTime: string;
 	aiStub: boolean;
 };
-export type AiKeyState = { set: boolean; last4: string | null };
+export type AiProviderId = 'anthropic' | 'openai';
+export type KeyState = { set: boolean; last4: string | null };
+export type CompatibleKeyState = KeyState & { baseUrl: string | null; model: string | null };
+export type AiKeys = {
+	anthropic: KeyState;
+	openai: CompatibleKeyState;
+	planning: { provider: AiProviderId; model: string } | null;
+	defaults: { baseUrl: string; model: string };
+};
 export type AiCheckResult = { ok: boolean; model: string };
 export type Problem = { title: string; status: number; detail?: string };
 
@@ -28,35 +36,55 @@ export async function getStatus(): Promise<EngineStatus> {
 	return (await response.json()) as EngineStatus;
 }
 
-export async function checkAiConnection(apiKey: string): Promise<AiCheckResult> {
+export type CheckRequest = {
+	provider: AiProviderId;
+	apiKey?: string;
+	baseUrl?: string;
+	model?: string;
+};
+
+export async function checkAiConnection(request: CheckRequest): Promise<AiCheckResult> {
 	const response = await fetch('/api/ai/check', {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({ apiKey })
+		body: JSON.stringify(request)
 	});
 	if (!response.ok) throw await failure(response);
 	return (await response.json()) as AiCheckResult;
 }
 
-export async function getAiKey(): Promise<AiKeyState> {
-	const response = await fetch('/api/ai/key');
+export async function getAiKeys(): Promise<AiKeys> {
+	const response = await fetch('/api/ai/keys');
 	if (!response.ok) throw await failure(response);
-	return (await response.json()) as AiKeyState;
+	return (await response.json()) as AiKeys;
 }
 
-export async function setAiKey(apiKey: string): Promise<AiKeyState> {
-	const response = await fetch('/api/ai/key', {
+export async function setAiKey(
+	provider: AiProviderId,
+	body: { apiKey: string; baseUrl?: string; model?: string }
+): Promise<AiKeys> {
+	const response = await fetch(`/api/ai/keys/${provider}`, {
 		method: 'PUT',
 		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({ apiKey })
+		body: JSON.stringify(body)
 	});
 	if (!response.ok) throw await failure(response);
-	return (await response.json()) as AiKeyState;
+	return (await response.json()) as AiKeys;
 }
 
-export async function deleteAiKey(): Promise<void> {
-	const response = await fetch('/api/ai/key', { method: 'DELETE' });
+export async function deleteAiKey(provider: AiProviderId): Promise<void> {
+	const response = await fetch(`/api/ai/keys/${provider}`, { method: 'DELETE' });
 	if (!response.ok) throw await failure(response);
+}
+
+export async function choosePlanningProvider(provider: AiProviderId): Promise<AiKeys> {
+	const response = await fetch('/api/ai/planning', {
+		method: 'PUT',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ provider })
+	});
+	if (!response.ok) throw await failure(response);
+	return (await response.json()) as AiKeys;
 }
 
 export type Project = {

@@ -16,7 +16,7 @@ class RequirementValidatorTest {
     @Test
     void acceptsTheCanteenExample() {
         assertThatCode(() -> RequirementValidator.validate(
-                new StubRequirementWriter().write("k", "w", "m", null))).doesNotThrowAnyException();
+                new StubRequirementWriter().write(null, "w", "m", null))).doesNotThrowAnyException();
     }
 
     @Test

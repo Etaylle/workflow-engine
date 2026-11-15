@@ -6,10 +6,13 @@ const failure = (status: number, title: string) => new ApiError({ status, title,
 
 describe('describeError', () => {
 	it('maps the known problems to messages', () => {
-		expect(describeError(failure(409, 'Anthropic key missing')).key).toBe('error.keyMissing');
+		expect(describeError(failure(409, 'AI key missing')).key).toBe('error.keyMissing');
 		expect(describeError(failure(401, 'Anthropic key rejected')).key).toBe('error.keyRejected');
-		expect(describeError(failure(429, 'Rate limit reached')).key).toBe('error.rateLimit');
-		expect(describeError(failure(502, 'Invalid questions from Claude')).key).toBe(
+		expect(describeError(failure(429, 'Rate limit reached'))).toEqual({
+			key: 'error.rateLimit',
+			params: { detail: 'x' }
+		});
+		expect(describeError(failure(502, 'Invalid questions from the AI')).key).toBe(
 			'error.invalidOutput'
 		);
 	});

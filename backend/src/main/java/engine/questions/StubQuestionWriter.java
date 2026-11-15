@@ -1,12 +1,13 @@
 package engine.questions;
 
+import engine.shared.AiTarget;
 import java.util.List;
 
 /** Offline writer for tests and ENGINE_AI_STUB=true: always the canteen example. */
 public class StubQuestionWriter implements QuestionWriter {
 
     @Override
-    public QuestionDraft write(String apiKey, String wish, String brief, String correction) {
+    public QuestionDraft write(AiTarget target, String wish, String brief, String correction) {
         return canteen();
     }
 

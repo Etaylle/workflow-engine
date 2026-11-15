@@ -29,7 +29,7 @@ class DocumentsIT {
 
     @BeforeEach
     void reset() {
-        sessionKey.set("sk-test");
+        sessionKey.setAnthropic("sk-test");
         http = new TestHttp(port);
     }
 

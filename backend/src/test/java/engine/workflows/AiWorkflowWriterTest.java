@@ -5,7 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import engine.shared.ClaudeAnswers;
 import org.junit.jupiter.api.Test;
 
-class AnthropicWorkflowWriterTest {
+class AiWorkflowWriterTest {
 
     private static final String ANSWER =
             """

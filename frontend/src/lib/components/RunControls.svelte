@@ -22,7 +22,7 @@
 
 	async function resume() {
 		await resuming.run(async () => {
-			if (key.trim()) await checkAiConnection(key.trim());
+			if (key.trim()) await checkAiConnection({ provider: 'anthropic', apiKey: key.trim() });
 			key = '';
 			const raised = atCostLimit(run) ? Number(limit) : undefined;
 			updated(await resumeRun(run.id, raised));

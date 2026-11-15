@@ -12,6 +12,6 @@ class WorkflowConfig {
     @Bean
     @ConditionalOnMissingBean
     WorkflowWriter workflowWriter(@Value("${engine.ai.stub:false}") boolean stub) {
-        return stub ? new StubWorkflowWriter() : new AnthropicWorkflowWriter();
+        return stub ? new StubWorkflowWriter() : new AiWorkflowWriter();
     }
 }

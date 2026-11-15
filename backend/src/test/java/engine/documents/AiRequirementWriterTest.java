@@ -5,7 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import engine.shared.ClaudeAnswers;
 import org.junit.jupiter.api.Test;
 
-class AnthropicRequirementWriterTest {
+class AiRequirementWriterTest {
 
     private static final String ANSWER =
             """
@@ -24,7 +24,7 @@ class AnthropicRequirementWriterTest {
 
     @Test
     void stubDraftSurvivesTheJsonRoundTrip() throws Exception {
-        RequirementDraft canteen = new StubRequirementWriter().write("k", "w", "m", null);
+        RequirementDraft canteen = new StubRequirementWriter().write(null, "w", "m", null);
         String json = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(canteen);
 
         RequirementDraft read = ClaudeAnswers.read(RequirementDraft.class, json);

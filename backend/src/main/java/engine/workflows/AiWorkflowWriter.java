@@ -1,9 +1,10 @@
 package engine.workflows;
 
-import engine.shared.ClaudeCall;
+import engine.shared.AiTarget;
+import engine.shared.PlanningCall;
 
 /** One planning call to Claude that models the workflow of the confirmed planning material. */
-public class AnthropicWorkflowWriter implements WorkflowWriter {
+public class AiWorkflowWriter implements WorkflowWriter {
 
     static final String SYSTEM_PROMPT =
             """
@@ -21,9 +22,9 @@ public class AnthropicWorkflowWriter implements WorkflowWriter {
             """;
 
     @Override
-    public WorkflowDraft write(String apiKey, String wish, String material, String correction) {
+    public WorkflowDraft write(AiTarget target, String wish, String material, String correction) {
         String user = "Wish:\n" + wish + "\n\n" + material;
-        return ClaudeCall.structured(
-                apiKey, SYSTEM_PROMPT, ClaudeCall.withCorrection(user, correction), WorkflowDraft.class);
+        return PlanningCall.structured(
+                target, SYSTEM_PROMPT, PlanningCall.withCorrection(user, correction), WorkflowDraft.class);
     }
 }

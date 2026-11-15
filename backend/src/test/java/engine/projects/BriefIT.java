@@ -33,7 +33,7 @@ class BriefIT {
     @BeforeEach
     void reset() {
         writer.reset();
-        sessionKey.set("sk-test");
+        sessionKey.setAnthropic("sk-test");
         http = new TestHttp(port);
     }
 
@@ -75,7 +75,7 @@ class BriefIT {
     @Test
     void missingKeyAnswers409AndUnknownProject404() throws Exception {
         UUID id = http.createProject("A canteen app");
-        sessionKey.clear();
+        sessionKey.clearAll();
 
         assertThat(http.call("POST", "/api/projects/" + id + "/brief", null).statusCode()).isEqualTo(409);
         assertThat(http.call("POST", "/api/projects/" + UUID.randomUUID() + "/brief", null).statusCode())

@@ -1,5 +1,6 @@
 package engine;
 
+import engine.shared.AiTarget;
 import engine.documents.RequirementDraft;
 import engine.documents.RequirementWriter;
 import engine.documents.StubRequirementWriter;
@@ -48,16 +49,16 @@ public class ScriptedAi {
     /** The brief writer of the tests. */
     public static class ScriptedBriefWriter extends Script<Brief> implements BriefWriter {
         @Override
-        public Brief write(String apiKey, String wish, String correction) {
-            return next(correction, new StubBriefWriter().write(apiKey, wish, correction));
+        public Brief write(AiTarget target, String wish, String correction) {
+            return next(correction, new StubBriefWriter().write(target, wish, correction));
         }
     }
 
     /** The question writer of the tests. */
     public static class ScriptedQuestionWriter extends Script<QuestionDraft> implements QuestionWriter {
         @Override
-        public QuestionDraft write(String apiKey, String wish, String brief, String correction) {
-            return next(correction, new StubQuestionWriter().write(apiKey, wish, brief, correction));
+        public QuestionDraft write(AiTarget target, String wish, String brief, String correction) {
+            return next(correction, new StubQuestionWriter().write(target, wish, brief, correction));
         }
     }
 
@@ -67,9 +68,9 @@ public class ScriptedAi {
         public final List<String> materials = new ArrayList<>();
 
         @Override
-        public RequirementDraft write(String apiKey, String wish, String material, String correction) {
+        public RequirementDraft write(AiTarget target, String wish, String material, String correction) {
             materials.add(material);
-            return next(correction, new StubRequirementWriter().write(apiKey, wish, material, correction));
+            return next(correction, new StubRequirementWriter().write(target, wish, material, correction));
         }
     }
 
@@ -78,7 +79,7 @@ public class ScriptedAi {
         public final List<String> materials = new ArrayList<>();
 
         @Override
-        public WorkflowDraft write(String apiKey, String wish, String material, String correction) {
+        public WorkflowDraft write(AiTarget target, String wish, String material, String correction) {
             materials.add(material);
             return next(correction, StubWorkflowWriter.canteen());
         }

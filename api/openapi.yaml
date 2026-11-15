@@ -20,7 +20,7 @@ paths:
   /api/ai/check:
     post:
       operationId: checkAiConnection
-      summary: Keep the user's Anthropic key for the session and make one tiny call with it
+      summary: Make one tiny call with a key (typed, or the saved one) and keep a typed key for the session
       description: >
         The key is held in engine memory only (never stored, never logged). On success the key
         stays for the session; on failure it is discarded.
@@ -55,48 +55,80 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
-  /api/ai/key:
+  /api/ai/keys:
     get:
-      operationId: getAiKey
-      summary: Whether the engine holds a key for this session (never the key itself)
+      operationId: getAiKeys
+      summary: The keys of the session (never the keys themselves), the active planning provider and the defaults
       responses:
         "200":
-          description: The state of the key
+          description: The state of the keys
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AiKeyState"
+                $ref: "#/components/schemas/AiKeys"
+  /api/ai/keys/{provider}:
+    parameters:
+      - name: provider
+        in: path
+        required: true
+        schema:
+          type: string
+          enum: [anthropic, openai]
+        description: anthropic, or openai for any OpenAI-compatible provider (Gemini, OpenAI, Groq, OpenRouter, ...)
     put:
       operationId: setAiKey
-      summary: Replace the key of the session without calling the AI
+      summary: Replace the key of one provider without calling the AI
       description: >
-        The key is held in engine memory only (never stored, never logged). Use checkAiConnection
-        to test a key.
+        Held in engine memory only (never stored, never logged). For openai, baseUrl (https, or http
+        for localhost) and model are kept with the key; blank means the defaults of the engine
+        (ENGINE_OPENAI_BASE_URL, ENGINE_OPENAI_MODEL). Use checkAiConnection to test a key.
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/AiCheckRequest"
+              $ref: "#/components/schemas/SetAiKeyRequest"
       responses:
         "200":
           description: The key is set
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AiKeyState"
+                $ref: "#/components/schemas/AiKeys"
         "400":
-          description: No key given
+          description: No key, unknown provider, or a base URL that is not allowed
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
     delete:
       operationId: deleteAiKey
-      summary: Remove the key of the session from engine memory
+      summary: Remove the key of one provider from engine memory
       responses:
         "204":
           description: The key is gone
+  /api/ai/planning:
+    put:
+      operationId: choosePlanningProvider
+      summary: Choose which provider the planning calls use when both keys are set
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [provider]
+              properties:
+                provider:
+                  type: string
+                  enum: [anthropic, openai]
+      responses:
+        "200":
+          description: The choice is kept
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiKeys"
   /api/projects:
     post:
       operationId: createProject
@@ -1563,12 +1595,19 @@ components:
           description: UTC
     AiCheckRequest:
       type: object
-      required: [apiKey]
+      description: Without apiKey the saved key of the provider is tested
       properties:
+        provider:
+          type: string
+          enum: [anthropic, openai]
+          description: Default anthropic
         apiKey:
           type: string
-          minLength: 1
-    AiKeyState:
+        baseUrl:
+          type: string
+        model:
+          type: string
+    KeyState:
       type: object
       required: [set, last4]
       properties:
@@ -1578,6 +1617,56 @@ components:
           type: string
           nullable: true
           description: The last 4 characters of the key; empty for a short key, null when no key is set
+    CompatibleKeyState:
+      type: object
+      required: [set, last4, baseUrl, model]
+      properties:
+        set:
+          type: boolean
+        last4:
+          type: string
+          nullable: true
+        baseUrl:
+          type: string
+          nullable: true
+        model:
+          type: string
+          nullable: true
+    AiKeys:
+      type: object
+      required: [anthropic, openai, planning, defaults]
+      properties:
+        anthropic:
+          $ref: "#/components/schemas/KeyState"
+        openai:
+          $ref: "#/components/schemas/CompatibleKeyState"
+        planning:
+          type: object
+          nullable: true
+          description: What the planning calls use now (null when no key is set); builds always use Claude Code
+          properties:
+            provider:
+              type: string
+              enum: [anthropic, openai]
+            model:
+              type: string
+        defaults:
+          type: object
+          properties:
+            baseUrl:
+              type: string
+            model:
+              type: string
+    SetAiKeyRequest:
+      type: object
+      required: [apiKey]
+      properties:
+        apiKey:
+          type: string
+        baseUrl:
+          type: string
+        model:
+          type: string
     AiCheckResult:
       type: object
       required: [ok, model]

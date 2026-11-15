@@ -13,7 +13,7 @@ import com.anthropic.core.JsonValue;
 import com.anthropic.core.http.Headers;
 import org.junit.jupiter.api.Test;
 
-class ClaudeCallTest {
+class AnthropicCallTest {
 
     private record Pair(String a, int b) {
     }
@@ -22,7 +22,7 @@ class ClaudeCallTest {
 
     @Test
     void requestUsesTheStandardModelAndFitsTheTimeouts() {
-        var params = ClaudeCall.params("system", "user", Pair.class);
+        var params = AnthropicCall.params("system", "user", Pair.class);
 
         assertThat(params.model().asString()).isEqualTo("claude-sonnet-5-5");
         assertThat(params.maxTokens()).isEqualTo(20_000L);
@@ -40,7 +40,7 @@ class ClaudeCallTest {
     void refusalIsAProblemNotARetry() {
         var message = ClaudeAnswers.message(Pair.class, "{}", "refusal");
 
-        assertThatThrownBy(() -> ClaudeCall.answer(message))
+        assertThatThrownBy(() -> AnthropicCall.answer(message))
                 .isInstanceOfSatisfying(ApiProblem.class, e -> assertThat(e.status()).isEqualTo(422));
     }
 
@@ -48,7 +48,7 @@ class ClaudeCallTest {
     void cutOffAnswerIsAProblemNotARetry() {
         var message = ClaudeAnswers.message(Pair.class, "{\"a\":\"x", "max_tokens");
 
-        assertThatThrownBy(() -> ClaudeCall.answer(message))
+        assertThatThrownBy(() -> AnthropicCall.answer(message))
                 .isInstanceOfSatisfying(ApiProblem.class, e -> assertThat(e.status()).isEqualTo(502));
     }
 
@@ -72,7 +72,7 @@ class ClaudeCallTest {
         var e = BadRequestException.builder().headers(Headers.builder().build())
                 .body(JsonValue.from("Your credit balance is too low to access the Anthropic API")).build();
 
-        assertThat(ClaudeCall.problem(e, KEY).title()).isEqualTo("Anthropic credit used up");
+        assertThat(AnthropicCall.problem(e, KEY).title()).isEqualTo("Anthropic credit used up");
     }
 
     @Test
@@ -80,13 +80,13 @@ class ClaudeCallTest {
         var e = BadRequestException.builder().headers(Headers.builder().build())
                 .body(JsonValue.from("bad request for " + KEY)).build();
 
-        ApiProblem problem = ClaudeCall.problem(e, KEY);
+        ApiProblem problem = AnthropicCall.problem(e, KEY);
 
         assertThat(problem.getMessage()).doesNotContain(KEY);
         assertThat(problem.title()).doesNotContain(KEY);
     }
 
     private static int status(com.anthropic.errors.AnthropicException e) {
-        return ClaudeCall.problem(e, KEY).status();
+        return AnthropicCall.problem(e, KEY).status();
     }
 }

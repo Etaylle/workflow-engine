@@ -7,11 +7,10 @@ export type Described = { key: MessageKey; params: Record<string, string> };
 export function describeError(error: unknown): Described {
 	if (!(error instanceof ApiError)) return { key: 'error.unreachable', params: {} };
 	const { status, title } = error.problem;
-	if (status === 409 && title === 'Anthropic key missing')
-		return { key: 'error.keyMissing', params: {} };
+	if (status === 409 && title === 'AI key missing') return { key: 'error.keyMissing', params: {} };
 	if (status === 401) return { key: 'error.keyRejected', params: {} };
-	if (status === 429) return { key: 'error.rateLimit', params: {} };
-	if (status === 502 && /^Invalid .* from Claude$/.test(title))
+	if (status === 429) return { key: 'error.rateLimit', params: { detail: error.message } };
+	if (status === 502 && /^Invalid .* from the AI$/.test(title))
 		return { key: 'error.invalidOutput', params: {} };
 	return { key: 'error.other', params: { detail: error.message } };
 }

@@ -25,7 +25,7 @@ A web application that turns a client's wish into AI research and questions, req
 | Frontend | SvelteKit 3 (Svelte 5), TypeScript, Svelte Flow (`@xyflow/svelte`), built as static files and served by the backend (one container); messages in English and German from message files, no visible text in code |
 | Database | PostgreSQL, one schema per domain, no cross-schema foreign keys. A schema is added when its milestone starts; the drafts are in `ai-docs/skeleton/` |
 | API | `api/openapi.yaml` is written first; REST with JSON, problem+json errors, SSE for run events |
-| AI | Claude only. Planning calls: the official Anthropic Java SDK (`com.anthropic:anthropic-java`) with a client per call from the session key, structured output by class, one retry on invalid output. Builds: Claude Code headless in the sandbox. Read the `claude-api` skill before writing AI code |
+| AI | Planning: Claude or an OpenAI-compatible provider (Gemini, OpenAI, Groq, ...), by the user's key and choice (D-74); builds: Claude Code only. Planning calls with Claude: the official Anthropic Java SDK (`com.anthropic:anthropic-java`) with a client per call from the session key, with an OpenAI-compatible provider: `com.openai:openai-java` with base URL and model from the key panel, structured output by class, one retry on invalid output. Builds: Claude Code headless in the sandbox. Read the `claude-api` skill before writing AI code |
 | Tests | JUnit 5 and a real PostgreSQL for the backend, Vitest for frontend logic, Playwright for one journey per slice; AI calls stubbed in automated tests |
 | Run | One environment on the local machine: the PostgreSQL installed there until the build milestones; Docker for the sandbox of generated code and for starting the engine elsewhere (from M3) |
 
@@ -37,7 +37,7 @@ Everything goes through `ci/run <command>` (created in milestone M0): `all-local
 
 ## 5. Product decisions that hold
 
-- Claude only. The user's Anthropic key and GitHub token live in engine memory for the session and its runs: no table, column, log, file or image holds them; they are entered again after a restart.
+- Planning with Claude or an OpenAI-compatible provider (D-74), building with Claude Code only. The user's AI keys (Anthropic, OpenAI-compatible) and GitHub token live in engine memory for the session and its runs: no table, column, log, file or image holds them; they are entered again after a restart.
 - No login and no auth code: everyone who opens the engine sees and can continue all projects (accepted risk, `ai-docs/audit/deferred-risks.md`). No security and no observability work until the owner opens it.
 - A confirmed contract snapshot never changes; an edit creates a new version.
 - The orchestrator is a state machine in code; agents work only inside a step. A git commit in the workspace is the checkpoint of a green step.

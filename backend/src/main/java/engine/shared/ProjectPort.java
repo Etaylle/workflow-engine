@@ -18,6 +18,9 @@ public interface ProjectPort {
     /** The brief of the project as text for a planning call, or empty when there is none. */
     Optional<String> briefOf(UUID projectId);
 
+    /** Records which provider and model the planning of the project really uses. */
+    void recordAi(UUID projectId, AiTarget target);
+
     /** Moves the project to the given status (a value of the status check of the table). */
     void markStatus(UUID projectId, String status);
 }

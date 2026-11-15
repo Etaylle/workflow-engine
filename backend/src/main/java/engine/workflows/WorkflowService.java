@@ -3,7 +3,8 @@ package engine.workflows;
 
 import engine.shared.AnswersPort;
 import engine.shared.ApiProblem;
-import engine.shared.ClaudeCall;
+import engine.shared.AiTarget;
+import engine.shared.PlanningCall;
 import engine.shared.ContractPort;
 import engine.shared.InvalidAiOutputException;
 import engine.shared.ProjectPort;
@@ -48,10 +49,11 @@ class WorkflowService implements WorkflowPort, ContractPort {
             throw new ApiProblem(409, "Requirements missing", "The workflow is drawn from the"
                     + " requirements; answer the questions and write the requirements first.");
         }
-        String key = ClaudeCall.requireKey(sessionKey);
+        AiTarget target = PlanningCall.requireTarget(sessionKey);
+        projects.recordAi(projectId, target);
         String material = material(projectId);
-        WorkflowDraft draft = ClaudeCall.validated("workflow",
-                correction -> writer.write(key, wish, material, correction), WorkflowValidator::validate);
+        WorkflowDraft draft = PlanningCall.validated("workflow",
+                correction -> writer.write(target, wish, material, correction), WorkflowValidator::validate);
         WorkflowView view = store.replace(projectId, draft);
         projects.markStatus(projectId, "workflow_drafted");
         return view;

@@ -12,6 +12,6 @@ class QuestionConfig {
     @Bean
     @ConditionalOnMissingBean
     QuestionWriter questionWriter(@Value("${engine.ai.stub:false}") boolean stub) {
-        return stub ? new StubQuestionWriter() : new AnthropicQuestionWriter();
+        return stub ? new StubQuestionWriter() : new AiQuestionWriter();
     }
 }

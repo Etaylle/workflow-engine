@@ -7,7 +7,7 @@ import engine.shared.ClaudeAnswers;
 import engine.shared.InvalidAiOutputException;
 import org.junit.jupiter.api.Test;
 
-class AnthropicBriefWriterTest {
+class AiBriefWriterTest {
 
     private static final String ANSWER =
             """

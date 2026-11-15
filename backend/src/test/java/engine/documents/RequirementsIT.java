@@ -32,7 +32,7 @@ class RequirementsIT {
     void reset() {
         writer.reset();
         writer.materials.clear();
-        sessionKey.set("sk-test");
+        sessionKey.setAnthropic("sk-test");
         http = new TestHttp(port);
     }
 
@@ -97,9 +97,9 @@ class RequirementsIT {
         assertThat(http.call("POST", "/api/projects/" + fresh + "/requirements", null).statusCode())
                 .isEqualTo(409);
         UUID id = http.answeredProject("A canteen app");
-        sessionKey.clear();
+        sessionKey.clearAll();
         assertThat(http.call("POST", "/api/projects/" + id + "/requirements", null).body())
-                .contains("Anthropic key missing");
+                .contains("AI key missing");
         assertThat(http.call("GET", "/api/projects/" + UUID.randomUUID() + "/requirements", null).statusCode())
                 .isEqualTo(404);
         assertThat(http.json("GET", "/api/projects/" + fresh + "/requirements", null).get("epics")).isEmpty();

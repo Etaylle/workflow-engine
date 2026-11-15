@@ -10,7 +10,9 @@
 	let { projectName, status }: { projectName?: string; status?: string } = $props();
 
 	const CHIPS = ['wish', 'questions', 'requirements', 'workflow', 'review'] as const;
-	const described = $derived(describeKey(engineKey.state));
+	const described = $derived(
+		describeKey(engineKey.keys, (p) => engineKey.nameOf(locale.t('key.nameAnthropic'), p))
+	);
 	const active = $derived(status === undefined ? -1 : activeChip(status));
 </script>
 
@@ -42,12 +44,12 @@
 	<button
 		type="button"
 		class="keybtn"
-		class:missing={engineKey.state !== null && !engineKey.state.set}
+		class:missing={engineKey.keys !== null && !engineKey.anySet}
 		aria-expanded={engineKey.panelOpen}
 		onclick={() => (engineKey.panelOpen ? engineKey.closePanel() : engineKey.openPanel())}
 		data-testid="key-button"
 	>
-		{locale.t('key.button')}:
+		{locale.t('key.keyButton')}:
 		{locale.t(described.key, described.params)}
 	</button>
 	<select

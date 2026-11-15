@@ -1,9 +1,10 @@
 package engine.projects;
 
-import engine.shared.ClaudeCall;
+import engine.shared.AiTarget;
+import engine.shared.PlanningCall;
 
 /** The prompt agent: turns the wish into a short brief with one planning call. */
-public class AnthropicBriefWriter implements BriefWriter {
+public class AiBriefWriter implements BriefWriter {
 
     static final String SYSTEM_PROMPT =
             """
@@ -14,8 +15,8 @@ public class AnthropicBriefWriter implements BriefWriter {
             """;
 
     @Override
-    public Brief write(String apiKey, String wish, String correction) {
-        return ClaudeCall.structured(
-                apiKey, SYSTEM_PROMPT, ClaudeCall.withCorrection("Wish:\n" + wish, correction), Brief.class);
+    public Brief write(AiTarget target, String wish, String correction) {
+        return PlanningCall.structured(
+                target, SYSTEM_PROMPT, PlanningCall.withCorrection("Wish:\n" + wish, correction), Brief.class);
     }
 }
