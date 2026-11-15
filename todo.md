@@ -233,8 +233,17 @@ Not measured: the container half (Docker not running), a second task, rate-limit
 
 ## Next (in order)
 
-1. Live check of M1 and M2 with a real key (owner, see "How to test").
-2. M4: the run, with D-M3-1 to D-M3-5 (the Docker half of the spike is still open).
+State on 2026-11-15: M0 to M5 are built; M6 mostly; M7 and M8 not started. The planning path and a console build were shown live with Gemini (free tier); builds also with Claude Code on the machine sign-in.
+
+1. Owner: one fresh end-to-end test in the browser (new project with a console wish, Gemini planning, Gemini CLI or Claude Code build, preview, ZIP).
+2. Terminal preview for console programs (a real terminal in "App output": colours, animation in place, key input). Agreed, postponed by the owner.
+3. Open verification: resume after an interrupted run (status fix), the `sveltekit-sqlite` template in a real build, live activity lines with a real builder, a real rate limit, the Anthropic key path for planning and building (no credit on the owner's account), stop and resume with the real Gemini CLI.
+4. Rest of M6: links and files on the wish (US-01.03), web research with sources (US-02.04), languages and colours (US-02.06), acceptance criteria and test scenarios on workflow steps (US-04.03), drag-and-drop workflow editing, PDF and German documents, time rules, team members and models per tier (US-05.01 to 05.03), workflow rules and lessons (US-05.05, 05.06). Step prompts "plan" and "build" still name PostgreSQL and a backend.
+5. M7 delivery: GitHub push of the generated project per task, "Deploy to Render" link (needs the owner's GitHub token).
+6. M8: a check of every Must requirement against a test, Docker image and start on another machine, tag v1.0.0. The Docker half of the M3 spike is still open.
+7. Sharing the engine with others: a password gate and keys per visitor first; then a tunnel for a demo, or hosting (preview through the engine's own address, isolation of builds, persistent disk).
+8. Owner decisions still open: OI-2, 3, 8, 9 of `requirements.md` Appendix A; whether the removed key check of `.claude/hooks/guard.mjs` is committed.
+9. Documents behind the code: `requirements.md` (TR-01, TR-06, TR-07, TR-11, "Claude only", one template), `engine-architecture.md`, the Word masters.
 
 ## Done
 
