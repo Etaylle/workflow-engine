@@ -1,5 +1,6 @@
 package engine.execution;
 
+import engine.shared.RunSettingsPort.Step;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.time.Clock;
@@ -11,6 +12,8 @@ import java.util.UUID;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.json.JsonMapper;
 
 /** Tables of the schema "execution": runs, tasks, steps, agent calls, checkpoints, events. */
 @Repository
@@ -26,7 +29,7 @@ class RunStore {
 
     /** A run row without tasks. */
     record RunRow(UUID id, UUID projectId, String workspacePath, String databaseName,
-            BigDecimal costLimitUsd, int contractVersion, String status) {
+            BigDecimal costLimitUsd, int contractVersion, String status, List<Step> steps) {
     }
 
     /** One question to the client; choice is null until it is answered. */
@@ -35,8 +38,10 @@ class RunStore {
 
     private final JdbcClient jdbc;
     private final Clock clock;
+    private final JsonMapper json;
 
-    RunStore(JdbcClient jdbc, Clock clock) {
+    RunStore(JdbcClient jdbc, Clock clock, JsonMapper json) {
+        this.json = json;
         this.jdbc = jdbc;
         this.clock = clock;
     }
@@ -48,13 +53,13 @@ class RunStore {
     /** Creates the run with all its tasks and steps waiting (the plan is visible at once). */
     @Transactional
     void create(UUID runId, UUID projectId, int contractVersion, BigDecimal limit, String workspacePath,
-            String databaseName, List<engine.shared.ContractPort.TaskLine> tasks, List<StepDef> steps) {
+            String databaseName, List<engine.shared.ContractPort.TaskLine> tasks, List<Step> steps) {
         jdbc.sql("insert into execution.runs (id, project_id, contract_version, status, cost_limit_usd,"
-                        + " workspace_path, database_name, started_at) values (:id, :p, :v, 'preparing',"
-                        + " :limit, :ws, :db, :now)")
+                        + " workspace_path, database_name, started_at, steps_json) values (:id, :p, :v,"
+                        + " 'preparing', :limit, :ws, :db, :now, :steps)")
                 .param("id", runId).param("p", projectId).param("v", contractVersion)
                 .param("limit", limit).param("ws", workspacePath).param("db", databaseName)
-                .param("now", now()).update();
+                .param("now", now()).param("steps", json.writeValueAsString(steps)).update();
         for (int t = 0; t < tasks.size(); t++) {
             UUID taskId = UUID.randomUUID();
             engine.shared.ContractPort.TaskLine task = tasks.get(t);
@@ -74,12 +79,13 @@ class RunStore {
 
     Optional<RunRow> row(UUID runId) {
         return jdbc.sql("select id, project_id, workspace_path, database_name, cost_limit_usd,"
-                        + " contract_version, status from execution.runs where id = :id")
+                        + " contract_version, status, steps_json from execution.runs where id = :id")
                 .param("id", runId)
                 .query((rs, n) -> new RunRow(rs.getObject("id", UUID.class),
                         rs.getObject("project_id", UUID.class), rs.getString("workspace_path"),
                         rs.getString("database_name"), rs.getBigDecimal("cost_limit_usd"),
-                        rs.getInt("contract_version"), rs.getString("status")))
+                        rs.getInt("contract_version"), rs.getString("status"),
+                        json.readValue(rs.getString("steps_json"), new TypeReference<List<Step>>() { })))
                 .optional();
     }
 

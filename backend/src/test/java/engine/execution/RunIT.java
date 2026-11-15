@@ -685,6 +685,30 @@ class RunIT {
         return http.call("POST", "/api/runs/" + runId + "/answer", body);
     }
 
+    @Test
+    void theRunUsesTheStepsAndTheLimitTheProjectChoseAndNamesTheTask() throws Exception {
+        UUID project = confirmedProject();
+        String fullId = null;
+        for (JsonNode profile : http.json("GET", "/api/settings/step-profiles", null)) {
+            if (profile.get("name").asString().equals("16 steps")) {
+                fullId = profile.get("id").asString();
+            }
+        }
+        http.json("PUT", "/api/projects/" + project + "/settings",
+                "{\"stepProfileId\":\"" + fullId + "\",\"costLimitUsd\":7.5}");
+
+        JsonNode run = awaitEnd(http.json("POST", "/api/projects/" + project + "/runs", null)
+                .get("id").asString());
+
+        assertThat(run.get("status").asString()).isEqualTo("done");
+        assertThat(run.get("costLimitUsd").asDouble()).isEqualTo(7.5);
+        assertThat(run.get("tasks").get(0).get("steps")).hasSize(16);
+        assertThat(builder.requests.get(0).prompt()).contains("\"Order a meal\"").doesNotContain("{task}");
+        http.json("PUT", "/api/projects/" + project + "/settings", "{\"stepProfileId\":null}");
+        assertThat(http.json("GET", "/api/runs/" + run.get("id").asString(), null).get("tasks").get(0)
+                .get("steps")).as("a run keeps the steps it started with").hasSize(16);
+    }
+
     private UUID confirmedProject() throws Exception {
         UUID id = http.answeredProject("A canteen app");
         assertThat(http.call("POST", "/api/projects/" + id + "/requirements", null).statusCode())

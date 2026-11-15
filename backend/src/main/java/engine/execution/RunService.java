@@ -3,6 +3,7 @@ package engine.execution;
 import engine.shared.ApiProblem;
 import engine.shared.ContractPort;
 import engine.shared.ProjectPort;
+import engine.shared.RunSettingsPort;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.file.Files;
@@ -26,9 +27,12 @@ class RunService {
     private final ProjectPort projects;
     private final ContractPort contracts;
     private final ExecutionSettings settings;
+    private final RunSettingsPort runSettings;
 
     RunService(RunStore store, RunOrchestrator orchestrator, RunEvents events, Builder builder,
-            ProjectPort projects, ContractPort contracts, ExecutionSettings settings) {
+            ProjectPort projects, ContractPort contracts, ExecutionSettings settings,
+            RunSettingsPort runSettings) {
+        this.runSettings = runSettings;
         this.store = store;
         this.orchestrator = orchestrator;
         this.events = events;
@@ -57,10 +61,12 @@ class RunService {
         builder.checkReady();
         UUID runId = UUID.randomUUID();
         Path workspace = settings.workspaceRoot().resolve("run-" + runId);
+        RunSettingsPort.RunSettings chosen = runSettings.forProject(projectId);
         store.create(runId, projectId, contract.version(),
-                contract.costLimitUsd().orElse(settings.costLimitUsd()), workspace.toString(),
+                chosen.costLimitUsd().orElse(contract.costLimitUsd().orElse(settings.costLimitUsd())),
+                workspace.toString(),
                 settings.createDatabase() ? RunOrchestrator.databaseName(runId) : null,
-                contract.softwareTasks(), orchestrator.profile());
+                contract.softwareTasks(), chosen.steps());
         projects.markStatus(projectId, "executing");
         orchestrator.submit(runId, contract.markdown());
         return view(runId);

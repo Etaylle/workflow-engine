@@ -696,7 +696,7 @@ paths:
       description: >
         Returns at once with the run in status preparing; the build goes on in the background.
         The tasks are the software tasks of the contract in workflow order, each built by the
-        steps of the short profile. Needs the Anthropic key of the session unless the engine is
+        steps of the project's step profile and stops at its cost limit (project settings). Needs the Anthropic key of the session unless the engine is
         set to use the machine's own Claude Code sign-in.
       parameters:
         - $ref: "#/components/parameters/ProjectId"
@@ -952,8 +952,175 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+  /api/settings/step-profiles:
+    get:
+      operationId: listStepProfiles
+      summary: The step profiles (the development steps of a task, as data) with their steps
+      responses:
+        "200":
+          description: The seeded profiles (short, 16 steps) and the client's own
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/StepProfile"
+    post:
+      operationId: copyStepProfile
+      summary: Copy a profile as the client's own, editable profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [fromId, name]
+              properties:
+                fromId: {type: string, format: uuid}
+                name: {type: string, maxLength: 60}
+      responses:
+        "201":
+          description: The copy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StepProfile"
+        "400":
+          description: Name empty or too long, or already used
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: No such profile
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/settings/step-profiles/{profileId}:
+    put:
+      operationId: updateStepProfile
+      summary: Replace the name and the steps (edit, reorder) of the client's own profile
+      description: >
+        Only a copy can be edited; the seeded profiles answer 409. Steps need unique keys, a title,
+        a cost cap above 0 and at most 10 USD, and a prompt of at most 4000 characters; 1 to 20 steps.
+      parameters:
+        - $ref: "#/components/parameters/ProfileId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StepProfileEdit"
+      responses:
+        "200":
+          description: The profile as saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StepProfile"
+        "400":
+          description: A rule of the steps is broken
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: No such profile
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: A seeded profile cannot be edited
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    delete:
+      operationId: deleteStepProfile
+      summary: Delete the client's own profile (projects that chose it use the default again)
+      parameters:
+        - $ref: "#/components/parameters/ProfileId"
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: No such profile
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: A seeded profile cannot be deleted
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/projects/{id}/settings:
+    get:
+      operationId: getProjectSettings
+      summary: The step profile and the cost limit of the project's runs
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      responses:
+        "200":
+          description: The settings; a project that chose nothing has the default profile and limit
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectSettings"
+        "404":
+          description: No such project
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    put:
+      operationId: updateProjectSettings
+      summary: Choose the step profile and the cost limit per run (a null value means the default)
+      description: >
+        A run copies the profile and takes the limit when it starts; changing the settings later
+        does not change a run under way.
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                stepProfileId: {type: [string, "null"], format: uuid}
+                costLimitUsd: {type: [number, "null"], minimum: 1, maximum: 1000}
+      responses:
+        "200":
+          description: The settings as saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectSettings"
+        "400":
+          description: Unknown profile or limit out of range
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: No such project
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
 components:
   parameters:
+    ProfileId:
+      name: profileId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
     RunId:
       name: runId
       in: path
@@ -1292,6 +1459,49 @@ components:
         model:
           type: string
           description: The model that answered the check
+    StepDef:
+      type: object
+      required: [key, title, gated, capUsd, prompt]
+      properties:
+        key: {type: string, pattern: "^[a-z0-9-]{1,40}$"}
+        title: {type: string, maxLength: 80}
+        gated: {type: boolean, description: The orchestrator runs ./check.sh after the step and it must pass}
+        capUsd: {type: number, exclusiveMinimum: 0, maximum: 10}
+        prompt: {type: string, maxLength: 4000, description: "What Claude is told; {task} stands for the task title"}
+    StepProfile:
+      type: object
+      required: [id, name, description, isDefault, seeded, steps]
+      properties:
+        id: {type: string, format: uuid}
+        name: {type: string}
+        description: {type: string}
+        isDefault: {type: boolean}
+        seeded: {type: boolean, description: Seeded profiles are read-only; copy one to edit}
+        steps:
+          type: array
+          items:
+            $ref: "#/components/schemas/StepDef"
+    StepProfileEdit:
+      type: object
+      required: [name, steps]
+      properties:
+        name: {type: string, maxLength: 60}
+        steps:
+          type: array
+          minItems: 1
+          maxItems: 20
+          items:
+            $ref: "#/components/schemas/StepDef"
+    ProjectSettings:
+      type: object
+      required: [stepProfileId, stepProfileName, costLimitUsd, defaultCostLimitUsd, usesDefaultProfile, usesDefaultLimit]
+      properties:
+        stepProfileId: {type: string, format: uuid, description: The profile a run uses now (the default when none was chosen)}
+        stepProfileName: {type: string}
+        usesDefaultProfile: {type: boolean}
+        costLimitUsd: {type: number, description: The limit a run uses now}
+        defaultCostLimitUsd: {type: number}
+        usesDefaultLimit: {type: boolean}
     Problem:
       description: Error format of every operation (RFC 9457, application/problem+json)
       type: object

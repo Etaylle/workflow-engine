@@ -1,6 +1,7 @@
 package engine.execution;
 
 import engine.shared.ProjectPort;
+import engine.shared.RunSettingsPort.Step;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.math.BigDecimal;
@@ -44,7 +45,6 @@ class RunOrchestrator {
     private final String dbPassword;
     private final Set<UUID> active = ConcurrentHashMap.newKeySet();
     private final Set<UUID> stopRequested = ConcurrentHashMap.newKeySet();
-    private final List<StepDef> profile = StepProfile.shortProfile();
     private final ExecutorService executor = Executors.newCachedThreadPool(runnable -> {
         Thread thread = new Thread(runnable, "run-orchestrator");
         thread.setDaemon(true);
@@ -64,10 +64,6 @@ class RunOrchestrator {
         this.dbUrl = dbUrl;
         this.dbUser = dbUser;
         this.dbPassword = dbPassword;
-    }
-
-    List<StepDef> profile() {
-        return profile;
     }
 
     static String databaseName(UUID runId) {
@@ -226,7 +222,7 @@ class RunOrchestrator {
     private boolean buildStep(Ctx ctx, RunStore.TaskRow task, int stepIndex, int taskNo) {
         UUID runId = ctx.run().id();
         RunStore.StepRow row = task.steps().get(stepIndex);
-        StepDef def = profile.get(stepIndex);
+        Step def = withTask(ctx.run().steps().get(stepIndex), task.title());
         store.setStep(row.id(), "running", null);
         events.publish(runId, "step", "Step " + def.title() + " started");
         int attempts = 1 + settings.fixAttempts();
@@ -264,7 +260,13 @@ class RunOrchestrator {
         return askClient(ctx.run(), task, row, def.title(), attempts, failure);
     }
 
-    private void announceFix(UUID runId, StepDef def, int attempt, int waits) {
+    /** The prompt of a step may name the task as {task}. */
+    private static Step withTask(Step step, String taskTitle) {
+        return new Step(step.key(), step.title(), step.gated(), step.capUsd(),
+                step.prompt().replace("{task}", taskTitle));
+    }
+
+    private void announceFix(UUID runId, Step def, int attempt, int waits) {
         if (attempt > 1 && waits == 0) {
             events.publish(runId, "console", "Fix attempt " + (attempt - 1) + " of "
                     + settings.fixAttempts() + " for " + def.title());
@@ -272,7 +274,7 @@ class RunOrchestrator {
     }
 
     /** A green step: commit the workspace (the checkpoint), record it, mark the step done. */
-    private boolean completeStep(Ctx ctx, RunStore.StepRow row, StepDef def, int taskNo, String summary) {
+    private boolean completeStep(Ctx ctx, RunStore.StepRow row, Step def, int taskNo, String summary) {
         String sha = ctx.workspace().commit("Task " + taskNo + " step " + def.key() + " green");
         store.addCheckpoint(row.id(), sha);
         store.setStep(row.id(), "done", summary);
@@ -330,13 +332,13 @@ class RunOrchestrator {
         return !stopped(runId);
     }
 
-    private String hintsOf(RunStore.StepRow row, StepDef def) {
+    private String hintsOf(RunStore.StepRow row, Step def) {
         List<String> hints = store.hintsOf(row.id());
         return hints.isEmpty() ? def.prompt() : def.prompt() + "\n\nThe client says about this step: "
                 + String.join(" ", hints);
     }
 
-    private Attempt attempt(Ctx ctx, RunStore.StepRow row, StepDef def, BigDecimal remaining,
+    private Attempt attempt(Ctx ctx, RunStore.StepRow row, Step def, BigDecimal remaining,
             String previousFailure) {
         UUID runId = ctx.run().id();
         String base = hintsOf(row, def);
