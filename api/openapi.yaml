@@ -23,7 +23,7 @@ paths:
       summary: Make one tiny call with a key (typed, or the saved one) and keep a typed key for the session
       description: >
         The key is held in engine memory only (never stored, never logged). On success the key
-        stays for the session; on failure it is discarded.
+        stays for the session; on failure nothing changes: a key saved earlier stays, and the key that was typed is not kept.
       requestBody:
         required: true
         content:

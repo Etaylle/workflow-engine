@@ -12,6 +12,8 @@
 		type Project,
 		type Question
 	} from '#lib/api/client.js';
+	import ConfirmDialog from '#lib/components/ConfirmDialog.svelte';
+	import { toasts } from '#lib/shell/toast.svelte.js';
 	import { createAction } from '#lib/api/action.svelte.js';
 	import { locale } from '#lib/i18n/state.svelte.js';
 	import {
@@ -22,7 +24,9 @@
 		toRequest,
 		type Draft
 	} from '#lib/planning/answers.js';
-	import { rank } from '#lib/planning/steps.js';
+	import { rank, type StepId } from '#lib/planning/steps.js';
+	import { stepHash } from '#lib/shell/route.js';
+	import StepShell from './StepShell.svelte';
 	import {
 		editorFrom,
 		emptyEditor,
@@ -33,7 +37,17 @@
 	import Waiting from './Waiting.svelte';
 	import ErrorNote from './ErrorNote.svelte';
 
-	let { project, changed }: { project: Project; changed: () => void } = $props();
+	let {
+		project,
+		changed,
+		back,
+		go
+	}: {
+		project: Project;
+		changed: () => Promise<void>;
+		back: string;
+		go: (step: StepId) => void;
+	} = $props();
 
 	let brief = $state<Brief | null>(null);
 	let questions = $state<Question[]>([]);
@@ -47,6 +61,8 @@
 	const open = $derived(rank(project.status) <= 2);
 	/** Questions written for an earlier wish: the wish changed, so they must be asked again. */
 	const stale = $derived(project.status === 'draft' && questions.length > 0);
+	const none = $derived(questions.length === 0 || stale);
+	const unanswered = $derived(questions.filter((q) => firstIncomplete([q], draft)).length);
 
 	async function load() {
 		await loading.run(async () => {
@@ -61,7 +77,7 @@
 			questions = await generateQuestions(project.id);
 			draft = initialDraft(questions);
 		});
-		if (ok) changed();
+		if (ok) await changed();
 	}
 
 	/** Takes the list the server returned; answers typed for untouched questions are kept. */
@@ -88,8 +104,12 @@
 		if (ok) editing = null;
 	}
 
+	let removing = $state<Question | null>(null);
+
 	async function remove(id: string) {
-		await editor.run(async () => adopt(await deleteQuestion(project.id, id), id));
+		const ok = await editor.run(async () => adopt(await deleteQuestion(project.id, id), id));
+		removing = null;
+		if (ok) toasts.show(locale.t('toast.questionRemoved'));
 	}
 
 	async function save() {
@@ -102,7 +122,11 @@
 			questions = await saveAnswers(project.id, toRequest(questions, draft));
 			draft = initialDraft(questions);
 		});
-		if (ok) changed();
+		if (ok) {
+			await changed();
+			toasts.show(locale.t('questions.saved'));
+			go('requirements');
+		}
 	}
 
 	$effect(() => {
@@ -112,15 +136,18 @@
 	});
 </script>
 
-<section
-	class="step"
-	aria-labelledby="questions-heading"
-	id="step-questions"
-	tabindex="-1"
-	data-testid="step-questions"
+<StepShell
+	step="questions"
+	heading={locale.t('questions.heading')}
+	lead={locale.t('step.questionsLead')}
+	{back}
+	reason={open && !none && unanswered > 0
+		? locale.t('questions.progress', {
+				done: String(questions.length - unanswered),
+				total: String(questions.length)
+			})
+		: null}
 >
-	<h2 id="questions-heading">{locale.t('questions.heading')}</h2>
-	<p class="sub">{locale.t('step.questionsLead')}</p>
 	{#if loading.error}<p role="alert">{loading.error}</p>{/if}
 
 	{#if brief}
@@ -142,13 +169,10 @@
 	{#if loading.busy && questions.length === 0}
 		<div class="skeleton" aria-hidden="true"></div>
 		<div class="skeleton" aria-hidden="true"></div>
-	{:else if questions.length === 0 || stale}
+	{:else if none}
 		<div class="empty">
 			<h3>{locale.t('questions.emptyTitle')}</h3>
 			<p>{locale.t(stale ? 'questions.stale' : 'questions.emptyStep')}</p>
-			<button class="primary" onclick={ask} disabled={asking.busy} data-testid="ask">
-				{asking.busy ? locale.t('questions.asking') : locale.t('questions.ask')}
-			</button>
 		</div>
 		{#if asking.busy}<Waiting what={locale.t('questions.asking')} />{/if}
 		{#if asking.error}
@@ -157,6 +181,7 @@
 	{:else}
 		<p class="sub">{locale.t(open ? 'questions.intro' : 'questions.done')}</p>
 		<form
+			id="answers-form"
 			onsubmit={(event) => {
 				event.preventDefault();
 				void save();
@@ -228,7 +253,7 @@
 							<button
 								type="button"
 								class="danger"
-								onclick={() => remove(question.id)}
+								onclick={() => (removing = question)}
 								data-testid={`remove-${question.seq}`}
 							>
 								{locale.t('list.delete')}
@@ -238,31 +263,29 @@
 				</fieldset>
 			{/each}
 			{#if editor.error && !editing}<p role="alert">{editor.error}</p>{/if}
-			<div class="actions">
-				{#if open}
-					<button type="submit" class="primary" disabled={saving.busy} data-testid="save-answers">
-						{saving.busy ? locale.t('questions.saving') : locale.t('questions.save')}
-					</button>
-				{/if}
-				{#if adjustable && !editing}
+			{#if adjustable && !editing}
+				<div class="optional">
+					<span class="optional-label">{locale.t('step.optional')}</span>
 					<button
 						type="button"
+						class="quiet"
 						onclick={() => (editing = { id: null, state: emptyEditor() })}
 						disabled={questions.length >= 8}
 						data-testid="add-question"
 					>
 						{locale.t('questions.add')}
 					</button>
-					<button type="button" onclick={ask} disabled={asking.busy} data-testid="ask-again">
+					<button
+						type="button"
+						class="quiet"
+						onclick={ask}
+						disabled={asking.busy}
+						data-testid="ask-again"
+					>
 						{asking.busy ? locale.t('questions.asking') : locale.t('questions.askAgain')}
 					</button>
-				{/if}
-				{#if project.status === 'answered'}
-					<span class="badge green" role="status" data-testid="answers-saved">
-						{locale.t('questions.saved')}
-					</span>
-				{/if}
-			</div>
+				</div>
+			{/if}
 			{#if asking.busy}<Waiting what={locale.t('questions.asking')} />{/if}
 			{#if asking.error}<ErrorNote message={asking.error} keyIssue={asking.keyIssue} />{/if}
 			{#if saving.error}<p role="alert" data-testid="save-error">{saving.error}</p>{/if}
@@ -277,7 +300,45 @@
 			/>
 		{/if}
 	{/if}
-</section>
+
+	{#snippet primary()}
+		{#if none}
+			<button
+				class="primary"
+				onclick={ask}
+				disabled={asking.busy || loading.busy}
+				data-testid="ask"
+			>
+				{asking.busy ? locale.t('questions.asking') : locale.t('questions.ask')}
+			</button>
+		{:else if open}
+			<button
+				type="submit"
+				form="answers-form"
+				class="primary"
+				disabled={saving.busy || unanswered > 0}
+				data-testid="save-answers"
+			>
+				{saving.busy ? locale.t('questions.saving') : locale.t('questions.save')}
+			</button>
+		{:else}
+			<a class="button primary" href={stepHash(project.id, 'requirements')}>
+				{locale.t('step.continueRequirements')}
+			</a>
+		{/if}
+	{/snippet}
+</StepShell>
+
+<ConfirmDialog
+	open={removing !== null}
+	title={locale.t('questions.removeTitle')}
+	text={locale.t('questions.removeText')}
+	confirmLabel={locale.t('list.delete')}
+	busy={editor.busy}
+	testid="remove-question"
+	onconfirm={() => removing && remove(removing.id)}
+	oncancel={() => (removing = null)}
+/>
 
 <style>
 	.brief {
@@ -350,8 +411,5 @@
 	.row-actions button {
 		padding: 0.2rem 0.7rem;
 		font-size: 0.9rem;
-	}
-	.actions {
-		margin-top: 0.5rem;
 	}
 </style>

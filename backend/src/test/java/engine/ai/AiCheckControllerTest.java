@@ -26,13 +26,13 @@ class AiCheckControllerTest {
     }
 
     @Test
-    void rejectedKeyIsDiscardedAndAnsweredAs401() {
+    void rejectedKeyIsAnsweredAs401AndKeepsTheSavedKey() {
         sessionKey.setAnthropic("old");
 
         assertThatThrownBy(() -> controller.check(anthropic("bad")))
                 .isInstanceOfSatisfying(
                         AiCheckException.class, e -> assertThat(e.status()).isEqualTo(401));
-        assertThat(sessionKey.anthropicKey()).isEmpty();
+        assertThat(sessionKey.anthropicKey()).contains("old");
     }
 
     @Test

@@ -42,16 +42,11 @@ public class AiCheckController {
         AiProvider provider = request.provider() == null ? AiProvider.ANTHROPIC : AiProvider.ofId(request.provider());
         boolean typed = request.apiKey() != null && !request.apiKey().isBlank();
         AiTarget target = typed ? typedTarget(provider, request) : savedTarget(provider);
-        try {
-            String model = connection.check(target);
-            if (typed) {
-                store(provider, target);
-            }
-            return new AiCheckResult(true, model);
-        } catch (AiCheckException e) {
-            sessionKey.clear(provider);
-            throw e;
+        String model = connection.check(target);
+        if (typed) {
+            store(provider, target);
         }
+        return new AiCheckResult(true, model);
     }
 
     private AiTarget typedTarget(AiProvider provider, AiCheckRequest request) {

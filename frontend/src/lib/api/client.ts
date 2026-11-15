@@ -135,8 +135,10 @@ async function json<T>(path: string, method = 'GET', body?: unknown): Promise<T>
 
 export const createProject = (wish: string, apiKey: string, name: string) =>
 	json<Project>('/api/projects', 'POST', { wish, apiKey, name });
-export const updateProject = (projectId: string, change: { name?: string; wish?: string }) =>
-	json<Project>(`/api/projects/${projectId}`, 'PATCH', change);
+export const updateProject = (
+	projectId: string,
+	change: { name?: string; wish?: string; agentHarness?: string }
+) => json<Project>(`/api/projects/${projectId}`, 'PATCH', change);
 export async function deleteProject(projectId: string): Promise<void> {
 	const response = await fetch(`/api/projects/${projectId}`, { method: 'DELETE' });
 	if (!response.ok) throw await failure(response);

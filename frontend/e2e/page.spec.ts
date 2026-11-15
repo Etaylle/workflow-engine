@@ -38,7 +38,13 @@ test('rename and delete a project from the list', async ({ page }) => {
 	await expect(renamed).toBeVisible();
 
 	await renamed.getByTestId('delete').click();
-	await renamed.getByTestId('confirm-delete').click();
+	const dialog = page.getByRole('dialog');
+	await expect(dialog).toContainText('Renamed app');
+	await page.keyboard.press('Escape');
+	await expect(dialog).toHaveCount(0);
+	await renamed.getByTestId('delete').click();
+	await page.getByTestId('confirm-delete-dialog-yes').click();
+	await expect(page.getByTestId('toast').filter({ hasText: 'Project deleted' })).toBeVisible();
 	await expect(page.getByText('Renamed app')).toHaveCount(0);
 	await page.reload();
 	await expect(page.getByText('Renamed app')).toHaveCount(0);
@@ -71,12 +77,17 @@ test('the key is changed from the header on a later step and the action is retri
 	await page.getByTestId('ask').click();
 	await expect(page.getByTestId('question-1')).toBeVisible();
 
-	// Test checks a key with the AI; the stub rejects "bad" and a failed check discards the key
+	// Test checks a key with the AI; the stub rejects "bad"; a failed check keeps the saved key
 	await page.getByTestId('key-button').click();
 	await page.getByTestId('key-input').fill('bad');
 	await page.getByTestId('key-test').click();
 	await expect(page.getByTestId('key-panel-result')).toContainText('Check failed');
+	await expect(page.getByTestId('key-panel-result')).toContainText('saved earlier is unchanged');
+	await expect(page.getByTestId('key-button')).toContainText('Claude (…0002)');
+	await page.getByTestId('key-remove').click();
 	await expect(page.getByTestId('key-button')).toContainText('No key');
+	await page.keyboard.press('Escape');
+	await expect(page.getByTestId('key-panel')).toHaveCount(0);
 });
 
 test('a Gemini key is saved with its preset, chosen for planning and removed', async ({ page }) => {

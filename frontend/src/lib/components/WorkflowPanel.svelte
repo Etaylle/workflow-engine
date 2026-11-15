@@ -19,7 +19,8 @@
 	import ErrorNote from './ErrorNote.svelte';
 	import { isKeyProblem } from '#lib/ai/keyState.js';
 
-	import { rank } from '#lib/planning/steps.js';
+	import { stepHash } from '#lib/shell/route.js';
+	import StepShell from './StepShell.svelte';
 	import {
 		getQuestions,
 		getRequirements,
@@ -27,7 +28,18 @@
 		type Requirements
 	} from '#lib/api/client.js';
 
-	let { project, changed }: { project: Project; changed: () => void } = $props();
+	let {
+		project,
+		changed,
+		step,
+		back
+	}: {
+		project: Project;
+		changed: () => Promise<void>;
+		step: 'workflow' | 'review';
+		back: string;
+	} = $props();
+	const reviewing = $derived(step === 'review');
 
 	let workflow = $state<Workflow | null>(null);
 	let contracts = $state<Contract[]>([]);
@@ -62,7 +74,7 @@
 		try {
 			await action();
 			await load();
-			changed();
+			await changed();
 		} catch (e) {
 			fail(e);
 			busy = 'idle';
@@ -71,7 +83,6 @@
 
 	let questions = $state<Question[]>([]);
 	let requirements = $state<Requirements>({ epics: [] });
-	const reviewed = $derived(rank(project.status) >= 4);
 	const facts = $derived(reviewFacts(questions, requirements, workflow));
 
 	$effect(() => {
@@ -86,37 +97,24 @@
 	});
 </script>
 
-<section
-	class="step"
-	aria-labelledby="workflow-heading"
-	id="step-workflow"
-	tabindex="-1"
-	data-testid="step-workflow"
+<StepShell
+	{step}
+	heading={reviewing ? locale.t('review.heading') : locale.t('workflow.heading')}
+	lead={reviewing ? locale.t('step.reviewLead') : locale.t('step.workflowLead')}
+	{back}
 >
-	<h2 id="workflow-heading">
-		{locale.t(reviewed ? 'review.heading' : 'workflow.heading')}
-	</h2>
-	<p class="sub">{locale.t('step.workflowLead')}</p>
-	{#if reviewed}
+	{#if reviewing}
 		<ReviewSummary {project} {facts} />
-		<LimitsCard {project} />
 	{/if}
 
 	{#if !workflow && busy !== 'loading'}
 		<div class="empty">
 			<h3>{locale.t('workflow.emptyTitle')}</h3>
 			<p>{locale.t('workflow.emptyStep')}</p>
-			<button
-				class="primary"
-				onclick={() => run('generating', () => generateWorkflow(project.id))}
-				disabled={busy !== 'idle'}
-				data-testid="generate"
-			>
-				{busy === 'generating' ? locale.t('workflow.generating') : locale.t('workflow.generate')}
-			</button>
 		</div>
 	{/if}
 	{#if busy === 'generating'}<Waiting what={locale.t('workflow.generating')} />{/if}
+	{#if busy === 'confirming'}<Waiting what={locale.t('workflow.confirming')} />{/if}
 	{#if error}<ErrorNote message={error} {keyIssue} testid="workflow-error" />{/if}
 
 	{#if workflow}
@@ -127,52 +125,97 @@
 				saved={() => {
 					editing = false;
 					void load();
-					changed();
+					void changed();
 				}}
 				cancel={() => (editing = false)}
 			/>
 		{/if}
-		<div class="actions">
-			{#if !editing}
-				<button onclick={() => (editing = true)} data-testid="edit-workflow">
-					{locale.t('workflow.edit')}
-				</button>
-			{/if}
-			<button
-				onclick={() => run('generating', () => generateWorkflow(project.id))}
-				disabled={busy !== 'idle'}
-				data-testid="generate"
-			>
-				{locale.t('workflow.regenerate')}
-			</button>
-		</div>
-		{#if workflow.status === 'valid'}
-			{#if workflow.confirmedContractVersion}
-				<p>
+		{#if reviewing}
+			<LimitsCard {project} />
+			{#if workflow.status === 'valid' && workflow.confirmedContractVersion}
+				<p class="notice">
 					{locale.t('workflow.changedSince', {
 						version: String(workflow.confirmedContractVersion)
 					})}
 				</p>
 			{/if}
+			{#if workflow.status !== 'valid'}
+				<p class="confirmed" role="status" data-testid="confirmed">
+					{locale.t('workflow.confirmedAs', {
+						version: String(workflow.confirmedContractVersion ?? '')
+					})}
+					{locale.t('review.confirmedNext')}
+				</p>
+			{/if}
+			{#if contracts.length > 0}
+				<p class="hint" data-testid="versions">
+					{locale.t('workflow.versions', { versions: contracts.map((c) => c.version).join(', ') })}
+				</p>
+			{/if}
+		{/if}
+		{#if !editing}
+			<div class="optional">
+				<span class="optional-label">{locale.t('step.optional')}</span>
+				<button class="quiet" onclick={() => (editing = true)} data-testid="edit-workflow">
+					{locale.t('workflow.edit')}
+				</button>
+				{#if !reviewing}
+					<button
+						class="quiet"
+						onclick={() => run('generating', () => generateWorkflow(project.id))}
+						disabled={busy !== 'idle'}
+						data-testid="generate-again"
+					>
+						{locale.t('workflow.regenerate')}
+					</button>
+				{/if}
+			</div>
+		{/if}
+	{/if}
+
+	{#snippet primary()}
+		{#if !workflow}
+			<button
+				class="primary"
+				onclick={() => run('generating', () => generateWorkflow(project.id))}
+				disabled={busy !== 'idle'}
+				data-testid="generate"
+			>
+				{busy === 'generating'
+					? locale.t('workflow.generating.short')
+					: locale.t('workflow.generate')}
+			</button>
+		{:else if !reviewing}
+			<a
+				class="button primary"
+				href={stepHash(project.id, 'review')}
+				data-testid="workflow-continue"
+			>
+				{locale.t('step.continueReview')}
+			</a>
+		{:else if workflow.status === 'valid'}
 			<button
 				class="primary"
 				onclick={() => run('confirming', () => confirmWorkflow(project.id))}
-				disabled={busy !== 'idle'}
+				disabled={busy !== 'idle' || editing}
 				data-testid="confirm"
 			>
 				{busy === 'confirming' ? locale.t('workflow.confirming') : locale.t('workflow.confirm')}
 			</button>
 		{:else}
-			<p role="status" data-testid="confirmed">
-				{locale.t('workflow.confirmedAs', {
-					version: String(workflow.confirmedContractVersion ?? '')
-				})}
-			</p>
+			<a class="button primary" href={stepHash(project.id, 'run')} data-testid="review-continue">
+				{locale.t('step.continueRun')}
+			</a>
 		{/if}
-		{#if contracts.length > 0}
-			<p data-testid="versions">
-				{locale.t('workflow.versions', { versions: contracts.map((c) => c.version).join(', ') })}
-			</p>
-		{/if}
-	{/if}
-</section>
+	{/snippet}
+</StepShell>
+
+<style>
+	.confirmed {
+		color: var(--green-ink);
+		background: var(--green-soft);
+		border: 1px solid var(--green-line);
+		border-radius: var(--radius-sm);
+		padding: var(--space-3) var(--space-4);
+	}
+</style>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseRoute } from './route.js';
+import { parseRoute, stepHash } from './route.js';
 
 describe('parseRoute', () => {
 	it('maps the empty hash to the list', () => {
@@ -14,6 +14,17 @@ describe('parseRoute', () => {
 		expect(parseRoute('#abc-123/steps')).toEqual({ name: 'steps', id: 'abc-123' });
 	});
 	it('maps any other hash to a project id', () => {
-		expect(parseRoute('#abc-123')).toEqual({ name: 'project', id: 'abc-123' });
+		expect(parseRoute('#abc-123')).toEqual({ name: 'project', id: 'abc-123', step: null });
+	});
+	it('maps #<id>/<step> to one step of a project', () => {
+		expect(parseRoute('#abc-123/questions')).toEqual({
+			name: 'project',
+			id: 'abc-123',
+			step: 'questions'
+		});
+		expect(parseRoute('#abc-123/nonsense')).toEqual({ name: 'project', id: 'abc-123', step: null });
+	});
+	it('writes the address of a step', () => {
+		expect(stepHash('abc-123', 'run')).toBe('#abc-123/run');
 	});
 });

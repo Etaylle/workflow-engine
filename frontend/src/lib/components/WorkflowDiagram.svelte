@@ -17,7 +17,7 @@
 
 <div
 	class="diagram"
-	role="img"
+	role="group"
 	aria-label={locale.t('workflow.diagramLabel')}
 	data-testid="diagram"
 >
@@ -26,7 +26,17 @@
 			nodes={flow.nodes}
 			edges={flow.edges}
 			fitView
-			fitViewOptions={{ padding: 0.04, maxZoom: 1.4 }}
+			colorMode="system"
+			fitViewOptions={{ padding: 0.04, maxZoom: 1.8 }}
+			minZoom={0.3}
+			ariaLabelConfig={{
+				'controls.zoomIn.ariaLabel': locale.t('diagram.zoomIn'),
+				'controls.zoomOut.ariaLabel': locale.t('diagram.zoomOut'),
+				'controls.fitView.ariaLabel': locale.t('diagram.fit')
+			}}
+			preventScrolling={false}
+			zoomOnScroll={false}
+			panOnScroll={false}
 			nodesDraggable={false}
 			nodesConnectable={false}
 			elementsSelectable={false}
@@ -40,22 +50,23 @@
 
 <style>
 	.diagram {
-		height: clamp(20rem, 50vh, 30rem);
+		height: clamp(18rem, calc(100vh - 20rem), 34rem);
 		width: 100%;
 		border: 1px solid var(--line);
-		border-radius: 10px;
+		border-radius: var(--radius);
 		background: var(--sunken);
 	}
 	.diagram :global(.lane-label) {
-		background: rgba(100, 120, 160, 0.08);
-		border: 1px solid #c8d0e0;
-		border-radius: 4px;
+		background: var(--blue-soft);
+		border: 1px solid var(--blue-line);
+		color: var(--blue-ink);
+		border-radius: var(--radius-sm);
 	}
 	.diagram :global(.lane-label) {
 		display: flex;
 		align-items: flex-start;
 		justify-content: flex-start;
-		padding: 0.4rem 0.6rem;
+		padding: var(--space-2) var(--space-3);
 		font-weight: 600;
 		box-shadow: none;
 		pointer-events: none;
@@ -64,6 +75,7 @@
 		display: none;
 	}
 	.diagram :global(.svelte-flow__node) {
+		font-size: 1.05rem;
 		background: var(--surface);
 		color: var(--ink);
 		border-color: var(--field-line);
@@ -75,9 +87,9 @@
 		border-color: var(--line);
 	}
 	.diagram :global(.kind-start_event) {
-		border-color: #2a7d3f;
+		border-color: var(--green-ink);
 	}
 	.diagram :global(.kind-end_event) {
-		border-color: #a33;
+		border-color: var(--red);
 	}
 </style>

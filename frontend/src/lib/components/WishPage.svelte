@@ -14,6 +14,8 @@
 	let apiKey = $state('');
 	let busy = $state(false);
 	let error = $state<string | null>(null);
+	let wishError = $state<string | null>(null);
+	let wishField = $state<HTMLTextAreaElement>();
 	const held = $derived(
 		describeKey(engineKey.keys, (p) => engineKey.nameOf(locale.t('key.nameAnthropic'), p))
 	);
@@ -37,11 +39,13 @@
 	async function submit(event: SubmitEvent) {
 		event.preventDefault();
 		if (wish.trim() === '') {
-			error = locale.t('project.wishMissing');
+			wishError = locale.t('project.wishMissing');
+			wishField?.focus();
 			return;
 		}
 		busy = true;
 		error = null;
+		wishError = null;
 		try {
 			const project = await createProject(wish, apiKey, name);
 			void engineKey.refresh();
@@ -64,15 +68,32 @@
 		<div class="card">
 			<label>
 				{locale.t('wish.name')}
-				<input type="text" maxlength="120" bind:value={name} data-testid="name" />
+				<input
+					type="text"
+					maxlength="120"
+					bind:value={name}
+					aria-describedby="name-hint"
+					data-testid="name"
+				/>
+				<span class="hint" id="name-hint">{locale.t('wish.nameHint')}</span>
 			</label>
 			<label>
 				{locale.t('wish.wishLabel')}
-				<textarea rows="9" maxlength={MAX_WISH} bind:value={wish} data-testid="wish"></textarea>
+				<textarea
+					rows="9"
+					maxlength={MAX_WISH}
+					bind:value={wish}
+					bind:this={wishField}
+					aria-invalid={wishError ? 'true' : undefined}
+					aria-describedby="wish-hint wish-error"
+					data-testid="wish"></textarea>
+				<span class="hint" id="wish-hint">
+					{locale.t('wish.wishHint')}
+					{locale.t('wish.chars', { count: String(wish.length), max: String(MAX_WISH) })}
+				</span>
+				<span id="wish-error" role="alert" class="field-error" hidden={!wishError}>{wishError}</span
+				>
 			</label>
-			<p class="lead">
-				{locale.t('wish.chars', { count: String(wish.length), max: String(MAX_WISH) })}
-			</p>
 		</div>
 
 		<aside class="card">
@@ -108,7 +129,7 @@
 					{locale.t('ai.failed', { detail: keyCheck.detail })}
 				</p>
 			{/if}
-			<p class="lead">{locale.t('wish.keyNote')}</p>
+			<p class="hint">{locale.t('wish.keyNote')}</p>
 		</aside>
 	</div>
 
@@ -125,7 +146,7 @@
 	.grid {
 		display: grid;
 		grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
-		gap: 1.25rem;
+		gap: var(--space-5);
 		align-items: start;
 	}
 	@media (max-width: 52rem) {
@@ -134,22 +155,25 @@
 		}
 	}
 	.field-title {
-		font-weight: 500;
-		margin: 0 0 0.4rem;
+		font-weight: 600;
+		margin: 0 0 var(--space-2);
 	}
 	.agent {
 		border: 2px solid var(--line);
-		border-radius: 10px;
-		padding: 0.6rem 0.9rem;
-		margin-bottom: 1rem;
+		border-radius: var(--radius-sm);
+		padding: var(--space-3) var(--space-4);
+		margin-bottom: var(--space-4);
 	}
 	.agent.selected {
 		border-color: var(--blue);
 		background: var(--blue-soft);
 	}
+	.agent .lead {
+		margin: 0;
+	}
 	.keyrow {
 		display: flex;
-		gap: 0.5rem;
+		gap: var(--space-2);
 	}
 	.ok {
 		color: var(--green-ink);
@@ -159,11 +183,8 @@
 		flex-wrap: wrap;
 		justify-content: space-between;
 		align-items: center;
-		gap: 1rem;
+		gap: var(--space-4);
 		border-top: 1px solid var(--line);
-		padding-top: 1rem;
-	}
-	footer .primary {
-		padding: 0.7rem 1.4rem;
+		padding-top: var(--space-4);
 	}
 </style>

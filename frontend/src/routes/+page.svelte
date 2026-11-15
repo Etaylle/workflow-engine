@@ -2,13 +2,15 @@
 	import { onMount } from 'svelte';
 	import AllProjects from '#lib/components/AllProjects.svelte';
 	import AppHeader from '#lib/components/AppHeader.svelte';
+	import ToastHost from '#lib/components/ToastHost.svelte';
 	import StepsPage from '#lib/components/StepsPage.svelte';
 	import ProjectPanel from '#lib/components/ProjectPanel.svelte';
 	import WishPage from '#lib/components/WishPage.svelte';
 	import { getStatus, listProjects, type EngineStatus, type Project } from '#lib/api/client.js';
 	import { engineKey } from '#lib/ai/key.svelte.js';
 	import { locale } from '#lib/i18n/state.svelte.js';
-	import { parseRoute, type Route } from '#lib/shell/route.js';
+	import { clampStep } from '#lib/planning/steps.js';
+	import { parseRoute, stepHash, type Route } from '#lib/shell/route.js';
 
 	let engine = $state<EngineStatus | null>(null);
 	let projects = $state<Project[]>([]);
@@ -16,6 +18,9 @@
 	let loaded = $state(false);
 	let route = $state<Route>({ name: 'list' });
 	const selected = $derived(selectedOf(route, projects));
+	const step = $derived(
+		route.name === 'project' && selected ? clampStep(route.step, selected.status) : null
+	);
 
 	function selectedOf(current: Route, all: Project[]): Project | null {
 		return current.name === 'project' || current.name === 'steps'
@@ -38,6 +43,14 @@
 		location.hash = project.id;
 	}
 
+	/** The address always names the step shown, so a reload or a copied link stays on it. */
+	$effect(() => {
+		if (route.name === 'project' && step && route.step !== step) {
+			history.replaceState(null, '', stepHash(route.id, step));
+			route = parseRoute(location.hash);
+		}
+	});
+
 	onMount(() => {
 		locale.init();
 		route = parseRoute(location.hash);
@@ -59,30 +72,50 @@
 
 <svelte:head><title>{locale.t('app.pageTitle')}</title></svelte:head>
 
+<a
+	class="skip-link"
+	href="#main"
+	onclick={(e) => {
+		e.preventDefault();
+		document.getElementById('main')?.focus();
+	}}>{locale.t('nav.skip')}</a
+>
+
 {#if selected}
-	<AppHeader projectName={selected.name} status={selected.status} />
+	<AppHeader
+		projectId={selected.id}
+		projectName={selected.name}
+		status={selected.status}
+		step={step ?? undefined}
+	/>
 {:else}
 	<AppHeader />
 {/if}
 
-{#if route.name === 'new'}
-	<WishPage {created} />
-{:else if route.name === 'steps'}
-	{#if selected}
-		<StepsPage project={selected} />
+<main id="main" tabindex="-1">
+	{#if route.name === 'new'}
+		<WishPage {created} />
+	{:else if route.name === 'steps'}
+		{#if selected}
+			<StepsPage project={selected} />
+		{/if}
+	{:else if route.name === 'project'}
+		{#if selected}
+			{#key step}
+				<ProjectPanel project={selected} step={step ?? 'wish'} changed={reloadProjects} />
+			{/key}
+		{:else if loaded}
+			<div class="page">
+				<a href="#projects">{locale.t('nav.back')}</a>
+				<p role="alert">{locale.t('project.notFound')}</p>
+			</div>
+		{/if}
+	{:else}
+		<AllProjects {projects} failed={projectsFailed} changed={reloadProjects} />
 	{/if}
-{:else if route.name === 'project'}
-	{#if selected}
-		<ProjectPanel project={selected} changed={reloadProjects} />
-	{:else if loaded}
-		<div class="page">
-			<a href="#projects">{locale.t('nav.back')}</a>
-			<p role="alert">{locale.t('project.notFound')}</p>
-		</div>
-	{/if}
-{:else}
-	<AllProjects {projects} failed={projectsFailed} changed={reloadProjects} />
-{/if}
+</main>
+
+<ToastHost />
 
 <p class="engine" data-testid="status">
 	{#if engine}
@@ -96,6 +129,10 @@
 	.engine {
 		text-align: center;
 		color: var(--muted);
-		font-size: 0.85rem;
+		font-size: var(--text-xs);
+		padding-bottom: var(--space-5);
+	}
+	main:focus {
+		outline: none;
 	}
 </style>

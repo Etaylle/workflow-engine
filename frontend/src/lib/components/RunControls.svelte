@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { checkAiConnection, resumeRun, stopRun, type Run } from '#lib/api/client.js';
 	import { createAction } from '#lib/api/action.svelte.js';
+	import ConfirmDialog from '#lib/components/ConfirmDialog.svelte';
 	import { locale } from '#lib/i18n/state.svelte.js';
 	import { atCostLimit, canResume, canStop, limitHasRoom, suggestedLimit } from '#lib/run/run.js';
 
@@ -68,39 +69,28 @@
 
 {#if canStop(run)}
 	<div class="controls">
-		{#if !confirming}
-			<button onclick={() => (confirming = true)} data-testid="stop-run">
-				{locale.t('run.stop')}
-			</button>
-		{:else}
-			<div role="alertdialog" aria-labelledby="stop-text" data-testid="stop-confirm">
-				<p id="stop-text">{locale.t('run.stop.confirmText')}</p>
-				<button
-					class="danger"
-					onclick={stop}
-					disabled={stopping.busy}
-					data-testid="stop-confirm-yes"
-				>
-					{locale.t('run.stop.confirm')}
-				</button>
-				<button onclick={() => (confirming = false)} data-testid="stop-confirm-no">
-					{locale.t('run.stop.cancel')}
-				</button>
-			</div>
-		{/if}
-		{#if stopping.error}<p role="alert" data-testid="stop-error">{stopping.error}</p>{/if}
+		<button class="danger" onclick={() => (confirming = true)} data-testid="stop-run">
+			{locale.t('run.stop')}
+		</button>
+		{#if stopping.error && !confirming}<p role="alert" data-testid="stop-error">
+				{stopping.error}
+			</p>{/if}
 	</div>
+	<ConfirmDialog
+		open={confirming}
+		title={locale.t('run.stop.title')}
+		text={locale.t('run.stop.confirmText')}
+		confirmLabel={locale.t('run.stop.confirm')}
+		busy={stopping.busy}
+		error={stopping.error}
+		testid="stop-confirm"
+		onconfirm={stop}
+		oncancel={() => (confirming = false)}
+	/>
 {/if}
 
 <style>
 	.controls {
 		margin: 0.75rem 0;
-	}
-	.danger {
-		background: var(--red);
-		color: var(--on-blue);
-		border: none;
-		border-radius: 8px;
-		padding: 0.45rem 1rem;
 	}
 </style>

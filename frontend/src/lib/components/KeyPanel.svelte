@@ -10,6 +10,8 @@
 	import { engineKey } from '#lib/ai/key.svelte.js';
 	import { keyWarning, typedKey } from '#lib/ai/keyState.js';
 	import { DEFAULT_PRESET, PRESETS, presetOfUrl, type PresetId } from '#lib/ai/presets.js';
+	import { onMount } from 'svelte';
+	import { toasts } from '#lib/shell/toast.svelte.js';
 	import type { MessageKey } from '#lib/i18n/i18n.js';
 	import { locale } from '#lib/i18n/state.svelte.js';
 
@@ -25,6 +27,15 @@
 		anthropic: null,
 		openai: null
 	});
+
+	let firstInput = $state<HTMLInputElement>();
+
+	onMount(() => firstInput?.focus());
+
+	function close() {
+		engineKey.closePanel();
+		document.querySelector<HTMLElement>('[data-testid="key-button"]')?.focus();
+	}
 
 	const preset = $derived(PRESETS.find((p) => p.id === presetId) ?? DEFAULT_PRESET);
 	const keys = $derived(engineKey.keys);
@@ -49,10 +60,12 @@
 		try {
 			await call();
 			results[provider] = { ok: true, text: locale.t(done) };
+			toasts.show(locale.t(done));
 			inputs[provider] = '';
 		} catch (e) {
 			const detail = e instanceof ApiError ? e.message : locale.t('ai.unreachable');
-			results[provider] = { ok: false, text: locale.t('ai.failed', { detail }) };
+			const kept = engineKey.keys?.[provider].set ? ` ${locale.t('key.kept')}` : '';
+			results[provider] = { ok: false, text: locale.t('ai.failed', { detail }) + kept };
 		} finally {
 			busy = null;
 			await engineKey.refresh();
@@ -77,14 +90,16 @@
 	const choose = (p: AiProviderId) => void choosePlanningProvider(p).then(engineKey.adopt);
 </script>
 
+<svelte:window onkeydown={(e) => e.key === 'Escape' && close()} />
+
 <div class="panel" role="dialog" aria-label={locale.t('key.title')} data-testid="key-panel">
 	<div class="head">
 		<h2>{locale.t('key.title')}</h2>
-		<button class="close" onclick={() => engineKey.closePanel()} data-testid="key-close">
+		<button class="quiet" onclick={close} data-testid="key-close">
 			{locale.t('key.close')}
 		</button>
 	</div>
-	<p class="note">{locale.t('key.note')}</p>
+	<p class="hint">{locale.t('key.note')}</p>
 
 	<section class="slot">
 		<h3>{locale.t('key.anthropic')}</h3>
@@ -93,6 +108,7 @@
 			<input
 				type="password"
 				autocomplete="off"
+				bind:this={firstInput}
 				bind:value={inputs.anthropic}
 				data-testid="key-input"
 			/>
@@ -150,7 +166,7 @@
 				{/each}
 			</select>
 		</label>
-		<p class="hint">{locale.t(preset.hint)}</p>
+		<p class="hint preset-hint">{locale.t(preset.hint)}</p>
 		<label>
 			{preset.name
 				? locale.t('key.fieldFor', { provider: preset.name })
@@ -226,7 +242,7 @@
 			{/each}
 		</fieldset>
 	{/if}
-	<p class="note" data-testid="key-planning">
+	<p class="hint" data-testid="key-planning">
 		{#if keys?.planning}
 			{locale.t('key.planningWith')}
 			{engineKey.nameOf(locale.t('key.nameAnthropic'), keys.planning.provider)} · {keys.planning
@@ -240,73 +256,66 @@
 <style>
 	.panel {
 		position: absolute;
-		right: 1.25rem;
-		top: calc(100% + 0.4rem);
+		right: var(--gutter);
+		top: calc(100% + var(--space-2));
 		z-index: 20;
-		width: min(30rem, calc(100vw - 2.5rem));
+		width: min(30rem, calc(100vw - 2 * var(--gutter)));
 		max-height: calc(100vh - 6rem);
 		overflow-y: auto;
 		background: var(--surface);
 		border: 1px solid var(--line);
 		border-radius: var(--radius);
-		box-shadow: 0 8px 28px var(--shadow-pop);
-		padding: 1rem 1.25rem 1.1rem;
+		box-shadow: var(--shadow-pop);
+		padding: var(--space-4) var(--space-5) var(--space-5);
 	}
 	.head {
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
-		gap: 1rem;
+		gap: var(--space-4);
 	}
 	h2 {
-		font-size: 1.05rem;
+		font-size: var(--text-lg);
 		margin: 0;
 	}
 	h3 {
-		font-size: 0.95rem;
-		margin: 0 0 0.5rem;
+		font-size: var(--text-base);
+		margin: 0 0 var(--space-2);
 	}
 	.slot {
 		border-top: 1px solid var(--line);
-		padding-top: 0.8rem;
-		margin: 0.8rem 0 0;
+		padding-top: var(--space-4);
+		margin: var(--space-4) 0 0;
 	}
 	.slot label {
-		margin-bottom: 0.5rem;
+		margin-bottom: var(--space-3);
 	}
-	.slot input,
-	.slot select {
-		width: 100%;
-	}
-	.note,
-	.hint {
-		margin: 0.4rem 0 0.6rem;
-		color: var(--muted);
-		font-size: 0.9rem;
+	.preset-hint {
+		margin: 0 0 var(--space-3);
 	}
 	.warn {
-		margin: 0 0 0.6rem;
+		margin: 0 0 var(--space-3);
 		color: var(--amber-ink);
 		background: var(--amber-soft);
-		border-radius: 8px;
-		padding: 0.4rem 0.7rem;
-		font-size: 0.9rem;
+		border-radius: var(--radius-sm);
+		padding: var(--space-2) var(--space-3);
+		font-size: var(--text-sm);
 	}
 	.row {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.5rem;
+		gap: var(--space-2);
 	}
 	.ok {
 		color: var(--green-ink);
-		margin: 0.6rem 0 0;
+		margin: var(--space-3) 0 0;
 	}
 	.choose {
-		margin-top: 0.9rem;
+		margin-top: var(--space-4);
 	}
 	.pick {
 		display: inline-block;
-		margin: 0 1rem 0 0;
+		margin: 0 var(--space-4) 0 0;
 		font-weight: 400;
 	}
 </style>

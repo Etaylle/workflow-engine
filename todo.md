@@ -4,6 +4,15 @@ Updated after each slice and each decision. Newest first. The plan: `ai-docs/pla
 
 Last update: 2026-11-15 (Claude, AI key panel D-75, OpenAI-compatible planning D-74, planning UI D-76; earlier, hardening pass: planning calls offline D-70, live builder re-run, final report D-71, clean clone): M6 settings built (step profiles as data, Team and steps page, cost limit and profile on the review page; D-66 to D-69; try-the-result left out); M5 runs that survive built (fix loops, asking the client, stop and resume, limits and waiting), D-62 to D-65; M4 run end to end (thin) built with the stub, D-54 to D-61; M6 slices 1 to 6 done (All projects with rename/delete, wish form and edit, app shell, edit/add/delete single questions, workflow editor, documents, review table); D-46 to D-53. Remaining M6 stories need a real key, settings or execution (see D-48, D-51, D-52, D-53). M2 planning complete 2026-11-14 (real Claude calls not tried).
 
+## UI/UX pass (2026-11-15, D-77)
+
+- One step per screen: `#<id>/wish|questions|requirements|workflow|review|run`; the address always names the step (a reload stays), steps not yet reached fall back to the next required one. Each view: heading with one sentence, content, sticky footer (Back left, one filled primary right, disabled with a visible reason). Optional things sit in a dashed "Optional" group.
+- Design tokens in `frontend/src/app.css`; native `<dialog>` confirmations (delete project, remove question, delete profile, stop run); toasts for saves; cost limit saves on leaving the field.
+- A failed key "Test" no longer discards a saved key (`AiCheckController`, `api/openapi.yaml`, JUnit test).
+- Diagram does not capture the wheel (zoom by buttons or Ctrl+wheel); Playwright checks it.
+- Run view "Build with" section (`BuildWith.svelte`, `api/execution.ts`) is built against a planned, unmerged backend (`GET /api/execution/prerequisites`, `PUT /api/execution/claude-auth`); it hides itself on 404.
+- Not done: Wish form and AllProjects one-off CSS values not fully tokenised; no Playwright check of dialogs on narrow screens.
+
 ## How to test (owner)
 
 **Start** (from the project folder): `ci/run env-up` builds the frontend and the jar, starts PostgreSQL if needed and the engine at **http://localhost:8080**. Stop it with `ci/run env-down`. All checks: `ci/run all-local`.

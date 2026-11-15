@@ -31,8 +31,10 @@
 </script>
 
 {#if kinds.length > 0}
-	<section class="step" data-testid="documents">
-		<h2>{locale.t('documents.heading')}</h2>
+	<section class="card" data-testid="documents">
+		<h2>
+			{locale.t('documents.heading')} <span class="badge muted">{locale.t('step.optional')}</span>
+		</h2>
 		<ul class="docs">
 			{#each kinds as kind (kind)}
 				<li class="card">
@@ -67,11 +69,18 @@
 	.docs {
 		list-style: none;
 		padding: 0;
+		margin: 0;
+		display: grid;
+		gap: var(--space-3);
 	}
 	.docs li {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 1rem;
+		gap: var(--space-3) var(--space-4);
 		align-items: center;
+		margin: 0;
+	}
+	.docs strong {
+		margin-right: auto;
 	}
 </style>

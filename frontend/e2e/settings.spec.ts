@@ -1,24 +1,15 @@
 import { expect, test } from '@playwright/test';
+import { planToReview } from './helpers.js';
 
 test('choose and edit a step profile; the run uses it', async ({ page }) => {
-	await page.goto('/#new');
-	await page.getByTestId('wish').fill('A canteen app where students order a meal and pick it up');
-	await page.getByTestId('project-key').fill('sk-any');
-	await page.getByTestId('create').click();
-	await page.getByTestId('ask').click();
-	await page.getByTestId('save-answers').click();
-	await expect(page.getByTestId('answers-saved')).toBeVisible();
-	await page.getByTestId('write-requirements').click();
-	await expect(page.getByTestId('step-requirements')).toContainText('FR-001');
-	await page.getByTestId('generate').click();
+	await planToReview(page, 'A canteen app where students order a meal and pick it up');
 	await expect(page.getByTestId('review-steps')).toContainText('Short: 4 steps per task');
 
 	// The cost limit per run is chosen on the review page
 	await page.getByTestId('limit-input').fill('abc');
 	await expect(page.getByTestId('limit-invalid')).toBeVisible();
-	await expect(page.getByTestId('limit-save')).toBeDisabled();
 	await page.getByTestId('limit-input').fill('7,5');
-	await page.getByTestId('limit-save').click();
+	await page.getByTestId('limit-input').press('Enter');
 	await expect(page.getByTestId('limit-saved')).toBeVisible();
 	await page.screenshot({ path: 'test-results/review-limits.png', fullPage: true });
 
@@ -53,14 +44,17 @@ test('choose and edit a step profile; the run uses it', async ({ page }) => {
 	await page.getByTestId('confirm').click();
 	await expect(page.getByTestId('confirmed')).toContainText('contract version 1');
 	await expect(page.getByTestId('limit-input')).toHaveValue('7.5');
+	await page.getByTestId('review-continue').click();
 	await page.getByTestId('start-run').click();
 	await expect(page.getByTestId('run-status')).toHaveText('Finished', { timeout: 60_000 });
 	await expect(page.getByTestId('run-task-1')).toContainText('Think first');
 	await expect(page.getByTestId('run-cost')).toContainText('of USD 7.50');
 
 	// Clean up: back to the default, delete the copy
+	await page.getByTestId('chip-review').click();
 	await page.getByTestId('review-steps-link').click();
 	await page.locator('[data-profile="Short"]').getByTestId('profile-use').click();
 	await page.locator('[data-profile="Mine"]').getByTestId('profile-delete').click();
+	await page.getByTestId('delete-profile-yes').click();
 	await expect(page.locator('[data-profile="Mine"]')).toHaveCount(0);
 });

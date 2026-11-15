@@ -3,6 +3,8 @@
 	import { locale } from '#lib/i18n/state.svelte.js';
 	import { relativeTime } from '#lib/shell/relativeTime.js';
 	import { statusKey, statusTone } from '#lib/shell/status.js';
+	import { toasts } from '#lib/shell/toast.svelte.js';
+	import ConfirmDialog from '#lib/components/ConfirmDialog.svelte';
 
 	let {
 		projects,
@@ -11,13 +13,14 @@
 	}: { projects: Project[]; failed: boolean; changed: () => Promise<void> } = $props();
 
 	let renaming = $state<{ id: string; name: string } | null>(null);
-	let deleting = $state<string | null>(null);
+	let deleting = $state<Project | null>(null);
 	let error = $state<string | null>(null);
 
-	async function act(action: () => Promise<unknown>) {
+	async function act(action: () => Promise<unknown>, done: string) {
 		error = null;
 		try {
 			await action();
+			toasts.show(done);
 			renaming = null;
 			deleting = null;
 			await changed();
@@ -64,7 +67,10 @@
 											class="inline"
 											onsubmit={(e) => {
 												e.preventDefault();
-												void act(() => updateProject(project.id, { name: renaming?.name ?? '' }));
+												void act(
+													() => updateProject(project.id, { name: renaming?.name ?? '' }),
+													locale.t('toast.renamed')
+												);
 											}}
 										>
 											<input
@@ -90,29 +96,21 @@
 								</td>
 								<td>{relativeTime(project.updatedAt, new Date(), locale.current)}</td>
 								<td>
-									<div class="actions">
-										{#if deleting === project.id}
-											<span>{locale.t('list.confirmDelete', { name: project.name })}</span>
-											<button
-												class="danger"
-												onclick={() => act(() => deleteProject(project.id))}
-												data-testid="confirm-delete"
-											>
-												{locale.t('list.delete')}
-											</button>
-											<button onclick={() => (deleting = null)}>{locale.t('list.cancel')}</button>
-										{:else}
-											<a class="button" href={`#${project.id}`}>{locale.t('projects.open')}</a>
-											<button
-												onclick={() => (renaming = { id: project.id, name: project.name })}
-												data-testid="rename"
-											>
-												{locale.t('list.rename')}
-											</button>
-											<button onclick={() => (deleting = project.id)} data-testid="delete">
-												{locale.t('list.delete')}
-											</button>
-										{/if}
+									<div class="row-actions">
+										<a class="button" href={`#${project.id}`}>{locale.t('projects.open')}</a>
+										<button
+											onclick={() => (renaming = { id: project.id, name: project.name })}
+											data-testid="rename"
+										>
+											{locale.t('list.rename')}
+										</button>
+										<button
+											class="danger"
+											onclick={() => (deleting = project)}
+											data-testid="delete"
+										>
+											{locale.t('list.delete')}
+										</button>
 									</div>
 								</td>
 							</tr>
@@ -125,6 +123,16 @@
 	</div>
 </div>
 
+<ConfirmDialog
+	open={deleting !== null}
+	title={locale.t('list.deleteTitle')}
+	text={locale.t('list.confirmDelete', { name: deleting?.name ?? '' })}
+	confirmLabel={locale.t('list.delete')}
+	testid="confirm-delete-dialog"
+	onconfirm={() => deleting && act(() => deleteProject(deleting!.id), locale.t('toast.deleted'))}
+	oncancel={() => (deleting = null)}
+/>
+
 <style>
 	.head {
 		display: flex;
@@ -132,24 +140,6 @@
 		justify-content: space-between;
 		align-items: flex-start;
 		gap: 1rem;
-	}
-	.button {
-		display: inline-block;
-		padding: 0.45rem 1rem;
-		border: 1px solid var(--field-line);
-		border-radius: 8px;
-		background: var(--surface);
-		color: var(--ink);
-		text-decoration: none;
-	}
-	.button.primary {
-		background: var(--blue);
-		border-color: var(--blue);
-		color: var(--on-blue);
-		padding: 0.7rem 1.4rem;
-	}
-	.scroll {
-		overflow-x: auto;
 	}
 	table {
 		width: 100%;
@@ -173,12 +163,10 @@
 	.wish {
 		color: var(--muted);
 	}
-	.actions {
-		white-space: nowrap;
+	.row-actions {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.5rem;
-		align-items: center;
+		gap: var(--space-2);
 		justify-content: flex-end;
 	}
 	.inline {

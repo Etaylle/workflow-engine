@@ -9,6 +9,8 @@
 		type ProjectSettings,
 		type StepProfile
 	} from '#lib/api/client.js';
+	import ConfirmDialog from '#lib/components/ConfirmDialog.svelte';
+	import { toasts } from '#lib/shell/toast.svelte.js';
 	import { createAction } from '#lib/api/action.svelte.js';
 	import { locale } from '#lib/i18n/state.svelte.js';
 	import ProfileEditor from './ProfileEditor.svelte';
@@ -59,12 +61,19 @@
 		if (ok) await load();
 	}
 
+	let removing = $state<StepProfile | null>(null);
+
 	async function remove(profile: StepProfile) {
-		if (await action.run(() => deleteStepProfile(profile.id))) await load();
+		const ok = await action.run(() => deleteStepProfile(profile.id));
+		removing = null;
+		if (ok) {
+			toasts.show(locale.t('toast.profileDeleted'));
+			await load();
+		}
 	}
 </script>
 
-<main class="page" aria-labelledby="steps-heading">
+<div class="page">
 	<a href={`#${project.id}`}>{locale.t('steps.back')}</a>
 	<h1 id="steps-heading">{locale.t('steps.title')}</h1>
 	<p class="lead">{locale.t('steps.lead')}</p>
@@ -136,11 +145,22 @@
 					>
 					<button
 						disabled={action.busy}
-						onclick={() => remove(profile)}
+						onclick={() => (removing = profile)}
 						data-testid="profile-delete">{locale.t('steps.delete')}</button
 					>
 				{/if}
 			{/if}
 		</section>
 	{/each}
-</main>
+</div>
+
+<ConfirmDialog
+	open={removing !== null}
+	title={locale.t('steps.deleteTitle')}
+	text={locale.t('steps.deleteText', { name: removing?.name ?? '' })}
+	confirmLabel={locale.t('steps.delete')}
+	busy={action.busy}
+	testid="delete-profile"
+	onconfirm={() => removing && remove(removing)}
+	oncancel={() => (removing = null)}
+/>

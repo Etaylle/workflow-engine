@@ -1,21 +1,14 @@
 import { expect, test, type Page } from '@playwright/test';
+import { planToReview } from './helpers.js';
 
 test('confirmed contract to a finished run and its ZIP, surviving a reload', async ({ page }) => {
-	await page.goto('/#new');
-	await page.getByTestId('wish').fill('A canteen app where students order a meal and pick it up');
-	await page.getByTestId('project-key').fill('sk-any');
-	await page.getByTestId('create').click();
-	await page.getByTestId('ask').click();
-	await page.getByTestId('save-answers').click();
-	await expect(page.getByTestId('answers-saved')).toBeVisible();
-	await page.getByTestId('write-requirements').click();
-	await expect(page.getByTestId('step-requirements')).toContainText('FR-001');
-	await page.getByTestId('generate').click();
+	await planToReview(page, 'A canteen app where students order a meal and pick it up');
 
 	// Run is offered only once the contract is confirmed
 	await expect(page.getByTestId('start-run')).toHaveCount(0);
 	await page.getByTestId('confirm').click();
 	await expect(page.getByTestId('confirmed')).toContainText('contract version 1');
+	await page.getByTestId('review-continue').click();
 
 	// US-06.03/04/07: start, watch tasks, steps, cost and console, reload during or after the run
 	await page.getByTestId('start-run').click();
@@ -49,18 +42,10 @@ test('confirmed contract to a finished run and its ZIP, surviving a reload', asy
 });
 
 async function startRunWithWish(page: Page, wish: string) {
-	await page.goto('/#new');
-	await page.getByTestId('wish').fill(wish);
-	await page.getByTestId('project-key').fill('sk-any');
-	await page.getByTestId('create').click();
-	await page.getByTestId('ask').click();
-	await page.getByTestId('save-answers').click();
-	await expect(page.getByTestId('answers-saved')).toBeVisible();
-	await page.getByTestId('write-requirements').click();
-	await expect(page.getByTestId('step-requirements')).toContainText('FR-001');
-	await page.getByTestId('generate').click();
+	await planToReview(page, wish);
 	await page.getByTestId('confirm').click();
 	await expect(page.getByTestId('confirmed')).toContainText('contract version 1');
+	await page.getByTestId('review-continue').click();
 	await page.getByTestId('start-run').click();
 }
 

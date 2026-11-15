@@ -2,15 +2,27 @@
 	import type { Project } from '#lib/api/client.js';
 	import { engineKey } from '#lib/ai/key.svelte.js';
 	import { locale } from '#lib/i18n/state.svelte.js';
-	import { rank } from '#lib/planning/steps.js';
+	import { nextStep, previousStep, rank, type StepId } from '#lib/planning/steps.js';
+	import { stepHash } from '#lib/shell/route.js';
 	import DocumentsPanel from './DocumentsPanel.svelte';
-	import WishEditor from './WishEditor.svelte';
-	import RunPanel from './RunPanel.svelte';
 	import QuestionsStep from './QuestionsStep.svelte';
 	import RequirementsStep from './RequirementsStep.svelte';
+	import RunPanel from './RunPanel.svelte';
+	import StepShell from './StepShell.svelte';
+	import WishEditor from './WishEditor.svelte';
 	import WorkflowPanel from './WorkflowPanel.svelte';
 
-	let { project, changed }: { project: Project; changed: () => void } = $props();
+	let { project, step, changed }: { project: Project; step: StepId; changed: () => Promise<void> } =
+		$props();
+
+	/** Moves to another step view; the new view opens at its top. */
+	const go = (target: StepId) => {
+		location.hash = stepHash(project.id, target);
+	};
+	const backOf = (current: StepId) => {
+		const previous = previousStep(current);
+		return previous ? stepHash(project.id, previous) : '#projects';
+	};
 </script>
 
 <article class="page" aria-labelledby="project-heading">
@@ -24,45 +36,48 @@
 			})}
 		</p>
 	{/if}
-	<div class="wish card" id="step-wish" tabindex="-1">
-		<h2>{locale.t('questions.yourWish')}</h2>
-		<WishEditor {project} {changed} />
-	</div>
 
-	<QuestionsStep {project} {changed} />
-	{#if rank(project.status) >= 2}
-		<RequirementsStep {project} {changed} />
+	{#if step === 'wish'}
+		<StepShell
+			step="wish"
+			heading={locale.t('step.wishTitle')}
+			lead={locale.t('step.wishLead')}
+			back={backOf('wish')}
+		>
+			<WishEditor {project} {changed} />
+			{#snippet primary()}
+				<a
+					class="button primary"
+					href={stepHash(project.id, nextStep('wish') ?? 'questions')}
+					data-testid="wish-continue"
+				>
+					{locale.t('step.continueQuestions')}
+				</a>
+			{/snippet}
+		</StepShell>
+	{:else if step === 'questions'}
+		<QuestionsStep {project} {changed} back={backOf('questions')} {go} />
+	{:else if step === 'requirements'}
+		<RequirementsStep {project} {changed} back={backOf('requirements')} />
+	{:else if step === 'workflow' || step === 'review'}
+		<WorkflowPanel {project} {changed} {step} back={backOf(step)} />
+	{:else}
+		<RunPanel {project} {changed} back={backOf('run')} />
 	{/if}
-	{#if rank(project.status) >= 3}
-		<WorkflowPanel {project} {changed} />
+	{#if step === 'review' || step === 'run'}
+		<DocumentsPanel {project} />
 	{/if}
-	{#if rank(project.status) >= 5}
-		<RunPanel {project} {changed} />
-	{/if}
-	<DocumentsPanel {project} />
 </article>
 
 <style>
 	.ai-chip {
 		display: inline-block;
-		margin: 0 0 0.9rem;
-		padding: 0.15rem 0.8rem;
+		margin: 0 0 var(--space-4);
+		padding: 0.15rem var(--space-3);
 		border: 1px solid var(--line);
 		border-radius: 999px;
 		background: var(--surface);
 		color: var(--muted);
-		font-size: 0.88rem;
-	}
-	.wish h2 {
-		font-size: 0.85rem;
-		text-transform: uppercase;
-		letter-spacing: 0.06em;
-		color: var(--muted);
-		margin-bottom: 0.4rem;
-	}
-	.wish :global(.lead) {
-		color: var(--ink);
-		margin-bottom: 0.9rem;
-		white-space: pre-wrap;
+		font-size: var(--text-sm);
 	}
 </style>

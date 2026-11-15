@@ -13,6 +13,10 @@
 	} from '#lib/api/client.js';
 	import RunControls from '#lib/components/RunControls.svelte';
 	import RunReportCard from '#lib/components/RunReportCard.svelte';
+	import BuildWith from '#lib/components/BuildWith.svelte';
+	import StepShell from '#lib/components/StepShell.svelte';
+	import { getPrerequisites, type Prerequisites } from '#lib/api/execution.js';
+	import { startBlock } from '#lib/execution/builders.js';
 	import { createAction } from '#lib/api/action.svelte.js';
 	import type { MessageKey } from '#lib/i18n/i18n.js';
 	import { locale } from '#lib/i18n/state.svelte.js';
@@ -27,7 +31,8 @@
 		progress
 	} from '#lib/run/run.js';
 
-	let { project, changed }: { project: Project; changed: () => void } = $props();
+	let { project, changed, back }: { project: Project; changed: () => Promise<void>; back: string } =
+		$props();
 
 	let run = $state<Run | null>(null);
 	let console_ = $state<RunEvent[]>([]);
@@ -35,6 +40,21 @@
 	const starting = createAction();
 	const answering = createAction();
 	let hint = $state('');
+	let prerequisites = $state<Prerequisites | null>(null);
+	const block = $derived(startBlock(prerequisites, project.agentHarness));
+	const blockReason = $derived(
+		block && canStart(project.status, run)
+			? locale.t('build.blocked', {
+					what: block.missing
+						.map((code) => locale.t(`build.missing.${code}` as MessageKey))
+						.join(', ')
+				})
+			: null
+	);
+
+	async function loadPrerequisites() {
+		prerequisites = await getPrerequisites();
+	}
 	const active = $derived(isActive(run));
 
 	async function load() {
@@ -88,6 +108,7 @@
 	$effect(() => {
 		void project.id;
 		void load();
+		void loadPrerequisites();
 	});
 
 	$effect(() => {
@@ -101,16 +122,23 @@
 	const stepKey = (status: string) => `run.step.${status}` as MessageKey;
 </script>
 
-<section class="step" aria-labelledby="run-heading" data-testid="step-run">
-	<h2 id="run-heading">{locale.t('run.heading')}</h2>
+<StepShell
+	step="run"
+	heading={locale.t('run.heading')}
+	lead={locale.t('step.runLead')}
+	{back}
+	reason={blockReason}
+>
 	{#if loading.error}<p role="alert">{loading.error}</p>{/if}
-
-	{#if canStart(project.status, run)}
-		<button class="primary" onclick={start} disabled={starting.busy} data-testid="start-run">
-			{starting.busy ? locale.t('run.starting') : locale.t(run ? 'run.startAgain' : 'run.start')}
-		</button>
+	{#if prerequisites && canStart(project.status, run)}
+		<BuildWith {project} {prerequisites} reload={loadPrerequisites} {changed} />
 	{/if}
-	{#if starting.error}<p role="alert" data-testid="run-error">{starting.error}</p>{/if}
+	{#if starting.error}
+		<p role="alert" data-testid="run-error">
+			{starting.error}
+			{#if prerequisites}{locale.t('build.errorChoose')}{/if}
+		</p>
+	{/if}
 
 	{#if run}
 		{@const steps = progress(run)}
@@ -216,17 +244,46 @@
 
 			{#if !active}<RunReportCard {run} />{/if}
 
-			{#if canDownload(run)}
-				<a class="button" href={runZipUrl(run.id)} data-testid="run-zip">
-					{locale.t('run.zip')}
-				</a>
-			{/if}
 			{#if active}<p class="notice">{locale.t('run.reloadHint')}</p>{/if}
 		</div>
 	{:else if !loading.busy}
-		<p>{locale.t('run.none')}</p>
+		<div class="empty">
+			<h3>{locale.t('run.none')}</h3>
+			<p>{locale.t('run.noneNext')}</p>
+		</div>
 	{/if}
-</section>
+
+	{#if run && canDownload(run) && canStart(project.status, run)}
+		<div class="optional">
+			<span class="optional-label">{locale.t('step.optional')}</span>
+			<button
+				class="quiet"
+				onclick={start}
+				disabled={starting.busy || block !== null}
+				data-testid="start-run"
+			>
+				{starting.busy ? locale.t('run.starting') : locale.t('run.startAgain')}
+			</button>
+		</div>
+	{/if}
+
+	{#snippet primary()}
+		{#if run && canDownload(run)}
+			<a class="button primary" href={runZipUrl(run.id)} data-testid="run-zip">
+				{locale.t('run.zip')}
+			</a>
+		{:else if canStart(project.status, run)}
+			<button
+				class="primary"
+				onclick={start}
+				disabled={starting.busy || block !== null}
+				data-testid="start-run"
+			>
+				{starting.busy ? locale.t('run.starting') : locale.t(run ? 'run.startAgain' : 'run.start')}
+			</button>
+		{/if}
+	{/snippet}
+</StepShell>
 
 <style>
 	.tasks {
@@ -236,9 +293,9 @@
 		max-height: 16rem;
 		overflow: auto;
 		background: var(--grey-soft);
-		border-radius: 8px;
-		padding: 0.75rem;
-		font-size: 0.85rem;
+		border-radius: var(--radius-sm);
+		padding: var(--space-3);
+		font-size: var(--text-xs);
 		white-space: pre-wrap;
 	}
 	[data-status='failed'] {
@@ -262,13 +319,5 @@
 		flex-wrap: wrap;
 		gap: 0.5rem;
 		margin-top: 0.5rem;
-	}
-	a.button {
-		display: inline-block;
-		padding: 0.45rem 1rem;
-		border: 1px solid var(--field-line);
-		border-radius: 8px;
-		text-decoration: none;
-		background: var(--surface);
 	}
 </style>

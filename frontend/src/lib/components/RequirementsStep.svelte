@@ -11,8 +11,18 @@
 	import Waiting from './Waiting.svelte';
 	import ErrorNote from './ErrorNote.svelte';
 	import { rank } from '#lib/planning/steps.js';
+	import { stepHash } from '#lib/shell/route.js';
+	import StepShell from './StepShell.svelte';
 
-	let { project, changed }: { project: Project; changed: () => void } = $props();
+	let {
+		project,
+		changed,
+		back
+	}: {
+		project: Project;
+		changed: () => Promise<void>;
+		back: string;
+	} = $props();
 
 	const priorityKey = (priority: string) => `priority.${priority}` as MessageKey;
 
@@ -30,7 +40,7 @@
 		const ok = await writing.run(
 			async () => (requirements = await generateRequirements(project.id))
 		);
-		if (ok) changed();
+		if (ok) await changed();
 	}
 
 	$effect(() => {
@@ -40,15 +50,12 @@
 	});
 </script>
 
-<section
-	class="step"
-	aria-labelledby="requirements-heading"
-	id="step-requirements"
-	tabindex="-1"
-	data-testid="step-requirements"
+<StepShell
+	step="requirements"
+	heading={locale.t('requirements.heading')}
+	lead={locale.t('step.requirementsLead')}
+	{back}
 >
-	<h2 id="requirements-heading">{locale.t('requirements.heading')}</h2>
-	<p class="sub">{locale.t('step.requirementsLead')}</p>
 	{#if loading.error}<p role="alert">{loading.error}</p>{/if}
 
 	{#if loading.busy && !written}
@@ -57,14 +64,6 @@
 		<div class="empty">
 			<h3>{locale.t('requirements.emptyTitle')}</h3>
 			<p>{locale.t('requirements.emptyStep')}</p>
-			<button
-				class="primary"
-				onclick={write}
-				disabled={writing.busy}
-				data-testid="write-requirements"
-			>
-				{writing.busy ? locale.t('requirements.writing') : locale.t('requirements.write')}
-			</button>
 		</div>
 	{/if}
 	{#if writing.busy}<Waiting what={locale.t('requirements.writing')} />{/if}
@@ -94,14 +93,41 @@
 			</ul>
 		{/each}
 		{#if editable}
-			<div class="actions">
-				<button onclick={write} disabled={writing.busy} data-testid="write-requirements">
+			<div class="optional">
+				<span class="optional-label">{locale.t('step.optional')}</span>
+				<button
+					class="quiet"
+					onclick={write}
+					disabled={writing.busy}
+					data-testid="write-requirements-again"
+				>
 					{writing.busy ? locale.t('requirements.writing') : locale.t('requirements.again')}
 				</button>
 			</div>
 		{/if}
 	{/if}
-</section>
+
+	{#snippet primary()}
+		{#if written}
+			<a
+				class="button primary"
+				href={stepHash(project.id, 'workflow')}
+				data-testid="requirements-continue"
+			>
+				{locale.t('step.continueWorkflow')}
+			</a>
+		{:else}
+			<button
+				class="primary"
+				onclick={write}
+				disabled={writing.busy || loading.busy}
+				data-testid="write-requirements"
+			>
+				{writing.busy ? locale.t('requirements.writing') : locale.t('requirements.write')}
+			</button>
+		{/if}
+	{/snippet}
+</StepShell>
 
 <style>
 	.count {

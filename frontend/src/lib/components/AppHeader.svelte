@@ -5,24 +5,26 @@
 	import { describeKey } from '#lib/ai/keyState.js';
 	import { engineKey } from '#lib/ai/key.svelte.js';
 	import KeyPanel from './KeyPanel.svelte';
-	import { activeChip } from '#lib/planning/steps.js';
+	import { nextActionKey, reach, STEPS, type StepId } from '#lib/planning/steps.js';
+	import { stepHash } from '#lib/shell/route.js';
 
-	let { projectName, status }: { projectName?: string; status?: string } = $props();
+	let {
+		projectId,
+		projectName,
+		status,
+		step
+	}: {
+		projectId?: string;
+		projectName?: string;
+		status?: string;
+		step?: StepId | undefined;
+	} = $props();
 
-	const CHIPS = ['wish', 'questions', 'requirements', 'workflow', 'review'] as const;
+	const nextKey = $derived(status === undefined ? null : nextActionKey(status));
 	const described = $derived(
 		describeKey(engineKey.keys, (p) => engineKey.nameOf(locale.t('key.nameAnthropic'), p))
 	);
-	/** Moves to a step of the project page; finished steps stay reachable. */
-	function goTo(chip: (typeof CHIPS)[number]) {
-		const id = chip === 'review' ? 'step-workflow' : `step-${chip}`;
-		document.getElementById(id)?.scrollIntoView({
-			behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
-			block: 'start'
-		});
-		document.getElementById(id)?.focus({ preventScroll: true });
-	}
-	const active = $derived(status === undefined ? -1 : activeChip(status));
+	const reached = $derived(status === undefined ? -1 : reach(status));
 </script>
 
 <header class="bar">
@@ -31,30 +33,40 @@
 		<strong>{locale.t('app.title')}</strong>
 	</a>
 	{#if projectName}<span class="crumb">/ {projectName}</span>{/if}
-	{#if status !== undefined}
-		<ol class="chips" data-testid="steps">
-			{#each CHIPS as chip, index (chip)}
-				<li
-					class:current={index === active}
-					class:done={active >= 0 && index < active}
-					class:locked={active >= 0 && index > active}
-					aria-current={index === active ? 'step' : undefined}
-				>
-					<button
-						type="button"
-						class="chip"
-						disabled={index > active}
-						onclick={() => goTo(chip)}
-						data-testid={`chip-${chip}`}
+	{#if status !== undefined && projectId}
+		<nav class="stepper" aria-label={locale.t('stepper.label')}>
+			<ol class="chips" data-testid="steps">
+				{#each STEPS as chip, index (chip)}
+					<li
+						class:current={chip === step}
+						class:done={index < reached}
+						class:locked={index > reached}
 					>
-						<span class="num" aria-hidden="true"
-							>{active >= 0 && index < active ? '✓' : index + 1}</span
-						>
-						{locale.t(`nav.${chip}` as MessageKey)}
-					</button>
-				</li>
-			{/each}
-		</ol>
+						{#if index <= reached}
+							<a
+								class="chip"
+								href={stepHash(projectId, chip)}
+								aria-current={chip === step ? 'step' : undefined}
+								data-testid={`chip-${chip}`}
+							>
+								<span class="num" aria-hidden="true">{index < reached ? '✓' : index + 1}</span>
+								{locale.t(`nav.${chip}` as MessageKey)}
+							</a>
+						{:else}
+							<span class="chip" aria-disabled="true" data-testid={`chip-${chip}`}>
+								<span class="num" aria-hidden="true">{index + 1}</span>
+								{locale.t(`nav.${chip}` as MessageKey)}
+							</span>
+						{/if}
+					</li>
+				{/each}
+			</ol>
+			{#if nextKey}
+				<p class="next" data-testid="next-action">
+					{locale.t('stepper.next', { action: locale.t(nextKey as MessageKey) })}
+				</p>
+			{/if}
+		</nav>
 	{/if}
 	{#if engineKey.demo}
 		<span class="demo" data-testid="demo-badge">{locale.t('app.demo')}</span>
@@ -93,7 +105,7 @@
 		flex-wrap: wrap;
 		align-items: center;
 		gap: 0.5rem 0.75rem;
-		padding: 0.75rem 1.25rem;
+		padding: var(--space-3) var(--gutter);
 		background: var(--surface);
 		border-bottom: 1px solid var(--line);
 	}
@@ -116,19 +128,33 @@
 	.crumb {
 		color: var(--muted);
 	}
+	.stepper {
+		margin: 0 auto;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: var(--space-1);
+	}
+	.next {
+		margin: 0;
+		font-size: var(--text-sm);
+		font-weight: 600;
+		color: var(--blue-ink);
+	}
 	.chips {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.5rem;
+		justify-content: center;
+		gap: var(--space-2);
 		list-style: none;
-		margin: 0 auto;
+		margin: 0;
 		padding: 0;
 	}
 	.chips li {
 		border: 1px solid var(--line);
 		border-radius: 999px;
 		padding: 0.2rem 0.65rem;
-		font-size: 0.92rem;
+		font-size: var(--text-sm);
 		color: var(--muted);
 	}
 	.chips li {
@@ -150,11 +176,12 @@
 		display: inline-flex;
 		align-items: center;
 		gap: 0.45rem;
-		border: 0;
-		background: transparent;
-		padding: 0;
+		min-height: 2rem;
 		color: inherit;
-		font: inherit;
+		text-decoration: none;
+	}
+	span.chip {
+		cursor: not-allowed;
 	}
 	.chips li.locked {
 		opacity: 0.6;
@@ -179,12 +206,17 @@
 	}
 	.keybtn {
 		margin-left: auto;
-		padding: 0.3rem 0.8rem;
+		min-height: 2.25rem;
+		padding: 0 var(--space-3);
 	}
 	.keybtn.missing {
 		border-color: var(--amber-line);
 		background: var(--amber-soft);
 		color: var(--amber-ink);
+	}
+	.lang {
+		width: auto;
+		min-height: 2.25rem;
 	}
 	.demo {
 		background: var(--amber-soft);
@@ -192,7 +224,7 @@
 		border: 1px solid var(--amber-line);
 		border-radius: 999px;
 		padding: 0.2rem 0.8rem;
-		font-size: 0.85rem;
+		font-size: var(--text-xs);
 		font-weight: 600;
 	}
 	@media (max-width: 52rem) {
