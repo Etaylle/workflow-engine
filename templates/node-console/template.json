@@ -1,0 +1,7 @@
+{
+  "id": "node-console",
+  "name": "Console program",
+  "kind": "console",
+  "description": "A command-line program in TypeScript on Node.js. Prints to the console, no server, no database.",
+  "needsDatabase": false
+}

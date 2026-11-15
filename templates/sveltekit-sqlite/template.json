@@ -1,0 +1,7 @@
+{
+  "id": "sveltekit-sqlite",
+  "name": "Web app (SvelteKit + SQLite)",
+  "kind": "web",
+  "description": "A web app in one TypeScript project: SvelteKit pages and API routes, SQLite file database. No database server.",
+  "needsDatabase": false
+}

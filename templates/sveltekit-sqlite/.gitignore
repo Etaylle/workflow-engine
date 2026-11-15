@@ -1,0 +1,9 @@
+build/
+.gradle/
+node_modules/
+dist/
+.DS_Store
+*.pem
+data/
+.svelte-kit/
+build/
