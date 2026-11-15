@@ -23,3 +23,8 @@ export function translate(
 	}
 	return template.replace(/\{(\w+)\}/g, (placeholder, name: string) => params[name] ?? placeholder);
 }
+
+/** True when the key exists (backend-supplied keys are checked before use). */
+export function hasMessage(key: string): boolean {
+	return key in en;
+}

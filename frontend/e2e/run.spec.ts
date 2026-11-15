@@ -10,6 +10,17 @@ test('confirmed contract to a finished run and its ZIP, surviving a reload', asy
 	await expect(page.getByTestId('confirmed')).toContainText('contract version 1');
 	await page.getByTestId('review-continue').click();
 
+	// Build with: both builders are shown and ready in demo mode; choosing one is saved
+	await expect(page.getByTestId('state-claude_code')).toHaveText('Ready');
+	await page.getByTestId('pick-gemini_cli').click();
+	await expect(page.getByTestId('pick-gemini_cli')).toHaveAttribute('aria-checked', 'true');
+	await page.reload();
+	await expect(page.getByTestId('pick-gemini_cli')).toHaveAttribute('aria-checked', 'true');
+	await page.getByTestId('pick-claude_code').click();
+	await expect(page.getByTestId('pick-claude_code')).toHaveAttribute('aria-checked', 'true');
+	await page.getByTestId('check-again').click();
+	await expect(page.getByTestId('state-gemini_cli')).toHaveText('Ready');
+
 	// US-06.03/04/07: start, watch tasks, steps, cost and console, reload during or after the run
 	await page.getByTestId('start-run').click();
 	await expect(page.getByTestId('run-card')).toBeVisible();
@@ -19,6 +30,7 @@ test('confirmed contract to a finished run and its ZIP, surviving a reload', asy
 	await expect(page.getByTestId('run-progress')).toContainText('8 of 8 steps done');
 	await expect(page.getByTestId('run-task-1')).toContainText('Order a meal');
 	await expect(page.getByTestId('run-task-2')).toContainText('Notify the student');
+	await expect(page.getByTestId('run-builder')).toHaveText('Built with Claude Code');
 	await expect(page.getByTestId('run-cost')).toContainText('Cost so far: USD 0.08 of USD 10.00');
 	await expect(page.getByTestId('run-console')).toContainText(
 		'Independent check: Stub: step check done'

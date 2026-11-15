@@ -25,6 +25,7 @@ const step = (status: 'waiting' | 'running' | 'done' | 'failed') => ({
 	title: 'Plan',
 	status,
 	costUsd: 0,
+	tokens: 0,
 	turns: 0,
 	seconds: 0,
 	attempts: 0
@@ -34,6 +35,7 @@ const run = (status: Run['status']): Run => ({
 	id: 'r1',
 	projectId: 'p1',
 	contractVersion: 1,
+	harness: 'claude_code',
 	status,
 	resumeCount: 0,
 	costUsd: 0.5,

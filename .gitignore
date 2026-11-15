@@ -31,3 +31,4 @@ playwright-report/
 
 # Local environment (pid files, logs)
 .run/
+.run-gate/

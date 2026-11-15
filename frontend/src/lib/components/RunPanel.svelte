@@ -15,8 +15,8 @@
 	import RunReportCard from '#lib/components/RunReportCard.svelte';
 	import BuildWith from '#lib/components/BuildWith.svelte';
 	import StepShell from '#lib/components/StepShell.svelte';
-	import { getPrerequisites, type Prerequisites } from '#lib/api/execution.js';
-	import { startBlock } from '#lib/execution/builders.js';
+	import { getBuilders, type Builders } from '#lib/api/execution.js';
+	import { missingCodes, startBlock } from '#lib/execution/builders.js';
 	import { createAction } from '#lib/api/action.svelte.js';
 	import type { MessageKey } from '#lib/i18n/i18n.js';
 	import { locale } from '#lib/i18n/state.svelte.js';
@@ -40,20 +40,22 @@
 	const starting = createAction();
 	const answering = createAction();
 	let hint = $state('');
-	let prerequisites = $state<Prerequisites | null>(null);
-	const block = $derived(startBlock(prerequisites, project.agentHarness));
+	let builders = $state<Builders | null>(null);
+	const block = $derived(startBlock(builders, project.agentHarness));
 	const blockReason = $derived(
 		block && canStart(project.status, run)
 			? locale.t('build.blocked', {
-					what: block.missing
-						.map((code) => locale.t(`build.missing.${code}` as MessageKey))
-						.join(', ')
+					what: missingCodes(block)
+						.map((code) =>
+							locale.has(`build.code.${code}`) ? locale.t(`build.code.${code}` as MessageKey) : code
+						)
+						.join(' ')
 				})
 			: null
 	);
 
-	async function loadPrerequisites() {
-		prerequisites = await getPrerequisites();
+	async function loadBuilders() {
+		builders = await getBuilders();
 	}
 	const active = $derived(isActive(run));
 
@@ -71,6 +73,7 @@
 			console_ = [];
 		});
 		if (ok) changed();
+		else await loadBuilders();
 	}
 
 	async function answer(choice: 'retry' | 'skip' | 'stop') {
@@ -108,7 +111,7 @@
 	$effect(() => {
 		void project.id;
 		void load();
-		void loadPrerequisites();
+		void loadBuilders();
 	});
 
 	$effect(() => {
@@ -130,13 +133,13 @@
 	reason={blockReason}
 >
 	{#if loading.error}<p role="alert">{loading.error}</p>{/if}
-	{#if prerequisites && canStart(project.status, run)}
-		<BuildWith {project} {prerequisites} reload={loadPrerequisites} {changed} />
+	{#if builders && canStart(project.status, run)}
+		<BuildWith {project} {builders} update={(fresh) => (builders = fresh)} {changed} />
 	{/if}
 	{#if starting.error}
 		<p role="alert" data-testid="run-error">
 			{starting.error}
-			{#if prerequisites}{locale.t('build.errorChoose')}{/if}
+			{#if builders}{locale.t('build.errorChoose')}{/if}
 		</p>
 	{/if}
 
@@ -150,6 +153,9 @@
 				<span data-testid="run-progress">
 					{locale.t('run.progress', { done: String(steps.done), total: String(steps.total) })}
 				</span>
+			</p>
+			<p data-testid="run-builder">
+				{locale.t('run.builtWith', { builder: locale.t(`build.${run.harness}` as MessageKey) })}
 			</p>
 			<p data-testid="run-cost">
 				{locale.t('run.cost', {
@@ -216,7 +222,12 @@
 								<li data-status={step.status}>
 									{step.title} · {locale.t(stepKey(step.status))}
 									{#if step.costUsd > 0}
-										({locale.t('run.stepCost', { cost: formatUsd(step.costUsd) })}){/if}
+										({locale.t('run.stepCost', {
+											cost: formatUsd(step.costUsd)
+										})}){:else if step.tokens > 0}
+										({locale.t('run.stepTokens', {
+											tokens: step.tokens.toLocaleString(locale.current)
+										})}){/if}
 									{#if step.attempts > 1}
 										<span data-testid={`attempts-${step.key}`}>
 											{locale.t('run.attempts', { count: String(step.attempts) })}

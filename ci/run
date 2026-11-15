@@ -3,7 +3,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-RUN_DIR="$ROOT/.run"
+RUN_DIR="${ENGINE_RUN_DIR:-$ROOT/.run}"
 PORT="${ENGINE_PORT:-8080}"
 E2E_PORT="${ENGINE_E2E_PORT:-8081}"
 DB_HOST="${ENGINE_DB_HOST:-localhost}"

@@ -243,6 +243,7 @@ export type RunStep = {
 	status: 'waiting' | 'running' | 'done' | 'failed';
 	result?: string | null;
 	costUsd: number;
+	tokens: number;
 	turns: number;
 	seconds: number;
 	attempts: number;
@@ -260,6 +261,7 @@ export type Run = {
 	id: string;
 	projectId: string;
 	contractVersion: number;
+	harness: string;
 	status: RunStatus;
 	failureReason?: string | null;
 	waitKind?: RunWaitKind | null;

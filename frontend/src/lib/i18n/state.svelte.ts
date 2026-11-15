@@ -1,4 +1,4 @@
-import { isLocale, translate, type Locale, type MessageKey } from './i18n.js';
+import { hasMessage, isLocale, translate, type Locale, type MessageKey } from './i18n.js';
 
 const STORAGE_KEY = 'engine.locale';
 
@@ -21,6 +21,8 @@ class LocaleState {
 		localStorage.setItem(STORAGE_KEY, locale);
 		document.documentElement.lang = locale;
 	}
+
+	has = (key: string): boolean => hasMessage(key);
 
 	t = (key: MessageKey, params: Record<string, string> = {}): string =>
 		translate(this.current, key, params);

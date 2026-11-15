@@ -1,56 +1,34 @@
-import type {
-	BuilderId,
-	BuilderReadiness,
-	ClaudeAuthMode,
-	Prerequisites
-} from '#lib/api/execution.js';
+import type { Builder, BuilderId, Builders, ClaudeAuthMode } from '#lib/api/execution.js';
 
 /** What the client can do about one missing thing. */
-export type MissingAction =
-	{ kind: 'open_key_panel' } | { kind: 'use_machine_sign_in' } | { kind: 'none' };
+export type MissingAction = 'open_key_panel' | 'none';
 
-/** The action that fixes a missing code; unknown codes get none. */
+/** The action that fixes a missing code; unknown codes and the sign-in (done in a terminal) get none. */
 export function actionFor(code: string): MissingAction {
-	switch (code) {
-		case 'anthropic_key':
-		case 'gemini_key':
-			return { kind: 'open_key_panel' };
-		case 'machine_sign_in':
-			return { kind: 'use_machine_sign_in' };
-		default:
-			return { kind: 'none' };
-	}
+	return code === 'no_anthropic_key' || code === 'no_gemini_key' ? 'open_key_panel' : 'none';
 }
 
-export function readinessOf(
-	prerequisites: Prerequisites | null,
-	builder: string
-): BuilderReadiness | null {
-	return prerequisites?.builders.find((b) => b.id === builder) ?? null;
+export function builderOf(builders: Builders | null, id: string): Builder | null {
+	return builders?.builders.find((b) => b.id === id) ?? null;
 }
 
 /**
- * Why the Run button must wait, or null when it may start. Without prerequisites (an engine that
- * does not report them) nothing blocks: the engine itself answers on start.
+ * The builder that may not start yet, or null when it may. Without a report (the engine does not
+ * answer) nothing blocks: the start itself answers 409 with the same information.
  */
-export function startBlock(
-	prerequisites: Prerequisites | null,
-	builder: string
-): { builder: BuilderId; missing: string[] } | null {
-	const readiness = readinessOf(prerequisites, builder);
-	if (!readiness || readiness.ready) return null;
-	return { builder: readiness.id, missing: readiness.missing };
+export function startBlock(builders: Builders | null, id: string): Builder | null {
+	const builder = builderOf(builders, id);
+	return builder && !builder.ready ? builder : null;
 }
 
-/** The auth choices of Claude Code with whether each one is covered by what is missing. */
-export function claudeAuthOptions(
-	prerequisites: Prerequisites
-): { mode: ClaudeAuthMode; ready: boolean; selected: boolean }[] {
-	const claude = readinessOf(prerequisites, 'claude_code');
-	const missing = claude?.missing ?? [];
-	return (['anthropic_key', 'machine_sign_in'] as const).map((mode) => ({
-		mode,
-		ready: !missing.includes(mode),
-		selected: prerequisites.claudeAuth === mode
-	}));
+/** The other way Claude Code can sign in, offered next to the current one. */
+export function otherAuthMode(builder: Builder): ClaudeAuthMode {
+	return builder.authMode === 'machine_sign_in' ? 'anthropic_key' : 'machine_sign_in';
 }
+
+/** Short reason shown beside the disabled Run button: the missing codes of the chosen builder. */
+export function missingCodes(builder: Builder): string[] {
+	return builder.missing.map((item) => item.code);
+}
+
+export const builderIds: readonly BuilderId[] = ['claude_code', 'gemini_cli'];
