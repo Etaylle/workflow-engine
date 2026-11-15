@@ -13,6 +13,7 @@ import org.springframework.stereotype.Component;
 public class SessionKey {
 
     static final String DEFAULT_BASE_URL = "https://api.openai.com/v1";
+    static final String GEMINI_HOST = "generativelanguage.googleapis.com";
     static final String DEFAULT_MODEL = "gpt-5.4-mini";
 
     /** The OpenAI-compatible provider of the session. */
@@ -77,6 +78,12 @@ public class SessionKey {
     /** The Anthropic key: used by the planning calls and by the builder. */
     public Optional<String> anthropicKey() {
         return Optional.ofNullable(anthropic);
+    }
+
+    /** The key of the compatible slot when it points at Google Gemini: the Gemini CLI builder uses it. */
+    public Optional<String> geminiKey() {
+        return Optional.ofNullable(compatible)
+                .filter(c -> c.baseUrl().contains(GEMINI_HOST)).map(Compatible::apiKey);
     }
 
     public Optional<Compatible> compatible() {

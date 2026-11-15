@@ -2,6 +2,7 @@ package engine.execution;
 
 import engine.shared.ApiProblem;
 import engine.shared.ContractPort;
+import engine.shared.Harness;
 import engine.shared.ProjectPort;
 import engine.shared.RunSettingsPort;
 import java.math.BigDecimal;
@@ -23,20 +24,20 @@ class RunService {
     private final RunStore store;
     private final RunOrchestrator orchestrator;
     private final RunEvents events;
-    private final Builder builder;
+    private final Builders builders;
     private final ProjectPort projects;
     private final ContractPort contracts;
     private final ExecutionSettings settings;
     private final RunSettingsPort runSettings;
 
-    RunService(RunStore store, RunOrchestrator orchestrator, RunEvents events, Builder builder,
+    RunService(RunStore store, RunOrchestrator orchestrator, RunEvents events, Builders builders,
             ProjectPort projects, ContractPort contracts, ExecutionSettings settings,
             RunSettingsPort runSettings) {
         this.runSettings = runSettings;
         this.store = store;
         this.orchestrator = orchestrator;
         this.events = events;
-        this.builder = builder;
+        this.builders = builders;
         this.projects = projects;
         this.contracts = contracts;
         this.settings = settings;
@@ -58,11 +59,12 @@ class RunService {
             throw new ApiProblem(409, "No software task",
                     "The workflow has no software task to build. Mark a task as software first.");
         }
-        builder.checkReady();
+        Harness harness = projects.harnessOf(projectId).orElseThrow();
+        builders.forHarness(harness).checkReady();
         UUID runId = UUID.randomUUID();
         Path workspace = settings.workspaceRoot().resolve("run-" + runId);
         RunSettingsPort.RunSettings chosen = runSettings.forProject(projectId);
-        store.create(runId, projectId, contract.version(),
+        store.create(runId, projectId, contract.version(), harness,
                 chosen.costLimitUsd().orElse(contract.costLimitUsd().orElse(settings.costLimitUsd())),
                 workspace.toString(),
                 settings.createDatabase() ? RunOrchestrator.databaseName(runId) : null,
@@ -111,7 +113,7 @@ class RunService {
             store.answerQuestion(open.id(), choice, text);
             return stop(runId);
         }
-        builder.checkReady();
+        builderOf(run).checkReady();
         store.answerQuestion(open.id(), choice, text);
         if ("skip".equals(choice)) {
             store.setStep(open.stepId(), "done", "Skipped by the client");
@@ -154,7 +156,7 @@ class RunService {
             throw new ApiProblem(409, "Run retrying", "The run is waiting for tokens and tries again by"
                     + " itself; continue it only when it has stopped retrying.");
         }
-        builder.checkReady();
+        builderOf(run).checkReady();
         if ("cost_limit".equals(run.waitKind()) || raiseLimitTo != null) {
             raiseLimit(run, raiseLimitTo);
         }
@@ -164,6 +166,11 @@ class RunService {
         events.publish(runId, "run", "continued by the client");
         continueRun(runId, run.projectId(), run.contractVersion());
         return view(runId);
+    }
+
+    /** The builder the run started with: a resume never switches builders. */
+    private Builder builderOf(RunView run) {
+        return builders.forHarness(Harness.ofId(run.harness()));
     }
 
     private void raiseLimit(RunView run, BigDecimal raiseLimitTo) {

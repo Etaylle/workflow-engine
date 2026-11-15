@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+# A fake Gemini CLI for the tests: answers like the real one in headless mode (-o json), and does
+# what the first line of the file "queue" in the state folder says (ok, fail, limit, badcheck).
+# The state folder is the folder of GEMINI_CLI_HOME's parent, or the folder of this script.
+set -euo pipefail
+
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [ "${1:-}" = "--version" ]; then
+	echo "0.0.0-fake"
+	exit 0
+fi
+
+state="$here"
+[ -z "${GEMINI_CLI_HOME:-}" ] || state="$(dirname "$GEMINI_CLI_HOME")"
+mkdir -p "$state/fake-gemini"
+dir="$state/fake-gemini"
+args="$*"
+printf '%s\n' "${args//$'\n'/ }" >>"$dir/args.log"
+printf 'key=%s home=%s cwd=%s\n' "${GEMINI_API_KEY:-}" "${GEMINI_CLI_HOME:-}" "$PWD" >>"$dir/env.log"
+
+mode=ok
+if [ -s "$dir/queue" ]; then
+	mode="$(head -n 1 "$dir/queue")"
+	tail -n +2 "$dir/queue" >"$dir/queue.tmp"
+	mv "$dir/queue.tmp" "$dir/queue"
+fi
+
+passing() { printf '#!/bin/sh\necho CHECK PASSED\n' >check.sh && chmod +x check.sh; }
+
+case "$mode" in
+ok)
+	passing
+	echo "work of the step" >"fake-work-$(date +%s%N).txt"
+	cat <<'JSON'
+{"session_id":"fake","response":"Did the step.","stats":{"models":{"fake-model":{"api":{"totalRequests":3,"totalErrors":0},"tokens":{"total":1234}}}}}
+JSON
+	;;
+badcheck)
+	printf '#!/bin/sh\necho tests failed: 1\nexit 1\n' >check.sh && chmod +x check.sh
+	cat <<'JSON'
+{"session_id":"fake","response":"Did the step.","stats":{"models":{"fake-model":{"api":{"totalRequests":1},"tokens":{"total":100}}}}}
+JSON
+	;;
+fail)
+	cat <<'JSON'
+{"session_id":"fake","error":{"type":"Error","message":"The step went wrong: no luck","code":1}}
+JSON
+	exit 1
+	;;
+limit)
+	cat <<'JSON'
+{"session_id":"fake","error":{"type":"Error","message":"[429] RESOURCE_EXHAUSTED: You exceeded your current quota, please check your plan and billing details.","code":1}}
+JSON
+	exit 1
+	;;
+*)
+	echo "fake gemini: unknown mode $mode" >&2
+	exit 2
+	;;
+esac

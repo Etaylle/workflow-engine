@@ -186,7 +186,7 @@ paths:
                 $ref: "#/components/schemas/Problem"
     patch:
       operationId: updateProject
-      summary: Change the name and/or the wish; a changed wish moves the project back to draft
+      summary: Change the name, the wish and/or the builder; a changed wish moves the project back to draft
       parameters:
         - $ref: "#/components/parameters/ProjectId"
       requestBody:
@@ -195,8 +195,14 @@ paths:
           application/json:
             schema:
               type: object
-              description: At least one of name and wish
+              description: At least one of name, wish and agentHarness
               properties:
+                agentHarness:
+                  type: string
+                  enum: [claude_code, gemini_cli]
+                  description: >
+                    The builder of the project's software. A run remembers the builder it started with,
+                    so changing it never affects a run under way or its resume
                 name:
                   type: string
                   minLength: 1
@@ -763,6 +769,63 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+  /api/builders:
+    get:
+      operationId: getBuilders
+      summary: What each builder needs to build, and whether it has it
+      description: >
+        For Claude Code and Gemini CLI: installed (with version), the key set in the session, for
+        Claude Code the sign-in mode and whether this machine is signed in ("unknown" when the
+        installed `claude auth status` gives no answer; the first step's error then tells), and
+        `missing`: one entry per missing prerequisite with a stable code, a message and, for a
+        sign-in that only the owner can do, an instructionKey (message key of the frontend; the
+        engine cannot perform the interactive Anthropic login, the instruction is to run `claude`
+        once in a terminal on this machine and log in). `demo` is true when the stub builds
+        everything (ENGINE_AI_STUB without ENGINE_EXECUTION_REAL_BUILDER); a real engine uses the
+        real builders without any further setting. Probe results are cached for 30 seconds;
+        refresh=true looks again.
+      parameters:
+        - name: refresh
+          in: query
+          required: false
+          schema: {type: boolean, default: false}
+      responses:
+        "200":
+          description: The builders in the order claude_code, gemini_cli
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Builders"
+  /api/builders/claude_code/auth:
+    put:
+      operationId: setClaudeCodeAuth
+      summary: Choose how Claude Code authenticates (kept in engine memory like the keys)
+      description: >
+        anthropic_key = the Anthropic key of the session goes to Claude Code as ANTHROPIC_API_KEY;
+        machine_sign_in = Claude Code uses the sign-in of this machine and no key is passed. The
+        start value comes from ENGINE_EXECUTION_USE_SIGN_IN (default anthropic_key).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [mode]
+              properties:
+                mode: {type: string, enum: [anthropic_key, machine_sign_in]}
+      responses:
+        "200":
+          description: The builders after the change
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Builders"
+        "400":
+          description: Unknown mode
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
   /api/projects/{id}/runs:
     post:
       operationId: startRun
@@ -770,8 +833,10 @@ paths:
       description: >
         Returns at once with the run in status preparing; the build goes on in the background.
         The tasks are the software tasks of the contract in workflow order, each built by the
-        steps of the project's step profile and stops at its cost limit (project settings). Needs the Anthropic key of the session unless the engine is
-        set to use the machine's own Claude Code sign-in.
+        steps of the project's step profile and stops at its cost limit (project settings). The run uses
+        the project's builder (agentHarness) and remembers it. Claude Code needs the Anthropic key of the
+        session or the machine sign-in mode; Gemini CLI needs the Gemini key (the OpenAI-compatible key slot
+        set to Google Gemini); both need the command installed (`GET /api/builders`).
       parameters:
         - $ref: "#/components/parameters/ProjectId"
       responses:
@@ -782,7 +847,10 @@ paths:
               schema:
                 $ref: "#/components/schemas/Run"
         "409":
-          description: Not confirmed, a run is active, no software task, or no key
+          description: >
+            Not confirmed, a run is active, no software task, or the builder is not ready: the title is
+            "Builder not ready: Claude Code" or "Builder not ready: Gemini CLI" and the detail names
+            exactly what is missing (not installed, Anthropic key, not signed in, Gemini key)
           content:
             application/problem+json:
               schema:
@@ -1264,7 +1332,10 @@ components:
         status:
           type: string
           enum: [draft, questions_ready, answered, requirements_ready, workflow_drafted, confirmed, executing, done, stopped, failed]
-        agentHarness: {type: string, enum: [claude_code, opencode]}
+        agentHarness:
+          type: string
+          enum: [claude_code, gemini_cli]
+          description: The builder of the software of this project (default claude_code)
         model: {type: string}
         createdAt: {type: string, format: date-time}
         updatedAt: {type: string, format: date-time}
@@ -1486,11 +1557,15 @@ components:
               askedAt: {type: string, format: date-time}
     Run:
       type: object
-      required: [id, projectId, contractVersion, status, costUsd, costLimitUsd, lastSeq, startedAt, tasks]
+      required: [id, projectId, contractVersion, harness, status, costUsd, costLimitUsd, lastSeq, startedAt, tasks]
       properties:
         id: {type: string, format: uuid}
         projectId: {type: string, format: uuid}
         contractVersion: {type: integer}
+        harness:
+          type: string
+          enum: [claude_code, gemini_cli]
+          description: The builder the run started with (snapshot; a resume uses the same one)
         status:
           type: string
           enum: [preparing, executing, waiting, done, interrupted, failed]
@@ -1552,7 +1627,8 @@ components:
                     title: {type: string}
                     status: {type: string, enum: [waiting, running, done, failed]}
                     result: {type: string, nullable: true}
-                    costUsd: {type: number}
+                    costUsd: {type: number, description: Always 0 with Gemini CLI (free tier)}
+                    tokens: {type: integer, format: int64, description: Tokens of the builder invocations (reported by Gemini CLI; 0 for Claude Code)}
                     turns: {type: integer}
                     seconds: {type: integer}
                     attempts:
@@ -1561,6 +1637,43 @@ components:
                         Builder invocations so far (the first try and the fix attempts); every one
                         is recorded as an agent call
                     commit: {type: string, nullable: true}
+    Builders:
+      type: object
+      required: [demo, builders]
+      properties:
+        demo: {type: boolean}
+        builders:
+          type: array
+          items:
+            type: object
+            required: [id, name, ready, installed, version, keySet, model, missing]
+            properties:
+              id: {type: string, enum: [claude_code, gemini_cli]}
+              name: {type: string}
+              ready: {type: boolean, description: Nothing is missing; a run with this builder may start}
+              installed: {type: boolean}
+              version: {type: string}
+              signedIn:
+                type: string
+                nullable: true
+                enum: [yes, no, unknown]
+                description: Claude Code in machine_sign_in mode only
+              keySet: {type: boolean, description: The Anthropic key (Claude Code) or the Gemini key (Gemini CLI) is set}
+              authMode:
+                type: string
+                nullable: true
+                enum: [anthropic_key, machine_sign_in]
+                description: Claude Code only
+              model: {type: string}
+              missing:
+                type: array
+                items:
+                  type: object
+                  required: [code, message]
+                  properties:
+                    code: {type: string, enum: [claude_not_installed, no_anthropic_key, not_signed_in, gemini_not_installed, no_gemini_key]}
+                    message: {type: string}
+                    instructionKey: {type: string, nullable: true}
     RunEvent:
       type: object
       required: [seq, kind, text, at]

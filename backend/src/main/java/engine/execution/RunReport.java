@@ -31,7 +31,7 @@ public record RunReport(
     public record Task(String title, String status, List<Step> steps) {
     }
 
-    /** One step: attempts are the Claude Code invocations, commit the checkpoint if any. */
+    /** One step: attempts are the Builder invocations, commit the checkpoint if any. */
     public record Step(String title, String status, int attempts, BigDecimal costUsd, int seconds,
             String commit) {
     }
@@ -73,7 +73,7 @@ public record RunReport(
                 .append('\n')
                 .append("- Tasks done: ").append(tasksDone).append(" of ").append(tasksTotal).append('\n')
                 .append("- Steps done: ").append(stepsDone).append(" of ").append(stepsTotal).append('\n')
-                .append("- Claude Code invocations: ").append(attempts).append('\n')
+                .append("- Builder invocations: ").append(attempts).append('\n')
                 .append("- Checkpoints (git commits): ").append(checkpoints).append('\n')
                 .append("- Resumed after an engine restart: ").append(resumeCount).append(" times\n");
         for (Task task : tasks) {

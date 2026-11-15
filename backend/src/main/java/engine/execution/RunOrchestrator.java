@@ -36,7 +36,7 @@ class RunOrchestrator {
 
     private final RunStore store;
     private final RunEvents events;
-    private final Builder builder;
+    private final Builders builders;
     private final ExecutionSettings settings;
     private final ProjectPort projects;
     private final JdbcClient jdbc;
@@ -51,13 +51,13 @@ class RunOrchestrator {
         return thread;
     });
 
-    RunOrchestrator(RunStore store, RunEvents events, Builder builder, ExecutionSettings settings,
+    RunOrchestrator(RunStore store, RunEvents events, Builders builders, ExecutionSettings settings,
             ProjectPort projects, JdbcClient jdbc, @Value("${spring.datasource.url}") String dbUrl,
             @Value("${spring.datasource.username:}") String dbUser,
             @Value("${spring.datasource.password:}") String dbPassword) {
         this.store = store;
         this.events = events;
-        this.builder = builder;
+        this.builders = builders;
         this.settings = settings;
         this.projects = projects;
         this.jdbc = jdbc;
@@ -346,6 +346,7 @@ class RunOrchestrator {
                 + "\n\nYour previous attempt at this step failed. What went wrong:\n" + previousFailure
                 + "\n\nFix this. Change only what is needed, then run ./check.sh until it prints"
                 + " CHECK PASSED.";
+        Builder builder = builders.forHarness(ctx.run().harness());
         StepOutcome outcome = builder.run(new StepRequest(ctx.workspace().dir(), def.key(), prompt,
                 def.capUsd().min(remaining), ctx.appEnv(), ctx.logDir(), () -> stopped(runId)));
         UUID call = store.addAgentCall(row.id(), outcome);
@@ -400,6 +401,9 @@ class RunOrchestrator {
     private static void archiveDocs(Path dir, int taskNo) {
         Path docs = dir.resolve("docs");
         Path target = docs.resolve("task-" + taskNo);
+        if (!Files.isDirectory(docs)) {
+            return;
+        }
         try (Stream<Path> files = Files.list(docs)) {
             List<Path> toMove = new ArrayList<>(files.filter(Files::isRegularFile).toList());
             if (toMove.isEmpty()) {

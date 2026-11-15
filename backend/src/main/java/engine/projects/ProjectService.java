@@ -1,6 +1,7 @@
 package engine.projects;
 
 import engine.shared.ApiProblem;
+import engine.shared.Harness;
 import engine.shared.ProjectCleanup;
 import engine.shared.AiTarget;
 import engine.shared.ProjectPort;
@@ -60,16 +61,19 @@ public class ProjectService implements ProjectPort {
      * brief and the questions are made again from the new wish.
      */
     @Transactional
-    public Project update(UUID id, String name, String wish) {
-        if (name == null && wish == null) {
-            throw new ApiProblem(400, "Nothing to change", "Send a name, a wish, or both.");
+    public Project update(UUID id, String name, String wish, String agentHarness) {
+        if (name == null && wish == null && agentHarness == null) {
+            throw new ApiProblem(400, "Nothing to change",
+                    "Send a name, a wish, a builder (agentHarness), or several.");
         }
         Project current = get(id).orElseThrow(() -> notFound(id));
         String newName = name == null ? current.name() : checkedName(name);
         String newWish = wish == null ? current.wish() : checkedWish(wish);
         boolean wishChanged = !newWish.equals(current.wish());
+        String harness = agentHarness == null ? current.agentHarness() : Harness.ofId(agentHarness).id();
         jdbc.sql("update projects.projects set name = :name, wish = :wish, status = :status,"
-                        + " updated_at = :now, version = version + 1 where id = :id")
+                        + " agent_harness = :harness, updated_at = :now, version = version + 1 where id = :id")
+                .param("harness", harness)
                 .param("name", newName)
                 .param("wish", newWish)
                 .param("status", wishChanged ? "draft" : current.status())
@@ -150,6 +154,15 @@ public class ProjectService implements ProjectPort {
                 .param("id", projectId)
                 .query(String.class)
                 .optional();
+    }
+
+    @Override
+    public Optional<Harness> harnessOf(UUID projectId) {
+        return jdbc.sql("select agent_harness from projects.projects where id = :id")
+                .param("id", projectId)
+                .query(String.class)
+                .optional()
+                .map(Harness::ofId);
     }
 
     @Override

@@ -132,6 +132,12 @@ class RunIT {
         ScriptedBuilder scriptedBuilder() {
             return new ScriptedBuilder();
         }
+
+        @Bean
+        @Primary
+        Builders scriptedBuilders(ScriptedBuilder scripted) {
+            return Builders.single(scripted);
+        }
     }
 
     @Autowired private ScriptedBuilder builder;
