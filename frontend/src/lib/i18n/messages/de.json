@@ -223,5 +223,10 @@
 	"steps.problem.cap": "Die Kostengrenze muss über 0 und höchstens 10 liegen.",
 	"review.steps": "Entwicklungsschritte",
 	"review.stepsValue": "{profile}: {count} Schritte pro Aufgabe",
-	"review.stepsEdit": "Wählen oder bearbeiten"
+	"review.stepsEdit": "Wählen oder bearbeiten",
+	"limits.title": "Grenzen",
+	"limits.cost": "Kostengrenze pro Lauf (USD, Ihr API-Schlüssel)",
+	"limits.hint": "Der Lauf wartet und fragt Sie, wenn sie erreicht ist. Leer bedeutet den Standard von {default} USD; von {min} bis {max}.",
+	"limits.invalid": "Geben Sie einen Betrag von {min} bis {max} USD mit höchstens zwei Nachkommastellen ein oder lassen Sie das Feld leer.",
+	"limits.saved": "Gespeichert. Ein neuer Lauf nutzt diese Grenze."
 }

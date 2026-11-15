@@ -223,5 +223,10 @@
 	"steps.problem.cap": "The cost cap must be above 0 and at most 10.",
 	"review.steps": "Development steps",
 	"review.stepsValue": "{profile}: {count} steps per task",
-	"review.stepsEdit": "Choose or edit"
+	"review.stepsEdit": "Choose or edit",
+	"limits.title": "Limits",
+	"limits.cost": "Cost limit per run (USD, your API key)",
+	"limits.hint": "The run waits and asks you when it is reached. Empty means the default of USD {default}; from {min} to {max}.",
+	"limits.invalid": "Enter an amount from USD {min} to {max} with at most two decimals, or leave it empty.",
+	"limits.saved": "Saved. A new run uses this limit."
 }

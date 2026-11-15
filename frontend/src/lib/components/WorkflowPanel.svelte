@@ -10,6 +10,7 @@
 	} from '#lib/api/client.js';
 	import { describeError } from '#lib/api/problem.js';
 	import { locale } from '#lib/i18n/state.svelte.js';
+	import LimitsCard from './LimitsCard.svelte';
 	import ReviewSummary from './ReviewSummary.svelte';
 	import { reviewFacts } from '#lib/planning/review.js';
 	import WorkflowDiagram from './WorkflowDiagram.svelte';
@@ -86,6 +87,7 @@
 	</h2>
 	{#if reviewed}
 		<ReviewSummary {project} {facts} />
+		<LimitsCard {project} />
 	{/if}
 
 	<button
