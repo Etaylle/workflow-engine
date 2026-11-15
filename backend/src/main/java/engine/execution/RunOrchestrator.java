@@ -242,20 +242,13 @@ class RunOrchestrator {
             if (remaining.compareTo(MIN_BUDGET) < 0) {
                 return costLimit(ctx.run().id(), limit, task, row);
             }
-            if (attempt > 1 && waits == 0) {
-                events.publish(runId, "console", "Fix attempt " + (attempt - 1) + " of "
-                        + settings.fixAttempts() + " for " + def.title());
-            }
+            announceFix(runId, def, attempt, waits);
             Attempt result = attempt(ctx, row, def, remaining, failure);
             if (stopped(runId)) {
                 return false;
             }
             if (result.passed()) {
-                String sha = ctx.workspace().commit("Task " + taskNo + " step " + def.key() + " green");
-                store.addCheckpoint(row.id(), sha);
-                store.setStep(row.id(), "done", result.text());
-                events.publish(runId, "step", "Step " + def.title() + " done");
-                return true;
+                return completeStep(ctx, row, def, taskNo, result.text());
             }
             if (result.limited()) {
                 if (!waitForTokens(ctx, task, row, result.text(), ++waits)) {
@@ -269,6 +262,22 @@ class RunOrchestrator {
             attempt++;
         }
         return askClient(ctx.run(), task, row, def.title(), attempts, failure);
+    }
+
+    private void announceFix(UUID runId, StepDef def, int attempt, int waits) {
+        if (attempt > 1 && waits == 0) {
+            events.publish(runId, "console", "Fix attempt " + (attempt - 1) + " of "
+                    + settings.fixAttempts() + " for " + def.title());
+        }
+    }
+
+    /** A green step: commit the workspace (the checkpoint), record it, mark the step done. */
+    private boolean completeStep(Ctx ctx, RunStore.StepRow row, StepDef def, int taskNo, String summary) {
+        String sha = ctx.workspace().commit("Task " + taskNo + " step " + def.key() + " green");
+        store.addCheckpoint(row.id(), sha);
+        store.setStep(row.id(), "done", summary);
+        events.publish(ctx.run().id(), "step", "Step " + def.title() + " done");
+        return true;
     }
 
     /**

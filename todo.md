@@ -2,7 +2,7 @@
 
 Updated after each slice and each decision. Newest first. The plan: `ai-docs/plan.md`. How we work: `CLAUDE.md` 2.
 
-Last update: 2026-11-15 (Claude): M4 run end to end (thin) built with the stub, D-54 to D-61; M6 slices 1 to 6 done (All projects with rename/delete, wish form and edit, app shell, edit/add/delete single questions, workflow editor, documents, review table); D-46 to D-53. Remaining M6 stories need a real key, settings or execution (see D-48, D-51, D-52, D-53). M2 planning complete 2026-11-14 (real Claude calls not tried).
+Last update: 2026-11-15 (Claude): M5 runs that survive built (fix loops, asking the client, stop and resume, limits and waiting), D-62 to D-65; M4 run end to end (thin) built with the stub, D-54 to D-61; M6 slices 1 to 6 done (All projects with rename/delete, wish form and edit, app shell, edit/add/delete single questions, workflow editor, documents, review table); D-46 to D-53. Remaining M6 stories need a real key, settings or execution (see D-48, D-51, D-52, D-53). M2 planning complete 2026-11-14 (real Claude calls not tried).
 
 ## How to test (owner)
 
@@ -31,11 +31,26 @@ Confirm a contract, then press "Run" under the workflow: tasks, steps, cost and 
 
 **Live proof of M4 (2026-11-15):** one real run on the canteen contract (stubbed planning, real builder on the machine's Claude Code sign-in, `ENGINE_EXECUTION_REAL_BUILDER=true ENGINE_EXECUTION_USE_SIGN_IN=true`, limit USD 6): 2 software tasks x 4 steps, all green first time, 9.3 minutes, USD 1.52 (`total_cost_usd`), 11 commits; `./check.sh` re-run by hand: CHECK PASSED (25 Vitest, backend tests green). In sign-in mode the session key is not passed to the child (a dummy key gave "Invalid API key" on the first try). Not tried: the real builder with an API key.
 
+## M5 how to test (runs that survive)
+
+All with `ENGINE_AI_STUB=true ci/run env-up`. The stub builder obeys markers written anywhere in the wish (they reach `CONTRACT.md`); type one into the wish of a new project, confirm the contract, press "Run":
+
+| Wish contains | What you see |
+|---|---|
+| `stub-fail:build:3` | the step "Build with tests" fails 3 times (the first try and 2 fix attempts, "3 attempts" under the step), then the run is "Waiting" with one question: type a hint and "Try again" (or "Skip this step", "Stop the run"); the run continues from the last checkpoint |
+| `stub-slow:1500` | every step takes 1.5 s, so there is time to press "Stop the run" (asks for a confirmation, then "Stopped") |
+| `stub-crash:build:1` | the run is "Interrupted" after the first step (as after an engine restart); "Continue from the last checkpoint" resumes it (the key field is only needed when the engine has no key) |
+| `stub-limit:build:2` | "Waiting for tokens" with the reason and the try number, then the run goes on by itself (waits of 1 minute doubling to 15; `ENGINE_EXECUTION_LIMIT_WAIT_BASE_MS=2000` makes it quick) |
+
+Cost limit: `ENGINE_EXECUTION_COST_LIMIT_USD=0.2` makes a run wait at its limit after one step; the screen asks for a new limit. Settings: `ENGINE_EXECUTION_FIX_ATTEMPTS` (2), `_MAX_RESUMES` (3), `_LIMIT_WAIT_BASE_MS` (60000), `_LIMIT_WAIT_MAX_MS` (900000), `_LIMIT_MAX_RETRIES` (6).
+
+**Live proof of M5 (2026-11-15):** canteen contract (stubbed planning, real builder on the machine's Claude Code sign-in, cost limit USD 3.5), 2 tasks x 4 steps, 9.2 minutes, USD 1.43 (`total_cost_usd`). (1) Fix loop: a failing test (`PlantedDefectTest` with `PlantedDefect.status()` returning "broken") was written into the workspace right after the first builder call of "Build with tests"; the check failed ("13 tests completed, 1 failed"), the step went back to the builder with that output, attempt 2 changed the code to "fixed" and the check passed (2 attempts, USD 0.53 for the step). (2) Resume: while task 2 "Build with tests" was running the engine process group (builder child included) was killed with SIGKILL and started again: the run showed `interrupted`, `POST /api/runs/{id}/resume` (sign-in mode, so no key needed) reset the workspace to the last checkpoint, rebuilt the interrupted step and finished `done` (resume 1 of 3, 11 commits, no repeated step). (3) Stop: a second run was stopped 8 seconds into its first step: `failed` "Stopped by the client", the builder process ended, workspace clean (`git status` empty), ZIP 200; the cost of that killed invocation is not known (Claude Code printed no result), well under USD 0.2. Not shown live: a real rate limit or exhausted credit (stub only), the cost limit with the real builder, a question to the client with the real builder (all stubbed in JUnit and Playwright). Two empty `run_*` databases of the proof (`run_c4a997f9704f`, `run_9d3faa0d6745`) stay in PostgreSQL: dropping a database is blocked for the agent; drop them by hand if wished.
+
 ## Current position
 
 | Item | State |
 |---|---|
-| Milestone | M0, M1 and M2 done 2026-11-14; M3 build spike measured 2026-11-15 (see "M3 spike results"); M4 run built (see "M4 run" below); next M5 |
+| Milestone | M0, M1 and M2 done 2026-11-14; M3 build spike measured 2026-11-15 (see "M3 spike results"); M4 run built (see "M4 run" below); M5 built 2026-11-15 (see "M5 how to test"; live proof below); next M7 or the next milestone of `plan.md` |
 | M2 done | Brief (`POST/GET /api/projects/{id}/brief`), questions (`POST/GET .../questions`, `PUT .../answers`), requirements (`POST/GET .../requirements`), workflow now from answers and requirements; contract snapshot holds wish, brief, answers, requirements, workflow. Frontend: one project page with the steps, status-driven so a reload keeps the place. Diagram redrawn with swimlane bands (screenshot checked). `ci/run all-local` green (counts in the report of this session). **Not tried: any real Claude call of M2** (4 calls: brief, questions, requirements, workflow) |
 | M0 done | `backend/` (Spring Boot 4.1.2, Java 21 by Gradle toolchain, wrapper 8.14.7), the four planning migrations (18 tables), `GET /api/status` from `api/openapi.yaml`, health; `./gradlew test` 2 of 2 green (unit, architecture), `./gradlew integrationTest` 3 of 3 green on PostgreSQL 17 |
 | M0 also done | `frontend/` (SvelteKit 3, Svelte 5, English and German, status call, AI check), `POST /api/ai/check` (key in memory only, Anthropic Java SDK, `claude-haiku-5-5`; stub with `ENGINE_AI_STUB=true`), `ci/run`, one Playwright journey; `ci/run all-local` green (backend 5 unit + 3 integration, frontend 5 Vitest, 1 end-to-end). Not tried: the AI check with a real valid key (only the 401 path against the live API) |
