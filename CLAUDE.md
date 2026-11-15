@@ -33,7 +33,7 @@ Folders: `backend/`, `frontend/`, `api/`, `ci/`, `templates/` (the project templ
 
 ## 4. Commands
 
-Everything goes through `ci/run <command>` (created in milestone M0): `all-local` (build, checks, tests, environment, smoke), `test-unit`, `test-integration`, `test-e2e`, `env-up`, `env-down`.
+Everything goes through `ci/run <command>` (created in milestone M0): `all-local` (build, checks, tests, environment, smoke), `test-unit`, `test-integration`, `test-e2e`, `env-up`, `env-down`, `install-gemini` (the Gemini CLI builder into `.run/tools`).
 
 ## 5. Product decisions that hold
 
