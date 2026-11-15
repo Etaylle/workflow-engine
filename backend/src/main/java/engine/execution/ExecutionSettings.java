@@ -8,7 +8,6 @@ import java.math.BigDecimal;
  * Configuration of the execution domain, all from the environment (see ExecutionConfig).
  *
  * @param workspaceRoot folder that holds one workspace per run, outside the repository
- * @param templateDir the project template that is copied into each workspace
  * @param geminiCmd the Gemini CLI command (ENGINE_GEMINI_CMD)
  * @param geminiModel the model of the Gemini CLI builder (ENGINE_GEMINI_BUILD_MODEL)
  * @param useSignIn start value of the Claude Code sign-in mode; the owner changes it at run time
@@ -22,7 +21,7 @@ import java.math.BigDecimal;
  * @param previewLifetime how long a preview of the generated app runs once it answers
  * @param previewStartTimeout how long building and starting a preview may take before it fails
  */
-record ExecutionSettings(Path workspaceRoot, Path templateDir, String claudeBin, String model,
+record ExecutionSettings(Path workspaceRoot, String claudeBin, String model,
         String geminiCmd, String geminiModel,
         boolean useSignIn, boolean createDatabase, BigDecimal costLimitUsd, Duration stepTimeout,
         Duration checkTimeout, int fixAttempts, int maxResumes,

@@ -1,6 +1,8 @@
 package engine.execution;
 
 import engine.shared.ProjectPort;
+import engine.shared.Template;
+import engine.shared.TemplateCatalog;
 import engine.shared.RunSettingsPort.Step;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -40,6 +42,7 @@ class RunOrchestrator {
     private final ExecutionSettings settings;
     private final ProjectPort projects;
     private final JdbcClient jdbc;
+    private final TemplateCatalog templates;
     private final String dbUrl;
     private final String dbUser;
     private final String dbPassword;
@@ -52,7 +55,7 @@ class RunOrchestrator {
     });
 
     RunOrchestrator(RunStore store, RunEvents events, Builders builders, ExecutionSettings settings,
-            ProjectPort projects, JdbcClient jdbc, @Value("${spring.datasource.url}") String dbUrl,
+            ProjectPort projects, JdbcClient jdbc, TemplateCatalog templates, @Value("${spring.datasource.url}") String dbUrl,
             @Value("${spring.datasource.username:}") String dbUser,
             @Value("${spring.datasource.password:}") String dbPassword) {
         this.store = store;
@@ -61,6 +64,7 @@ class RunOrchestrator {
         this.settings = settings;
         this.projects = projects;
         this.jdbc = jdbc;
+        this.templates = templates;
         this.dbUrl = dbUrl;
         this.dbUser = dbUser;
         this.dbPassword = dbPassword;
@@ -142,10 +146,11 @@ class RunOrchestrator {
         } catch (IOException e) {
             throw new UncheckedIOException("Could not create " + logDir, e);
         }
+        Template template = templates.require(run.templateId());
         Map<String, String> appEnv;
         if ("preparing".equals(run.status())) {
             events.publish(runId, "console", "Preparing the workspace from the template");
-            workspace.prepare(settings.templateDir(), contract);
+            workspace.prepare(template.dir(), contract);
             createDatabase(run);
             appEnv = appEnv(run);
             store.setRun(runId, "executing", null);
@@ -156,7 +161,7 @@ class RunOrchestrator {
             appEnv = appEnv(run);
             events.publish(runId, "run", "executing: continued from the last checkpoint");
         }
-        Ctx ctx = new Ctx(run, workspace, logDir, appEnv);
+        Ctx ctx = new Ctx(run, template, workspace, logDir, appEnv);
         List<RunStore.TaskRow> tasks = store.tasksToBuild(runId);
         for (int i = 0; i < tasks.size(); i++) {
             if (!"done".equals(tasks.get(i).status()) && !buildTask(ctx, contract, tasks, i)) {
@@ -173,14 +178,14 @@ class RunOrchestrator {
     }
 
     private void createDatabase(RunStore.RunRow run) {
-        if (settings.createDatabase()) {
+        if (run.databaseName() != null) {
             jdbc.sql("create database " + run.databaseName()).update();
             events.publish(run.id(), "console", "Database " + run.databaseName() + " created for the project");
         }
     }
 
     private Map<String, String> appEnv(RunStore.RunRow run) {
-        if (!settings.createDatabase()) {
+        if (run.databaseName() == null) {
             return Map.of();
         }
         Map<String, String> env = new HashMap<>();
@@ -192,7 +197,7 @@ class RunOrchestrator {
     }
 
     /** What one run needs while it builds: the row, the workspace, the log folder, the app settings. */
-    private record Ctx(RunStore.RunRow run, Workspace workspace, Path logDir, Map<String, String> appEnv) {
+    private record Ctx(RunStore.RunRow run, Template template, Workspace workspace, Path logDir, Map<String, String> appEnv) {
     }
 
     /** The result of one attempt at a step: passed with a summary, or failed with what went wrong. */
@@ -205,7 +210,7 @@ class RunOrchestrator {
         events.publish(ctx.run().id(), "task", "Task " + (index + 1) + " of " + tasks.size() + ": " + task.title());
         List<String> done = tasks.subList(0, index).stream().map(RunStore.TaskRow::title).toList();
         List<String> later = tasks.subList(index + 1, tasks.size()).stream().map(RunStore.TaskRow::title).toList();
-        ctx.workspace().writeTask(contract, task.title(), task.description(), done, later);
+        ctx.workspace().writeTask(contract, ctx.template(), task.title(), task.description(), done, later);
         for (int s = 0; s < task.steps().size(); s++) {
             if (!"done".equals(task.steps().get(s).status()) && !buildStep(ctx, task, s, index + 1)) {
                 return false;

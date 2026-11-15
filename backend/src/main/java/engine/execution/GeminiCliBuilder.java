@@ -27,7 +27,7 @@ import tools.jackson.databind.json.JsonMapper;
 class GeminiCliBuilder implements RealBuilder {
 
     /** The shell commands a step may run; everything else is denied by the policy of the CLI. */
-    private static final List<String> SHELL_ALLOWED = List.of("./check.sh", "./start.sh", "./gradlew", "npm",
+    private static final List<String> SHELL_ALLOWED = List.of("./check.sh", "./start.sh", "./gradlew", "npm", "npx", "node",
             "cd",
             "git status", "git diff", "curl", "ls", "cat", "mkdir", "sleep", "kill");
 

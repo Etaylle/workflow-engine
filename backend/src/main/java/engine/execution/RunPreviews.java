@@ -1,6 +1,8 @@
 package engine.execution;
 
 import engine.shared.ApiProblem;
+import engine.shared.Template;
+import engine.shared.TemplateCatalog;
 import jakarta.annotation.PreDestroy;
 import java.io.File;
 import java.io.IOException;
@@ -71,12 +73,14 @@ class RunPreviews {
     private final RunEvents events;
     private final ExecutionSettings settings;
     private final JdbcClient jdbc;
+    private final TemplateCatalog templates;
     private final String dbUrl;
     private final String dbUser;
     private final String dbPassword;
     private final Map<UUID, Session> sessions = new ConcurrentHashMap<>();
 
     RunPreviews(RunStore store, RunEvents events, ExecutionSettings settings, JdbcClient jdbc,
+            TemplateCatalog templates,
             @Value("${spring.datasource.url}") String dbUrl,
             @Value("${spring.datasource.username:}") String dbUser,
             @Value("${spring.datasource.password:}") String dbPassword) {
@@ -84,6 +88,7 @@ class RunPreviews {
         this.events = events;
         this.settings = settings;
         this.jdbc = jdbc;
+        this.templates = templates;
         this.dbUrl = dbUrl;
         this.dbUser = dbUser;
         this.dbPassword = dbPassword;
@@ -155,9 +160,10 @@ class RunPreviews {
         Process process = null;
         try {
             session.checkpoint = workspace.git("rev-parse", "HEAD").strip();
-            copyCheckpoint(workspace, session.checkpoint, dir);
-            database = createDatabase(runId);
-            int port = freePort();
+            Template template = templates.require(store.row(runId).orElseThrow().templateId());
+            copyCheckpoint(workspace, template, session.checkpoint, dir);
+            database = template.needsDatabase() ? createDatabase(runId) : null;
+            Integer port = template.isConsole() ? null : freePort();
             session.port = port;
             process = launch(dir, log, port, database);
             watch(session, process, log, port);
@@ -188,16 +194,21 @@ class RunPreviews {
     }
 
     /** The loop of one preview: output to the console, the app answers, time is up, stop, exit. */
-    private void watch(Session session, Process process, Path log, int port) {
+    private void watch(Session session, Process process, Path log, Integer port) {
         ProcessRunner.LineTail tail = new ProcessRunner.LineTail(log, line -> appLine(session, line));
         Instant startDeadline = Instant.now().plus(settings.previewStartTimeout());
+        if (port == null) {
+            session.expiresAt = Instant.now().plus(settings.previewLifetime());
+            session.message = "The program runs";
+            session.status = "running";
+            events.publish(session.runId, "preview", "running");
+        }
         try {
             while (!session.stopRequested) {
                 tail.poll();
                 if (!process.isAlive()) {
                     tail.poll();
-                    session.message = "The app stopped with exit code " + process.exitValue();
-                    session.status = "failed";
+                    exited(session, port == null, process.exitValue());
                     return;
                 }
                 if ("starting".equals(session.status)) {
@@ -219,6 +230,16 @@ class RunPreviews {
             tail.poll();
             tail.finish();
         }
+    }
+
+    /** The process ended by itself: a console program that exits with 0 is simply finished. */
+    private static void exited(Session session, boolean console, int exitCode) {
+        if (console && exitCode == 0) {
+            session.message = "The program ended with exit code 0";
+            return;
+        }
+        session.message = (console ? "The program" : "The app") + " stopped with exit code " + exitCode;
+        session.status = "failed";
     }
 
     private void checkAnswering(Session session, int port, Instant startDeadline) {
@@ -243,7 +264,7 @@ class RunPreviews {
         }
     }
 
-    private void copyCheckpoint(Workspace workspace, String sha, Path dir) {
+    private void copyCheckpoint(Workspace workspace, Template template, String sha, Path dir) {
         try {
             Files.createDirectories(dir);
             Path archive = dir.resolveSibling(dir.getFileName() + ".tar");
@@ -251,7 +272,7 @@ class RunPreviews {
             extract(archive, dir);
             Files.deleteIfExists(archive);
             if (!Files.exists(dir.resolve(SCRIPT))) {
-                Path fallback = settings.templateDir().resolve(SCRIPT);
+                Path fallback = template.dir().resolve(SCRIPT);
                 if (!Files.isRegularFile(fallback)) {
                     throw new ApiProblem(409, "Preview not available", "This run has no " + SCRIPT
                             + " and the template of the engine has none to start the app with.");
@@ -291,12 +312,14 @@ class RunPreviews {
         jdbc.sql("drop database if exists " + name + " with (force)").update();
     }
 
-    private Process launch(Path dir, Path log, int port, String database) {
+    private Process launch(Path dir, Path log, Integer port, String database) {
         ProcessBuilder builder = new ProcessBuilder("bash", SCRIPT).directory(dir.toFile())
                 .redirectErrorStream(true).redirectOutput(log.toFile())
                 .redirectInput(ProcessBuilder.Redirect.from(new File("/dev/null")));
         Map<String, String> env = builder.environment();
-        env.put("APP_PORT", String.valueOf(port));
+        if (port != null) {
+            env.put("APP_PORT", String.valueOf(port));
+        }
         if (database != null) {
             env.put("APP_DB_URL", dbUrl.substring(0, dbUrl.lastIndexOf('/') + 1) + database);
             env.put("APP_DB_USER", dbUser);

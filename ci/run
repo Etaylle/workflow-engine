@@ -88,7 +88,7 @@ start_engine() {
 	local gemini_cmd="${ENGINE_GEMINI_CMD:-gemini}"
 	[ -x "$GEMINI_BIN" ] && gemini_cmd="${ENGINE_GEMINI_CMD:-$GEMINI_BIN}"
 	env ENGINE_PORT="$port" ENGINE_DB_URL="$(db_url "$db")" ENGINE_GEMINI_CMD="$gemini_cmd" \
-		ENGINE_EXECUTION_TEMPLATE_DIR="$ROOT/templates/java-svelte-postgres" "$@" \
+		ENGINE_EXECUTION_TEMPLATES_DIR="$ROOT/templates" "$@" \
 		nohup "$(java_bin)" -jar "$(jar_path)" >"$RUN_DIR/$name.log" 2>&1 &
 	echo $! >"$RUN_DIR/$name.pid"
 	wait_for "http://localhost:$port/api/status"
@@ -147,7 +147,7 @@ cmd_test_e2e() {
 	start_engine e2e "$E2E_PORT" "$TEST_DB_NAME" ENGINE_AI_STUB=true \
 		ENGINE_EXECUTION_WORKSPACE_DIR="$RUN_DIR/e2e-workspaces" ENGINE_EXECUTION_CREATE_DATABASE=false \
 		ENGINE_EXECUTION_LIMIT_WAIT_BASE_MS=1500 ENGINE_EXECUTION_PREVIEW_SECONDS=120 \
-		ENGINE_EXECUTION_TEMPLATE_DIR="$ROOT/backend/src/test/resources/fake-template"
+		ENGINE_EXECUTION_TEMPLATES_DIR="$ROOT/backend/src/test/resources/fake-templates"
 	trap 'stop_engine e2e' EXIT
 	log "end-to-end test (browser) against the engine with the AI stub"
 	npm_frontend ci --silent

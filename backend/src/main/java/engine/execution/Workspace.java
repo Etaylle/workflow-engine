@@ -1,5 +1,6 @@
 package engine.execution;
 
+import engine.shared.Template;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.UncheckedIOException;
@@ -40,7 +41,7 @@ final class Workspace {
     void prepare(Path template, String contract) {
         if (!Files.isDirectory(template)) {
             throw new IllegalStateException("The project template is missing: " + template
-                    + " (set ENGINE_TEMPLATE_DIR)");
+                    + " ");
         }
         try {
             copy(template, dir);
@@ -55,16 +56,26 @@ final class Workspace {
         commit("Template and contract");
     }
 
+    private static String resultRule(Template template) {
+        if (template.isConsole()) {
+            return "This is a console program: the result must be visible in the output of ./start.sh."
+                    + " No server, no database, no web page.";
+        }
+        return template.needsDatabase()
+                ? "The result must be visible in the running application and its data kept in PostgreSQL."
+                : "The result must be visible in the running application and its data kept in the SQLite"
+                        + " database of the template.";
+    }
+
     /** Adds the task to build to the contract text the builder reads. */
-    void writeTask(String contract, String title, String description, List<String> done,
+    void writeTask(String contract, Template template, String title, String description, List<String> done,
             List<String> later) {
         StringBuilder text = new StringBuilder(contract).append("\n## The task to build in this run\n\n")
                 .append("Task \"").append(title).append("\"");
         if (description != null && !description.isBlank()) {
             text.append(". Description from the contract: \"").append(description).append("\"");
         }
-        text.append(".\n\nThe result must be visible in the running application and its data kept in"
-                + " PostgreSQL.\n");
+        text.append(".\n\n").append(resultRule(template)).append("\n");
         if (!done.isEmpty()) {
             text.append("\nAlready built in earlier tasks (keep it working): ")
                     .append(String.join(", ", done)).append(".\n");

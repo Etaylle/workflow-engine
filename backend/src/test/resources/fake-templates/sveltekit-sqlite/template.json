@@ -1,0 +1,1 @@
+{"id": "sveltekit-sqlite", "name": "Fake web app", "kind": "web", "description": "Test web app that prints a duck and serves HTTP.", "needsDatabase": true}

@@ -129,6 +129,18 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AiKeys"
+  /api/templates:
+    get:
+      operationId: listTemplates
+      summary: The project templates the engine offers (each folder of the templates directory with a template.json)
+      responses:
+        "200":
+          description: The templates, sorted by id
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {$ref: "#/components/schemas/Template"}
   /api/projects:
     post:
       operationId: createProject
@@ -195,8 +207,13 @@ paths:
           application/json:
             schema:
               type: object
-              description: At least one of name, wish and agentHarness
+              description: At least one of name, wish, agentHarness and templateId
               properties:
+                templateId:
+                  type: string
+                  description: >
+                    The template of the software (an id of `GET /api/templates`). A run snapshots the
+                    template it starts with.
                 agentHarness:
                   type: string
                   enum: [claude_code, gemini_cli]
@@ -1498,9 +1515,17 @@ components:
         apiKey:
           type: string
           description: Optional; kept in memory for the session
+    Template:
+      type: object
+      required: [id, name, kind, description]
+      properties:
+        id: {type: string, example: node-console}
+        name: {type: string}
+        kind: {type: string, enum: [console, web]}
+        description: {type: string}
     Project:
       type: object
-      required: [id, name, wish, status, agentHarness, model, createdAt, updatedAt]
+      required: [id, name, wish, status, agentHarness, templateId, model, createdAt, updatedAt]
       properties:
         id: {type: string, format: uuid}
         name: {type: string, description: The start of the wish}
@@ -1512,6 +1537,9 @@ components:
           type: string
           enum: [claude_code, gemini_cli]
           description: The builder of the software of this project (default claude_code)
+        templateId:
+          type: string
+          description: The template of the software of this project (default sveltekit-sqlite; proposed from the wish by the brief)
         model: {type: string}
         createdAt: {type: string, format: date-time}
         updatedAt: {type: string, format: date-time}

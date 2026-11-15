@@ -5,6 +5,8 @@ import engine.shared.ContractPort;
 import engine.shared.Harness;
 import engine.shared.ProjectPort;
 import engine.shared.RunSettingsPort;
+import engine.shared.Template;
+import engine.shared.TemplateCatalog;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.file.Files;
@@ -29,10 +31,12 @@ class RunService {
     private final ContractPort contracts;
     private final ExecutionSettings settings;
     private final RunSettingsPort runSettings;
+    private final TemplateCatalog templates;
 
     RunService(RunStore store, RunOrchestrator orchestrator, RunEvents events, Builders builders,
             ProjectPort projects, ContractPort contracts, ExecutionSettings settings,
-            RunSettingsPort runSettings) {
+            RunSettingsPort runSettings, TemplateCatalog templates) {
+        this.templates = templates;
         this.runSettings = runSettings;
         this.store = store;
         this.orchestrator = orchestrator;
@@ -61,13 +65,14 @@ class RunService {
         }
         Harness harness = projects.harnessOf(projectId).orElseThrow();
         builders.forHarness(harness).checkReady();
+        Template template = templates.require(projects.templateIdOf(projectId).orElseThrow());
         UUID runId = UUID.randomUUID();
         Path workspace = settings.workspaceRoot().resolve("run-" + runId);
         RunSettingsPort.RunSettings chosen = runSettings.forProject(projectId);
         store.create(runId, projectId, contract.version(), harness,
                 chosen.costLimitUsd().orElse(contract.costLimitUsd().orElse(settings.costLimitUsd())),
-                workspace.toString(),
-                settings.createDatabase() ? RunOrchestrator.databaseName(runId) : null,
+                workspace.toString(), template.id(),
+                settings.createDatabase() && template.needsDatabase() ? RunOrchestrator.databaseName(runId) : null,
                 contract.softwareTasks(), chosen.steps());
         projects.markStatus(projectId, "executing");
         orchestrator.submit(runId, contract.markdown());

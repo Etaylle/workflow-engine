@@ -31,7 +31,7 @@ class RunStore {
     /** A run row without tasks. */
     record RunRow(UUID id, UUID projectId, String workspacePath, String databaseName,
             BigDecimal costLimitUsd, int contractVersion, String status, List<Step> steps,
-            Harness harness) {
+            Harness harness, String templateId) {
     }
 
     /** One question to the client; choice is null until it is answered. */
@@ -56,12 +56,12 @@ class RunStore {
     @Transactional
     void create(UUID runId, UUID projectId, int contractVersion, Harness harness, BigDecimal limit,
             String workspacePath,
-            String databaseName, List<engine.shared.ContractPort.TaskLine> tasks, List<Step> steps) {
+            String templateId, String databaseName, List<engine.shared.ContractPort.TaskLine> tasks, List<Step> steps) {
         jdbc.sql("insert into execution.runs (id, project_id, contract_version, status, cost_limit_usd,"
-                        + " workspace_path, database_name, started_at, steps_json, harness) values (:id, :p, :v,"
-                        + " 'preparing', :limit, :ws, :db, :now, :steps, :harness)")
+                        + " workspace_path, template_id, database_name, started_at, steps_json, harness) values (:id, :p, :v,"
+                        + " 'preparing', :limit, :ws, :tpl, :db, :now, :steps, :harness)")
                 .param("harness", harness.id()).param("id", runId).param("p", projectId).param("v", contractVersion)
-                .param("limit", limit).param("ws", workspacePath).param("db", databaseName)
+                .param("limit", limit).param("ws", workspacePath).param("tpl", templateId).param("db", databaseName)
                 .param("now", now()).param("steps", json.writeValueAsString(steps)).update();
         for (int t = 0; t < tasks.size(); t++) {
             UUID taskId = UUID.randomUUID();
@@ -82,14 +82,14 @@ class RunStore {
 
     Optional<RunRow> row(UUID runId) {
         return jdbc.sql("select id, project_id, workspace_path, database_name, cost_limit_usd,"
-                        + " contract_version, status, steps_json, harness from execution.runs where id = :id")
+                        + " contract_version, status, steps_json, harness, template_id from execution.runs where id = :id")
                 .param("id", runId)
                 .query((rs, n) -> new RunRow(rs.getObject("id", UUID.class),
                         rs.getObject("project_id", UUID.class), rs.getString("workspace_path"),
                         rs.getString("database_name"), rs.getBigDecimal("cost_limit_usd"),
                         rs.getInt("contract_version"), rs.getString("status"),
                         json.readValue(rs.getString("steps_json"), new TypeReference<List<Step>>() { }),
-                        Harness.ofId(rs.getString("harness"))))
+                        Harness.ofId(rs.getString("harness")), rs.getString("template_id")))
                 .optional();
     }
 

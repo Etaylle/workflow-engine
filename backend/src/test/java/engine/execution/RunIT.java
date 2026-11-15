@@ -46,7 +46,7 @@ import tools.jackson.databind.JsonNode;
 @Tag("integration")
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
         "engine.execution.workspace-dir=${java.io.tmpdir}/engine-it-workspaces",
-        "engine.execution.template-dir=../templates/java-svelte-postgres",
+        "engine.execution.templates-dir=../templates",
         "engine.execution.create-database=false", "engine.execution.limit-wait-base-ms=20",
         "engine.execution.limit-wait-max-ms=80", "engine.execution.limit-max-retries=3"})
 @Import({ScriptedAi.class, RunIT.Config.class})
@@ -410,7 +410,7 @@ class RunIT {
             }
         }
         assertThat(names).contains("CONTRACT.md", "check.sh", "CLAUDE.md", "docs/task-1/STUB-plan.md",
-                "docs/task-2/STUB-check.md", "backend/build.gradle.kts");
+                "docs/task-2/STUB-check.md", "package.json");
         assertThat(names).noneMatch(n -> n.startsWith(".git/") || n.contains("node_modules"));
         assertThat(names).containsOnlyOnce("RUN-REPORT.md");
     }

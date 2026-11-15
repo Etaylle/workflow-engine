@@ -2,6 +2,7 @@ package engine.projects;
 
 import engine.shared.ApiProblem;
 import engine.shared.Harness;
+import engine.shared.TemplateCatalog;
 import engine.shared.ProjectCleanup;
 import engine.shared.AiTarget;
 import engine.shared.ProjectPort;
@@ -23,15 +24,17 @@ public class ProjectService implements ProjectPort {
     static final int MAX_WISH_LENGTH = 20_000;
     static final int MAX_NAME_LENGTH = 120;
     private static final int NAME_LENGTH = 60;
-    private static final String COLUMNS = "id, name, wish, status, agent_harness, model, created_at, updated_at";
+    private static final String COLUMNS = "id, name, wish, status, agent_harness, template_id, model, created_at, updated_at";
 
     private final JdbcClient jdbc;
     private final Clock clock;
     private final JsonMapper json;
     private final List<ProjectCleanup> cleanups;
+    private final TemplateCatalog templates;
 
-    public ProjectService(
-            JdbcClient jdbc, Clock clock, JsonMapper json, List<ProjectCleanup> cleanups) {
+    public ProjectService(JdbcClient jdbc, Clock clock, JsonMapper json, List<ProjectCleanup> cleanups,
+            TemplateCatalog templates) {
+        this.templates = templates;
         this.cleanups = cleanups;
         this.jdbc = jdbc;
         this.clock = clock;
@@ -61,19 +64,21 @@ public class ProjectService implements ProjectPort {
      * brief and the questions are made again from the new wish.
      */
     @Transactional
-    public Project update(UUID id, String name, String wish, String agentHarness) {
-        if (name == null && wish == null && agentHarness == null) {
+    public Project update(UUID id, String name, String wish, String agentHarness, String templateId) {
+        if (name == null && wish == null && agentHarness == null && templateId == null) {
             throw new ApiProblem(400, "Nothing to change",
-                    "Send a name, a wish, a builder (agentHarness), or several.");
+                    "Send a name, a wish, a builder (agentHarness), a template (templateId), or several.");
         }
         Project current = get(id).orElseThrow(() -> notFound(id));
         String newName = name == null ? current.name() : checkedName(name);
         String newWish = wish == null ? current.wish() : checkedWish(wish);
         boolean wishChanged = !newWish.equals(current.wish());
         String harness = agentHarness == null ? current.agentHarness() : Harness.ofId(agentHarness).id();
-        jdbc.sql("update projects.projects set name = :name, wish = :wish, status = :status,"
+        String template = templateId == null ? current.templateId() : templates.require(templateId).id();
+        jdbc.sql("update projects.projects set name = :name, template_id = :template, wish = :wish, status = :status,"
                         + " agent_harness = :harness, updated_at = :now, version = version + 1 where id = :id")
                 .param("harness", harness)
+                .param("template", template)
                 .param("name", newName)
                 .param("wish", newWish)
                 .param("status", wishChanged ? "draft" : current.status())
@@ -157,6 +162,14 @@ public class ProjectService implements ProjectPort {
     }
 
     @Override
+    public Optional<String> templateIdOf(UUID projectId) {
+        return jdbc.sql("select template_id from projects.projects where id = :id")
+                .param("id", projectId)
+                .query(String.class)
+                .optional();
+    }
+
+    @Override
     public Optional<Harness> harnessOf(UUID projectId) {
         return jdbc.sql("select agent_harness from projects.projects where id = :id")
                 .param("id", projectId)
@@ -213,6 +226,7 @@ public class ProjectService implements ProjectPort {
                 rs.getString("wish"),
                 rs.getString("status"),
                 rs.getString("agent_harness"),
+                rs.getString("template_id"),
                 rs.getString("model"),
                 rs.getTimestamp("created_at").toInstant(),
                 rs.getTimestamp("updated_at").toInstant());

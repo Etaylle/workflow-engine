@@ -22,7 +22,7 @@ import tools.jackson.databind.json.JsonMapper;
 class ClaudeCodeBuilder implements RealBuilder {
 
     private static final String ALLOWED = "Read,Edit,Write,Glob,Grep,Bash(./check.sh:*),"
-            + "Bash(./start.sh:*),Bash(./gradlew:*),Bash(npm:*),Bash(cd:*),Bash(git status:*),"
+            + "Bash(./start.sh:*),Bash(./gradlew:*),Bash(npm:*),Bash(npx:*),Bash(node:*),Bash(cd:*),Bash(git status:*),"
             + "Bash(git diff:*),"
             + "Bash(curl:*),Bash(ls:*),Bash(cat:*),Bash(mkdir:*),Bash(sleep:*),Bash(kill:*)";
 

@@ -21,6 +21,9 @@ public interface ProjectPort {
     /** The builder the project chose, or empty when the project does not exist. */
     Optional<Harness> harnessOf(UUID projectId);
 
+    /** The id of the template the project chose, or empty when the project does not exist. */
+    Optional<String> templateIdOf(UUID projectId);
+
     /** Records which provider and model the planning of the project really uses. */
     void recordAi(UUID projectId, AiTarget target);
 

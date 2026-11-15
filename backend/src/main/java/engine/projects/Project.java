@@ -10,6 +10,7 @@ public record Project(
         String wish,
         String status,
         String agentHarness,
+        String templateId,
         String model,
         Instant createdAt,
         Instant updatedAt) {

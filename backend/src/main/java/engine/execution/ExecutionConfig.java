@@ -19,7 +19,6 @@ class ExecutionConfig {
     @Bean
     ExecutionSettings executionSettings(
             @Value("${engine.execution.workspace-dir:}") String workspaceDir,
-            @Value("${engine.execution.template-dir:templates/java-svelte-postgres}") String templateDir,
             @Value("${engine.execution.claude-bin:claude}") String claudeBin,
             @Value("${engine.execution.model:sonnet}") String model,
             @Value("${engine.gemini.cmd:gemini}") String geminiCmd,
@@ -39,7 +38,7 @@ class ExecutionConfig {
         Path root = workspaceDir.isBlank()
                 ? Path.of(System.getProperty("user.home"), ".workflow-engine", "workspaces")
                 : Path.of(workspaceDir);
-        return new ExecutionSettings(root.toAbsolutePath(), Path.of(templateDir).toAbsolutePath(),
+        return new ExecutionSettings(root.toAbsolutePath(),
                 claudeBin, model, geminiCmd, geminiModel, useSignIn, createDatabase, costLimit, Duration.ofMinutes(stepMinutes),
                 Duration.ofMinutes(checkMinutes), fixAttempts, maxResumes,
                 Duration.ofMillis(limitBaseMs), Duration.ofMillis(limitMaxMs), limitMaxRetries,

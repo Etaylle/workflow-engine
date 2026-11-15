@@ -30,7 +30,7 @@ import tools.jackson.databind.JsonNode;
 @Tag("integration")
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
         "engine.ai.stub=true", "engine.execution.workspace-dir=${java.io.tmpdir}/engine-preview-it",
-        "engine.execution.template-dir=src/test/resources/fake-template",
+        "engine.execution.templates-dir=src/test/resources/fake-templates",
         "engine.execution.create-database=false", "engine.execution.preview-seconds=6"})
 @Import(ScriptedAi.class)
 class PreviewIT {
@@ -127,6 +127,45 @@ class PreviewIT {
     }
 
     @Test
+    void aConsolePreviewShowsTheOutputUntilTheProgramEndsAndHasNoPort() throws Exception {
+        String run = finishedRun("Show a duck in the console", "node-console");
+
+        http.json("POST", "/api/runs/" + run + "/preview", null);
+        JsonNode ended = awaitStatus(run, "stopped");
+
+        assertThat(ended.path("port").isNull() || ended.path("port").isMissingNode()).isTrue();
+        assertThat(ended.get("message").asString()).contains("ended with exit code 0");
+        assertThat(appOutput(run)).contains("<(o )___");
+        assertThat(previewDir(run)).doesNotExist();
+    }
+
+    @Test
+    void aConsoleProgramThatFailsMakesTheStatusFailed() throws Exception {
+        String run = finishedRun("Show a duck in the console", "node-console");
+        Workspace workspace = new Workspace(workspaceOf(run));
+        Files.writeString(workspace.dir().resolve("start.sh"), "#!/usr/bin/env bash\necho boom\nexit 4\n");
+        workspace.commit("A failing program");
+
+        http.json("POST", "/api/runs/" + run + "/preview", null);
+
+        assertThat(awaitStatus(run, "failed").get("message").asString()).contains("exit code 4");
+    }
+
+    @Test
+    void aRunKeepsTheTemplateItStartedWithEvenWhenTheProjectChoosesAnother() throws Exception {
+        UUID project = http.answeredProject("Show a duck in the console");
+        http.call("PATCH", "/api/projects/" + project, "{\"templateId\":\"node-console\"}");
+        confirm(project);
+        String run = http.json("POST", "/api/projects/" + project + "/runs", null).get("id").asString();
+        http.call("PATCH", "/api/projects/" + project, "{\"templateId\":\"sveltekit-sqlite\"}");
+
+        String stored = jdbc.sql("select template_id from execution.runs where id = :id")
+                .param("id", UUID.fromString(run)).query(String.class).single();
+
+        assertThat(stored).isEqualTo("node-console");
+    }
+
+    @Test
     void thereIsNothingToTryBeforeATaskIsDone() throws Exception {
         UUID project = http.answeredProject("A canteen app stub-slow:2000");
         confirm(project);
@@ -141,7 +180,15 @@ class PreviewIT {
     }
 
     private String finishedRun(String wish) throws Exception {
+        return finishedRun(wish, null);
+    }
+
+    private String finishedRun(String wish, String templateId) throws Exception {
         UUID project = http.answeredProject(wish);
+        if (templateId != null) {
+            assertThat(http.call("PATCH", "/api/projects/" + project,
+                    "{\"templateId\":\"" + templateId + "\"}").statusCode()).isEqualTo(200);
+        }
         confirm(project);
         String run = http.json("POST", "/api/projects/" + project + "/runs", null).get("id").asString();
         long deadline = System.nanoTime() + Duration.ofSeconds(60).toNanos();

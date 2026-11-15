@@ -1,0 +1,7 @@
+{
+  "id": "java-svelte-postgres",
+  "name": "Web app (Java + Svelte + PostgreSQL)",
+  "kind": "web",
+  "description": "A web app with a Spring Boot backend, a Svelte frontend and a PostgreSQL database. The heaviest template.",
+  "needsDatabase": true
+}

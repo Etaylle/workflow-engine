@@ -34,7 +34,7 @@ import tools.jackson.databind.JsonNode;
  */
 @Tag("integration")
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
-        "engine.execution.template-dir=../templates/java-svelte-postgres",
+        "engine.execution.templates-dir=../templates",
         "engine.execution.create-database=false", "engine.execution.limit-wait-base-ms=20",
         "engine.execution.limit-wait-max-ms=80", "engine.execution.limit-max-retries=3"})
 @Import(ScriptedAi.class)

@@ -1,0 +1,1 @@
+{"id": "node-console", "name": "Fake console program", "kind": "console", "description": "Test console program that prints a duck and ends.", "needsDatabase": false}
