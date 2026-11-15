@@ -159,7 +159,14 @@
 	"run.none": "No run yet.",
 	"run.status.preparing": "Preparing",
 	"run.status.executing": "Building",
-	"run.status.paused": "Paused",
+	"run.status.waiting": "Waiting",
+	"run.waiting.question": "The run needs your answer",
+	"run.question.heading": "Needs your answer: {step}",
+	"run.question.hint": "Tell the builder what to do (optional)",
+	"run.question.retry": "Try again",
+	"run.question.skip": "Skip this step",
+	"run.question.answering": "Sending...",
+	"run.question.skipNote": "Skipping marks the step as done without building it.",
 	"run.status.done": "Finished",
 	"run.status.interrupted": "Interrupted",
 	"run.progress": "{done} of {total} steps done",
@@ -176,7 +183,6 @@
 	"run.step.failed": "failed",
 	"run.console": "Console",
 	"run.zip": "Download ZIP",
-	"run.pausedHint": "A step failed, so the run stopped here. Fixing and continuing come in a later version. You can download what was built so far.",
 	"run.interruptedHint": "The engine restarted while the run was under way, and the key is gone. What was built so far can be downloaded; start a new run to build again.",
 	"run.reloadHint": "You can reload this page: the run goes on and the screen picks it up again."
 }

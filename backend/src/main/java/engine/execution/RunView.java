@@ -12,12 +12,18 @@ public record RunView(
         int contractVersion,
         String status,
         String failureReason,
+        String waitKind,
+        Question question,
         BigDecimal costUsd,
         BigDecimal costLimitUsd,
         long lastSeq,
         Instant startedAt,
         Instant finishedAt,
         List<Task> tasks) {
+
+    /** The question a waiting run asks the client, with the short answers it accepts. */
+    public record Question(UUID id, String text, String stepTitle, List<String> options) {
+    }
 
     /** One software task of the contract. */
     public record Task(UUID id, int seq, String title, String lane, String status, List<Step> steps) {

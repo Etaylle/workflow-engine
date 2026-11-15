@@ -86,6 +86,36 @@ class RunService {
         return events.subscribe(runId, after);
     }
 
+    /** The client answers the question of a waiting run; the run continues with the answer. */
+    RunView answer(UUID runId, UUID questionId, String choice, String hint) {
+        RunView run = view(runId);
+        RunStore.QuestionRow open = store.openQuestion(runId).filter(q -> "question".equals(run.waitKind()))
+                .filter(q -> q.id().equals(questionId)).orElseThrow(() -> new ApiProblem(409,
+                        "No such question", "The run is not waiting for an answer to this question."));
+        if (!List.of("retry", "skip").contains(choice)) {
+            throw new ApiProblem(400, "Unknown answer", "Choose retry or skip.");
+        }
+        String text = hint == null ? null : hint.strip();
+        if (text != null && text.length() > 1000) {
+            throw new ApiProblem(400, "Hint too long", "Keep the hint under 1000 characters.");
+        }
+        builder.checkReady();
+        store.answerQuestion(open.id(), choice, text);
+        if ("skip".equals(choice)) {
+            store.setStep(open.stepId(), "done", "Skipped by the client");
+        }
+        events.publish(runId, "run", "answered: " + choice);
+        continueRun(runId, run.projectId());
+        return view(runId);
+    }
+
+    private void continueRun(UUID runId, UUID projectId) {
+        ContractPort.ContractInfo contract = contracts.latestContract(projectId).orElseThrow(
+                () -> new ApiProblem(409, "No contract", "The project has no confirmed contract."));
+        store.setRun(runId, "executing", null);
+        orchestrator.submit(runId, contract.markdown());
+    }
+
     /** The workspace of a run that is not being built, for the ZIP. */
     Workspace workspaceForZip(UUID runId) {
         RunView run = view(runId);

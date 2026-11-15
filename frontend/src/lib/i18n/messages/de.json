@@ -159,7 +159,14 @@
 	"run.none": "Noch kein Lauf.",
 	"run.status.preparing": "Wird vorbereitet",
 	"run.status.executing": "Wird gebaut",
-	"run.status.paused": "Pausiert",
+	"run.status.waiting": "Wartet",
+	"run.waiting.question": "Der Lauf braucht Ihre Antwort",
+	"run.question.heading": "Braucht Ihre Antwort: {step}",
+	"run.question.hint": "Sagen Sie dem Builder, was zu tun ist (optional)",
+	"run.question.retry": "Nochmal versuchen",
+	"run.question.skip": "Schritt überspringen",
+	"run.question.answering": "Senden...",
+	"run.question.skipNote": "Überspringen markiert den Schritt als erledigt, ohne ihn zu bauen.",
 	"run.status.done": "Abgeschlossen",
 	"run.status.interrupted": "Unterbrochen",
 	"run.progress": "{done} von {total} Schritten erledigt",
@@ -176,7 +183,6 @@
 	"run.step.failed": "fehlgeschlagen",
 	"run.console": "Konsole",
 	"run.zip": "ZIP herunterladen",
-	"run.pausedHint": "Ein Schritt ist fehlgeschlagen, deshalb hielt der Lauf hier an. Beheben und Fortsetzen kommen in einer späteren Version. Das bisher Gebaute lässt sich herunterladen.",
 	"run.interruptedHint": "Die Engine wurde neu gestartet, während der Lauf aktiv war, und der Schlüssel ist weg. Das bisher Gebaute lässt sich herunterladen; starten Sie einen neuen Lauf, um erneut zu bauen.",
 	"run.reloadHint": "Sie können die Seite neu laden: Der Lauf geht weiter und die Anzeige knüpft wieder an."
 }

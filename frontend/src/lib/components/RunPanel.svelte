@@ -1,5 +1,6 @@
 <script lang="ts">
 	import {
+		answerRunQuestion,
 		getLatestRun,
 		getRun,
 		listRunEvents,
@@ -17,6 +18,7 @@
 		canDownload,
 		canStart,
 		formatUsd,
+		hasQuestion,
 		isActive,
 		lastSeen,
 		mergeConsole,
@@ -29,6 +31,8 @@
 	let console_ = $state<RunEvent[]>([]);
 	const loading = createAction();
 	const starting = createAction();
+	const answering = createAction();
+	let hint = $state('');
 	const active = $derived(isActive(run));
 
 	async function load() {
@@ -45,6 +49,15 @@
 			console_ = [];
 		});
 		if (ok) changed();
+	}
+
+	async function answer(choice: 'retry' | 'skip') {
+		const question = run?.question;
+		if (!run || !question) return;
+		const ok = await answering.run(async () => {
+			run = await answerRunQuestion(run!.id, question.id, choice, hint);
+		});
+		if (ok) hint = '';
 	}
 
 	async function refresh(runId: string) {
@@ -114,11 +127,41 @@
 					limit: formatUsd(run.costLimitUsd)
 				})}
 			</p>
-			{#if run.status === 'paused' || run.status === 'interrupted'}
+			{#if run.status === 'interrupted'}
 				<p role="alert" data-testid="run-reason">
-					{locale.t(run.status === 'paused' ? 'run.pausedHint' : 'run.interruptedHint')}
+					{locale.t('run.interruptedHint')}
 					{#if run.failureReason}<br />{run.failureReason}{/if}
 				</p>
+			{/if}
+			{#if hasQuestion(run) && run.question}
+				<div class="question" role="alert" data-testid="run-question">
+					<h3>{locale.t('run.question.heading', { step: run.question.stepTitle })}</h3>
+					<p data-testid="question-text">{run.question.text}</p>
+					<label>
+						{locale.t('run.question.hint')}
+						<textarea rows="2" maxlength="1000" bind:value={hint} data-testid="question-hint"
+						></textarea>
+					</label>
+					<div class="actions">
+						<button
+							class="primary"
+							onclick={() => answer('retry')}
+							disabled={answering.busy}
+							data-testid="answer-retry"
+						>
+							{locale.t('run.question.retry')}
+						</button>
+						<button
+							onclick={() => answer('skip')}
+							disabled={answering.busy}
+							data-testid="answer-skip"
+						>
+							{locale.t('run.question.skip')}
+						</button>
+					</div>
+					<p class="notice">{locale.t('run.question.skipNote')}</p>
+					{#if answering.error}<p role="alert" data-testid="answer-error">{answering.error}</p>{/if}
+				</div>
 			{/if}
 
 			<ol class="tasks" data-testid="run-tasks">
@@ -178,6 +221,22 @@
 	}
 	[data-status='done'] {
 		color: var(--green-ink);
+	}
+	.question {
+		border: 1px solid #c9c5bb;
+		border-radius: 8px;
+		padding: 0.75rem;
+		margin: 0.75rem 0;
+	}
+	.question textarea {
+		display: block;
+		width: 100%;
+	}
+	.actions {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5rem;
+		margin-top: 0.5rem;
 	}
 	a.button {
 		display: inline-block;

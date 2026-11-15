@@ -77,7 +77,7 @@ class RunOrchestrator {
                 execute(runId, contract);
             } catch (RuntimeException e) {
                 LOG.error("Run {} stopped on an unexpected error", runId, e);
-                pause(runId, "The run could not continue: " + e.getMessage());
+                interrupt(runId, "The run could not continue: " + e.getMessage());
             }
         });
     }
@@ -96,16 +96,24 @@ class RunOrchestrator {
         } catch (IOException e) {
             throw new UncheckedIOException("Could not create " + logDir, e);
         }
-        events.publish(runId, "console", "Preparing the workspace from the template");
-        workspace.prepare(settings.templateDir(), contract);
-        Map<String, String> appEnv = createDatabase(run);
-        store.setRun(runId, "executing", null);
-        events.publish(runId, "run", "executing");
-
+        Map<String, String> appEnv;
+        if ("preparing".equals(run.status())) {
+            events.publish(runId, "console", "Preparing the workspace from the template");
+            workspace.prepare(settings.templateDir(), contract);
+            createDatabase(run);
+            appEnv = appEnv(run);
+            store.setRun(runId, "executing", null);
+            events.publish(runId, "run", "executing");
+        } else {
+            workspace.resetToCheckpoint();
+            store.resetUnfinished(runId);
+            appEnv = appEnv(run);
+            events.publish(runId, "run", "executing: continued from the last checkpoint");
+        }
         Ctx ctx = new Ctx(run, workspace, logDir, appEnv);
         List<RunStore.TaskRow> tasks = store.tasksToBuild(runId);
         for (int i = 0; i < tasks.size(); i++) {
-            if (!buildTask(ctx, contract, tasks, i)) {
+            if (!"done".equals(tasks.get(i).status()) && !buildTask(ctx, contract, tasks, i)) {
                 return;
             }
         }
@@ -118,12 +126,17 @@ class RunOrchestrator {
         return workspace.dir().resolveSibling(workspace.dir().getFileName() + "-logs");
     }
 
-    private Map<String, String> createDatabase(RunStore.RunRow run) {
+    private void createDatabase(RunStore.RunRow run) {
+        if (settings.createDatabase()) {
+            jdbc.sql("create database " + run.databaseName()).update();
+            events.publish(run.id(), "console", "Database " + run.databaseName() + " created for the project");
+        }
+    }
+
+    private Map<String, String> appEnv(RunStore.RunRow run) {
         if (!settings.createDatabase()) {
             return Map.of();
         }
-        jdbc.sql("create database " + run.databaseName()).update();
-        events.publish(run.id(), "console", "Database " + run.databaseName() + " created for the project");
         Map<String, String> env = new HashMap<>();
         env.put("APP_DB_URL", dbUrl.substring(0, dbUrl.lastIndexOf('/') + 1) + run.databaseName());
         env.put("APP_DB_USER", dbUser);
@@ -148,7 +161,7 @@ class RunOrchestrator {
         List<String> later = tasks.subList(index + 1, tasks.size()).stream().map(RunStore.TaskRow::title).toList();
         ctx.workspace().writeTask(contract, task.title(), task.description(), done, later);
         for (int s = 0; s < task.steps().size(); s++) {
-            if (!buildStep(ctx, task, s, index + 1)) {
+            if (!"done".equals(task.steps().get(s).status()) && !buildStep(ctx, task, s, index + 1)) {
                 return false;
             }
         }
@@ -171,8 +184,7 @@ class RunOrchestrator {
         for (int attempt = 1; attempt <= attempts; attempt++) {
             BigDecimal remaining = ctx.run().costLimitUsd().subtract(store.costOf(runId));
             if (remaining.compareTo(MIN_BUDGET) < 0) {
-                return failStep(ctx.run(), task, row, "The cost limit of USD " + ctx.run().costLimitUsd()
-                        + " is reached; the run waits for the client");
+                return costLimit(ctx.run(), task, row);
             }
             if (attempt > 1) {
                 events.publish(runId, "console", "Fix attempt " + (attempt - 1) + " of "
@@ -189,13 +201,20 @@ class RunOrchestrator {
             failure = result.text();
             events.publish(runId, "console", "Attempt " + attempt + " failed: " + failure);
         }
-        return failStep(ctx.run(), task, row, failure);
+        return askClient(ctx.run(), task, row, def.title(), attempts, failure);
+    }
+
+    private String hintsOf(RunStore.StepRow row, StepDef def) {
+        List<String> hints = store.hintsOf(row.id());
+        return hints.isEmpty() ? def.prompt() : def.prompt() + "\n\nThe client says about this step: "
+                + String.join(" ", hints);
     }
 
     private Attempt attempt(Ctx ctx, RunStore.StepRow row, StepDef def, BigDecimal remaining,
             String previousFailure) {
         UUID runId = ctx.run().id();
-        String prompt = previousFailure == null ? def.prompt() : def.prompt()
+        String base = hintsOf(row, def);
+        String prompt = previousFailure == null ? base : base
                 + "\n\nYour previous attempt at this step failed. What went wrong:\n" + previousFailure
                 + "\n\nFix this. Change only what is needed, then run ./check.sh until it prints"
                 + " CHECK PASSED.";
@@ -221,17 +240,33 @@ class RunOrchestrator {
         return new Attempt(true, outcome.summary());
     }
 
-    private boolean failStep(RunStore.RunRow run, RunStore.TaskRow task, RunStore.StepRow step,
-            String reason) {
-        store.setStep(step.id(), "failed", reason);
+    /** Not fixable after the attempts: the run waits with one question for the client. */
+    private boolean askClient(RunStore.RunRow run, RunStore.TaskRow task, RunStore.StepRow step,
+            String stepTitle, int attempts, String failure) {
+        store.setStep(step.id(), "failed", failure);
         store.setTask(task.id(), "failed");
-        pause(run.id(), reason);
+        String question = stepTitle + " could not be fixed after " + attempts + " attempts. "
+                + "What should the engine do? Last failure: " + failure;
+        store.addQuestion(run.id(), step.id(), question);
+        store.setWaiting(run.id(), "question", question);
+        events.publish(run.id(), "run", "waiting: question for the client");
         return false;
     }
 
-    private void pause(UUID runId, String reason) {
-        store.setRun(runId, "paused", reason);
-        events.publish(runId, "run", "paused: " + reason);
+    /** The cost limit is reached: the run waits until the client raises it. */
+    private boolean costLimit(RunStore.RunRow run, RunStore.TaskRow task, RunStore.StepRow step) {
+        store.setStep(step.id(), "waiting", null);
+        store.setTask(task.id(), "pending");
+        String reason = "The cost limit of USD " + run.costLimitUsd() + " is reached. Raise the limit to"
+                + " continue.";
+        store.setWaiting(run.id(), "cost_limit", reason);
+        events.publish(run.id(), "run", "waiting: " + reason);
+        return false;
+    }
+
+    private void interrupt(UUID runId, String reason) {
+        store.setRun(runId, "interrupted", reason);
+        events.publish(runId, "run", "interrupted: " + reason);
     }
 
     /** Moves the documents of a finished task into docs/task-N so the next task starts clean. */

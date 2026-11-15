@@ -82,6 +82,12 @@ final class Workspace {
         return git("rev-parse", "HEAD").strip();
     }
 
+    /** Throws away everything after the last commit (the last green checkpoint), files and changes. */
+    void resetToCheckpoint() {
+        git("reset", "-q", "--hard", "HEAD");
+        git("clean", "-q", "-fd");
+    }
+
     private String git(String... args) {
         List<String> command = new java.util.ArrayList<>(List.of("git"));
         command.addAll(List.of(args));

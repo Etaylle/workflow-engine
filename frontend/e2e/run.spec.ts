@@ -42,3 +42,36 @@ test('confirmed contract to a finished run and its ZIP, surviving a reload', asy
 	await page.goto('/#projects');
 	await expect(page.getByTestId('projects')).toContainText('Done');
 });
+
+test('an unfixable defect asks the client; the answer continues the run', async ({ page }) => {
+	await page.goto('/#new');
+	await page
+		.getByTestId('wish')
+		.fill('A canteen app where students order a meal stub-fail:build:3 and pick it up');
+	await page.getByTestId('project-key').fill('sk-any');
+	await page.getByTestId('create').click();
+	await page.getByTestId('ask').click();
+	await page.getByTestId('save-answers').click();
+	await expect(page.getByTestId('answers-saved')).toBeVisible();
+	await page.getByTestId('write-requirements').click();
+	await expect(page.getByTestId('step-requirements')).toContainText('FR-001');
+	await page.getByTestId('generate').click();
+	await page.getByTestId('confirm').click();
+	await expect(page.getByTestId('confirmed')).toContainText('contract version 1');
+	await page.getByTestId('start-run').click();
+
+	// US-06.05/06: three attempts fail, then one question; the run asks only now
+	await expect(page.getByTestId('run-status')).toHaveText('Waiting', { timeout: 60_000 });
+	await expect(page.getByTestId('run-question')).toContainText(
+		'could not be fixed after 3 attempts'
+	);
+	await expect(page.getByTestId('attempts-build')).toHaveText('3 attempts');
+	await page.reload();
+	await expect(page.getByTestId('run-question')).toBeVisible();
+
+	await page.getByTestId('question-hint').fill('Use the simplest approach');
+	await page.getByTestId('answer-retry').click();
+	await expect(page.getByTestId('run-status')).toHaveText('Finished', { timeout: 60_000 });
+	await expect(page.getByTestId('run-progress')).toContainText('8 of 8 steps done');
+	await expect(page.getByTestId('run-question')).toHaveCount(0);
+});

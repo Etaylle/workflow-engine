@@ -35,7 +35,7 @@ class DatabaseIT {
                         .query(Integer.class)
                         .single();
 
-        assertThat(tables).isEqualTo(24);
+        assertThat(tables).isEqualTo(25);
     }
 
     @Test

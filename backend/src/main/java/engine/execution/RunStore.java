@@ -16,16 +16,20 @@ import org.springframework.transaction.annotation.Transactional;
 class RunStore {
 
     /** What the orchestrator needs to know about a task it builds. */
-    record TaskRow(UUID id, String title, String description, List<StepRow> steps) {
+    record TaskRow(UUID id, String title, String description, String status, List<StepRow> steps) {
     }
 
     /** What the orchestrator needs to know about a step it runs. */
-    record StepRow(UUID id, String key) {
+    record StepRow(UUID id, String key, String status) {
     }
 
     /** A run row without tasks. */
     record RunRow(UUID id, UUID projectId, String workspacePath, String databaseName,
-            BigDecimal costLimitUsd, int contractVersion) {
+            BigDecimal costLimitUsd, int contractVersion, String status) {
+    }
+
+    /** One question to the client; choice is null until it is answered. */
+    record QuestionRow(UUID id, UUID stepId, String text, String choice) {
     }
 
     private final JdbcClient jdbc;
@@ -69,41 +73,92 @@ class RunStore {
 
     Optional<RunRow> row(UUID runId) {
         return jdbc.sql("select id, project_id, workspace_path, database_name, cost_limit_usd,"
-                        + " contract_version from execution.runs where id = :id")
+                        + " contract_version, status from execution.runs where id = :id")
                 .param("id", runId)
                 .query((rs, n) -> new RunRow(rs.getObject("id", UUID.class),
                         rs.getObject("project_id", UUID.class), rs.getString("workspace_path"),
                         rs.getString("database_name"), rs.getBigDecimal("cost_limit_usd"),
-                        rs.getInt("contract_version")))
+                        rs.getInt("contract_version"), rs.getString("status")))
                 .optional();
     }
 
     List<TaskRow> tasksToBuild(UUID runId) {
         List<TaskRow> tasks = new ArrayList<>();
-        jdbc.sql("select id, title, description from execution.task_runs where run_id = :r order by seq")
+        jdbc.sql("select id, title, description, status from execution.task_runs where run_id = :r"
+                        + " order by seq")
                 .param("r", runId).query((rs, n) -> new Object[] {rs.getObject("id", UUID.class),
-                        rs.getString("title"), rs.getString("description")})
+                        rs.getString("title"), rs.getString("description"), rs.getString("status")})
                 .list().forEach(t -> tasks.add(new TaskRow((UUID) t[0], (String) t[1], (String) t[2],
-                        jdbc.sql("select id, step_key from execution.step_runs where task_run_id = :t"
-                                        + " order by seq").param("t", t[0])
+                        (String) t[3],
+                        jdbc.sql("select id, step_key, status from execution.step_runs"
+                                        + " where task_run_id = :t order by seq").param("t", t[0])
                                 .query((rs, n) -> new StepRow(rs.getObject("id", UUID.class),
-                                        rs.getString("step_key")))
+                                        rs.getString("step_key"), rs.getString("status")))
                                 .list())));
         return tasks;
     }
 
     boolean projectHasActiveRun(UUID projectId) {
         return jdbc.sql("select count(*) from execution.runs where project_id = :p"
-                        + " and status in ('preparing', 'executing')")
+                        + " and status in ('preparing', 'executing', 'waiting')")
                 .param("p", projectId).query(Integer.class).single() > 0;
     }
 
     void setRun(UUID runId, String status, String reason) {
-        boolean finished = "done".equals(status) || "paused".equals(status) || "interrupted".equals(status);
-        jdbc.sql("update execution.runs set status = :s, failure_reason = :reason, updated_at = :now,"
-                        + " finished_at = cast(:fin as timestamptz) where id = :id")
+        boolean finished = "done".equals(status) || "interrupted".equals(status);
+        jdbc.sql("update execution.runs set status = :s, failure_reason = :reason, wait_kind = null,"
+                        + " updated_at = :now, finished_at = cast(:fin as timestamptz) where id = :id")
                 .param("s", status).param("reason", reason).param("now", now())
                 .param("fin", finished ? now() : null).param("id", runId).update();
+    }
+
+    /** The run waits for the client (kind question, cost_limit) or for tokens (kind tokens). */
+    void setWaiting(UUID runId, String kind, String reason) {
+        jdbc.sql("update execution.runs set status = 'waiting', wait_kind = :k, failure_reason = :reason,"
+                        + " updated_at = :now, finished_at = null where id = :id")
+                .param("k", kind).param("reason", reason).param("now", now()).param("id", runId).update();
+    }
+
+    /** Before a continue: steps and tasks that failed or were under way are built again. */
+    @Transactional
+    void resetUnfinished(UUID runId) {
+        jdbc.sql("update execution.step_runs set status = 'waiting', result = null where status in"
+                        + " ('failed', 'running') and task_run_id in (select id from execution.task_runs"
+                        + " where run_id = :r)").param("r", runId).update();
+        jdbc.sql("update execution.task_runs set status = 'pending' where run_id = :r"
+                + " and status in ('failed', 'running')").param("r", runId).update();
+    }
+
+    UUID addQuestion(UUID runId, UUID stepId, String text) {
+        UUID id = UUID.randomUUID();
+        jdbc.sql("insert into execution.human_questions (id, run_id, step_run_id, question, asked_at)"
+                        + " values (:id, :r, :s, :q, :now)")
+                .param("id", id).param("r", runId).param("s", stepId).param("q", text)
+                .param("now", now()).update();
+        return id;
+    }
+
+    Optional<QuestionRow> openQuestion(UUID runId) {
+        return jdbc.sql("select id, step_run_id, question, choice from execution.human_questions"
+                        + " where run_id = :r and choice is null order by asked_at desc limit 1")
+                .param("r", runId)
+                .query((rs, n) -> new QuestionRow(rs.getObject("id", UUID.class),
+                        rs.getObject("step_run_id", UUID.class), rs.getString("question"),
+                        rs.getString("choice")))
+                .optional();
+    }
+
+    void answerQuestion(UUID questionId, String choice, String hint) {
+        jdbc.sql("update execution.human_questions set choice = :c, hint = :h, answered_at = :now"
+                        + " where id = :id").param("c", choice).param("h", hint).param("now", now())
+                .param("id", questionId).update();
+    }
+
+    /** What the client told the builder about this step, oldest first. */
+    List<String> hintsOf(UUID stepId) {
+        return jdbc.sql("select hint from execution.human_questions where step_run_id = :s"
+                        + " and choice = 'retry' and hint is not null and hint <> '' order by asked_at")
+                .param("s", stepId).query(String.class).list();
     }
 
     void setTask(UUID taskId, String status) {
@@ -179,11 +234,11 @@ class RunStore {
 
     Optional<RunView> view(UUID runId) {
         Optional<RunView> head = jdbc.sql("select id, project_id, contract_version, status, failure_reason,"
-                        + " cost_limit_usd, last_seq, started_at, finished_at from execution.runs"
+                        + " wait_kind, cost_limit_usd, last_seq, started_at, finished_at from execution.runs"
                         + " where id = :id").param("id", runId)
                 .query((rs, n) -> new RunView(runId, rs.getObject("project_id", UUID.class),
                         rs.getInt("contract_version"), rs.getString("status"),
-                        rs.getString("failure_reason"), BigDecimal.ZERO,
+                        rs.getString("failure_reason"), rs.getString("wait_kind"), null, BigDecimal.ZERO,
                         rs.getBigDecimal("cost_limit_usd"), rs.getLong("last_seq"),
                         rs.getTimestamp("started_at").toInstant(),
                         rs.getTimestamp("finished_at") == null ? null
@@ -191,8 +246,21 @@ class RunStore {
                         List.of()))
                 .optional();
         return head.map(run -> new RunView(run.id(), run.projectId(), run.contractVersion(), run.status(),
-                run.failureReason(), costOf(runId), run.costLimitUsd(), run.lastSeq(), run.startedAt(),
+                run.failureReason(), run.waitKind(), questionOf(runId, run.waitKind()), costOf(runId), run.costLimitUsd(), run.lastSeq(), run.startedAt(),
                 run.finishedAt(), tasksOf(runId)));
+    }
+
+    private RunView.Question questionOf(UUID runId, String waitKind) {
+        if (!"question".equals(waitKind)) {
+            return null;
+        }
+        return jdbc.sql("select q.id, q.question, s.title from execution.human_questions q"
+                        + " join execution.step_runs s on s.id = q.step_run_id"
+                        + " where q.run_id = :r and q.choice is null order by q.asked_at desc limit 1")
+                .param("r", runId)
+                .query((rs, n) -> new RunView.Question(rs.getObject("id", UUID.class),
+                        rs.getString("question"), rs.getString("title"), List.of("retry", "skip")))
+                .optional().orElse(null);
     }
 
     private List<RunView.Task> tasksOf(UUID runId) {

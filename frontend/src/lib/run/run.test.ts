@@ -5,6 +5,7 @@ import {
 	canDownload,
 	canStart,
 	formatUsd,
+	hasQuestion,
 	isActive,
 	lastSeen,
 	mergeConsole,
@@ -50,9 +51,25 @@ describe('run state', () => {
 		expect(isActive(null)).toBe(false);
 		expect(isActive(run('preparing'))).toBe(true);
 		expect(isActive(run('executing'))).toBe(true);
-		for (const status of ['paused', 'done', 'interrupted'] as const) {
+		for (const status of ['waiting', 'done', 'interrupted'] as const) {
 			expect(isActive(run(status))).toBe(false);
 		}
+	});
+
+	it('shows the question only while the run waits for the client', () => {
+		const asking: Run = {
+			...run('waiting'),
+			waitKind: 'question',
+			question: { id: 'q1', text: 'What now?', stepTitle: 'Build', options: ['retry', 'skip'] }
+		};
+		expect(hasQuestion(asking)).toBe(true);
+		expect(hasQuestion({ ...asking, waitKind: 'cost_limit' })).toBe(false);
+		expect(hasQuestion(run('executing'))).toBe(false);
+		expect(hasQuestion(null)).toBe(false);
+	});
+
+	it('does not offer a new Run while the run waits', () => {
+		expect(canStart('executing', run('waiting'))).toBe(false);
 	});
 
 	it('offers Run only on a confirmed contract without an active run', () => {
@@ -66,7 +83,7 @@ describe('run state', () => {
 	it('offers the ZIP once the run has stopped', () => {
 		expect(canDownload(null)).toBe(false);
 		expect(canDownload(run('executing'))).toBe(false);
-		expect(canDownload(run('paused'))).toBe(true);
+		expect(canDownload(run('waiting'))).toBe(true);
 		expect(canDownload(run('done'))).toBe(true);
 	});
 

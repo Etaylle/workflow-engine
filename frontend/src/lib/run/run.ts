@@ -7,9 +7,17 @@ export const MAX_CONSOLE_LINES = 200;
 export const isActive = (run: Run | null): boolean =>
 	run !== null && (run.status === 'preparing' || run.status === 'executing');
 
-/** The Run button shows when the contract is confirmed (or built before) and no run is active. */
+/** The run waits for an answer of the client: a defect that is not fixable. */
+export const hasQuestion = (run: Run | null): boolean =>
+	run !== null && run.status === 'waiting' && run.waitKind === 'question' && !!run.question;
+
+/** The Run button shows when the contract is confirmed (or built before) and no run is under way. */
 export function canStart(projectStatus: string, run: Run | null): boolean {
-	return ['confirmed', 'executing', 'done'].includes(projectStatus) && !isActive(run);
+	return (
+		['confirmed', 'executing', 'done'].includes(projectStatus) &&
+		!isActive(run) &&
+		run?.status !== 'waiting'
+	);
 }
 
 /** The ZIP is offered once the run has stopped building and has at least a workspace. */

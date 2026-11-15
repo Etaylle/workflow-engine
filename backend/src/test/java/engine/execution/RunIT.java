@@ -168,16 +168,20 @@ class RunIT {
     }
 
     @Test
-    void aFailedStepPausesTheRunWithTheReasonAndLeavesLaterWorkPending() throws Exception {
+    void aStepThatStaysBrokenMakesTheRunWaitWithOneQuestionAndLeavesLaterWorkPending() throws Exception {
         UUID project = confirmedProject();
         builder.failSteps.add("build");
 
         JsonNode run = awaitEnd(http.json("POST", "/api/projects/" + project + "/runs", null)
                 .get("id").asString());
 
-        assertThat(run.get("status").asString()).isEqualTo("paused");
-        assertThat(run.get("failureReason").asString()).contains("Build with tests failed")
-                .contains("ran out of turns");
+        assertThat(run.get("status").asString()).isEqualTo("waiting");
+        assertThat(run.get("waitKind").asString()).isEqualTo("question");
+        assertThat(run.get("question").get("text").asString()).contains("Build with tests")
+                .contains("could not be fixed after 3 attempts").contains("ran out of turns");
+        assertThat(run.get("question").get("options")).extracting(JsonNode::asString)
+                .containsExactly("retry", "skip");
+        assertThat(run.get("failureReason").asString()).contains("ran out of turns");
         JsonNode first = run.get("tasks").get(0);
         assertThat(first.get("status").asString()).isEqualTo("failed");
         assertThat(first.get("steps").get(0).get("status").asString()).isEqualTo("done");
@@ -189,7 +193,7 @@ class RunIT {
         assertThat(http.statusOf(project)).isEqualTo("executing");
         assertThat(events(run.get("id").asString(), 0).get(
                 events(run.get("id").asString(), 0).size() - 1).get("text").asString())
-                .startsWith("paused: ");
+                .startsWith("waiting: ");
     }
 
     @Test
@@ -229,14 +233,61 @@ class RunIT {
     }
 
     @Test
-    void aGateThatDoesNotPassPausesTheRunToo() throws Exception {
+    void theClientAnswersTryAgainWithAHintAndTheRunContinuesFromTheStep() throws Exception {
+        UUID project = confirmedProject();
+        builder.failSteps.add("build");
+        JsonNode waiting = awaitEnd(http.json("POST", "/api/projects/" + project + "/runs", null)
+                .get("id").asString());
+        String id = waiting.get("id").asString();
+        String questionId = waiting.get("question").get("id").asString();
+        builder.failSteps.clear();
+        builder.requests.clear();
+
+        assertThat(answer(id, UUID.randomUUID().toString(), "retry", null).statusCode()).isEqualTo(409);
+        assertThat(answer(id, questionId, "later", null).statusCode()).isEqualTo(400);
+        assertThat(answer(id, questionId, "retry", "Keep it simple").statusCode()).isEqualTo(200);
+        JsonNode run = awaitEnd(id);
+
+        assertThat(run.get("status").asString()).isEqualTo("done");
+        assertThat(run.get("question").isNull()).isTrue();
+        assertThat(builder.requests.get(0).stepKey()).isEqualTo("build");
+        assertThat(builder.requests.get(0).prompt()).contains("Keep it simple");
+        assertThat(builder.requests.stream().map(StepRequest::stepKey).filter("plan"::equals)
+                .count()).isEqualTo(1);
+        assertThat(answer(id, questionId, "retry", null).statusCode()).isEqualTo(409);
+        assertThat(http.statusOf(project)).isEqualTo("done");
+    }
+
+    @Test
+    void theClientSkipsTheStepAndTheRunGoesOn() throws Exception {
+        UUID project = confirmedProject();
+        builder.failSteps.add("build");
+        JsonNode waiting = awaitEnd(http.json("POST", "/api/projects/" + project + "/runs", null)
+                .get("id").asString());
+        String id = waiting.get("id").asString();
+        builder.failSteps.clear();
+
+        assertThat(answer(id, waiting.get("question").get("id").asString(), "skip", null).statusCode())
+                .isEqualTo(200);
+        JsonNode run = awaitEnd(id);
+
+        assertThat(run.get("status").asString()).isEqualTo("done");
+        JsonNode build = run.get("tasks").get(0).get("steps").get(1);
+        assertThat(build.get("status").asString()).isEqualTo("done");
+        assertThat(build.get("result").asString()).isEqualTo("Skipped by the client");
+        assertThat(builder.requests.stream().filter(r -> r.stepKey().equals("build")).count())
+                .isEqualTo(3 + 1);
+    }
+
+    @Test
+    void aGateThatNeverPassesMakesTheRunWaitToo() throws Exception {
         UUID project = confirmedProject();
         builder.failGates.add("any");
 
         JsonNode run = awaitEnd(http.json("POST", "/api/projects/" + project + "/runs", null)
                 .get("id").asString());
 
-        assertThat(run.get("status").asString()).isEqualTo("paused");
+        assertThat(run.get("status").asString()).isEqualTo("waiting");
         assertThat(run.get("failureReason").asString()).contains("did not pass");
         assertThat(run.get("tasks").get(0).get("steps").get(1).get("status").asString())
                 .isEqualTo("failed");
@@ -372,6 +423,13 @@ class RunIT {
         assertThat(workspace).doesNotExist();
         assertThat(http.call("GET", "/api/runs/" + run.get("id").asString(), null).statusCode())
                 .isEqualTo(404);
+    }
+
+    private HttpResponse<String> answer(String runId, String questionId, String choice, String hint)
+            throws Exception {
+        String body = "{\"questionId\":\"" + questionId + "\",\"choice\":\"" + choice + "\""
+                + (hint == null ? "" : ",\"hint\":\"" + hint + "\"") + "}";
+        return http.call("POST", "/api/runs/" + runId + "/answer", body);
     }
 
     private UUID confirmedProject() throws Exception {

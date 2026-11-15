@@ -806,6 +806,52 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+  /api/runs/{runId}/answer:
+    post:
+      operationId: answerRunQuestion
+      summary: Answer the open question of a waiting run; the run continues with the answer
+      description: >
+        retry builds the step again (the optional hint is told to the builder); skip marks the step
+        done without building it. The run asks only when a defect is not fixable after the fix
+        attempts.
+      parameters:
+        - $ref: "#/components/parameters/RunId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [questionId, choice]
+              properties:
+                questionId: {type: string, format: uuid}
+                choice: {type: string, enum: [retry, skip]}
+                hint: {type: string, maxLength: 1000}
+      responses:
+        "200":
+          description: The run, executing again
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Run"
+        "400":
+          description: Unknown choice or hint too long
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: The run is not waiting for this question, or there is no key
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: No such run
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
   /api/runs/{runId}/zip:
     get:
       operationId: downloadRunZip
@@ -1057,11 +1103,31 @@ components:
         contractVersion: {type: integer}
         status:
           type: string
-          enum: [preparing, executing, paused, done, interrupted]
+          enum: [preparing, executing, waiting, done, interrupted]
           description: >
-            paused = a step failed (reason in failureReason); interrupted = the engine restarted
-            while the run was under way (the key is gone)
+            waiting = the run waits, see waitKind (the reason is in failureReason); interrupted =
+            the engine restarted while the run was under way (the key is gone)
         failureReason: {type: string, nullable: true}
+        waitKind:
+          type: string
+          nullable: true
+          enum: [question, cost_limit, tokens]
+          description: >
+            Only while status is waiting. question = a defect is not fixable after the fix attempts
+            and the client must answer (`question`); cost_limit = the limit is reached; tokens =
+            the rate limit or credit is exhausted
+        question:
+          type: object
+          nullable: true
+          required: [id, text, stepTitle, options]
+          description: The open question, present when waitKind is question
+          properties:
+            id: {type: string, format: uuid}
+            text: {type: string}
+            stepTitle: {type: string}
+            options:
+              type: array
+              items: {type: string, enum: [retry, skip]}
         costUsd: {type: number, description: Sum of the Claude Code invocations so far}
         costLimitUsd: {type: number}
         lastSeq: {type: integer, format: int64}

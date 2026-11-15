@@ -10,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -17,7 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
-/** Operations startRun, getLatestRun, getRun, listRunEvents, streamRunEvents and downloadRunZip. */
+/** Operations startRun, answerRunQuestion, getLatestRun, getRun, listRunEvents, streamRunEvents and downloadRunZip. */
 @RestController
 class RunController {
 
@@ -53,6 +54,15 @@ class RunController {
             @RequestHeader(name = "Last-Event-ID", required = false) String lastEventId) {
         long from = after != null ? after : parse(lastEventId);
         return service.stream(runId, from);
+    }
+
+    /** The answer of the client to the open question of a waiting run. */
+    record AnswerRequest(UUID questionId, String choice, String hint) {
+    }
+
+    @PostMapping("/api/runs/{runId}/answer")
+    RunView answer(@PathVariable UUID runId, @RequestBody AnswerRequest request) {
+        return service.answer(runId, request.questionId(), request.choice(), request.hint());
     }
 
     @GetMapping("/api/runs/{runId}/zip")
