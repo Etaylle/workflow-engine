@@ -47,7 +47,8 @@ import tools.jackson.databind.JsonNode;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
         "engine.execution.workspace-dir=${java.io.tmpdir}/engine-it-workspaces",
         "engine.execution.template-dir=../templates/java-svelte-postgres",
-        "engine.execution.create-database=false"})
+        "engine.execution.create-database=false", "engine.execution.limit-wait-base-ms=20",
+        "engine.execution.limit-wait-max-ms=80", "engine.execution.limit-max-retries=3"})
 @Import({ScriptedAi.class, RunIT.Config.class})
 class RunIT {
 
@@ -57,6 +58,8 @@ class RunIT {
         final Set<String> failGates = new HashSet<>();
         /** Step key to the number of invocations that still fail before it succeeds. */
         final Map<String, Integer> failStepTimes = new HashMap<>();
+        /** Step key to the number of invocations that still answer "rate limit" before it works. */
+        final Map<String, Integer> limitTimes = new HashMap<>();
         volatile int failGateTimes;
         final List<StepRequest> requests = new CopyOnWriteArrayList<>();
         volatile CountDownLatch hold;
@@ -67,6 +70,7 @@ class RunIT {
             failSteps.clear();
             failGates.clear();
             failStepTimes.clear();
+            limitTimes.clear();
             failGateTimes = 0;
             requests.clear();
             hold = null;
@@ -86,6 +90,10 @@ class RunIT {
             entered.countDown();
             await();
             requests.add(request);
+            if (limitTimes.merge(request.stepKey(), -1, Integer::sum) >= 0) {
+                return new StepOutcome(false, BigDecimal.ZERO, 0, 1, "rate_limit",
+                        "API Error: 429 rate limit exceeded");
+            }
             if (failSteps.contains(request.stepKey())
                     || failStepTimes.merge(request.stepKey(), -1, Integer::sum) >= 0) {
                 return new StepOutcome(false, new BigDecimal("0.25"), 2, 1, "error_max_turns",
@@ -533,6 +541,113 @@ class RunIT {
         JsonNode run = http.json("GET", "/api/runs/" + id, null);
         assertThat(run.get("status").asString()).isEqualTo("failed");
         assertThat(run.get("failureReason").asString()).contains("resumed 3 times");
+    }
+
+    @Test
+    void aRateLimitMakesTheRunWaitAndTryAgainWithGrowingDelaysInsteadOfFailing() throws Exception {
+        UUID project = confirmedProject();
+        builder.limitTimes.put("build", 2);
+
+        String id = http.json("POST", "/api/projects/" + project + "/runs", null).get("id").asString();
+        JsonNode run = awaitStatus(id, "done");
+
+        assertThat(run.get("tasks").get(0).get("steps").get(1).get("attempts").asInt()).isEqualTo(3);
+        List<String> outcomes = jdbc.sql("select c.outcome from execution.agent_calls c join"
+                        + " execution.step_runs s on s.id = c.step_run_id where c.step_run_id = :s"
+                        + " order by c.attempt")
+                .param("s", UUID.fromString(run.get("tasks").get(0).get("steps").get(1).get("id")
+                        .asString())).query(String.class).list();
+        assertThat(outcomes).containsExactly("rate_limit", "rate_limit", "success");
+        String log = events(id, 0).toString();
+        assertThat(log).contains("waiting: Waiting for tokens: Build with tests failed: API Error: 429")
+                .contains("Try 1 of 3").contains("Try 2 of 3").contains("executing: trying again");
+        assertThat(log).doesNotContain("Fix attempt").doesNotContain("question for the client");
+    }
+
+    @Test
+    void whenTheLimitDoesNotLiftTheRunStopsRetryingAndWaitsUntilTheClientContinuesIt() throws Exception {
+        UUID project = confirmedProject();
+        builder.limitTimes.put("build", 100);
+
+        String id = http.json("POST", "/api/projects/" + project + "/runs", null).get("id").asString();
+        JsonNode waiting = awaitStatus(id, "waiting", "Still limited");
+
+        assertThat(waiting.get("waitKind").asString()).isEqualTo("tokens");
+        assertThat(waiting.get("failureReason").asString()).contains("Still limited after 3 tries");
+        assertThat(builder.requests.stream().filter(r -> r.stepKey().equals("build")).count())
+                .isEqualTo(4);
+        assertThat(waiting.get("tasks").get(0).get("steps").get(1).get("status").asString())
+                .isEqualTo("waiting");
+        builder.limitTimes.clear();
+        assertThat(http.call("POST", "/api/runs/" + id + "/answer", "{}").statusCode()).isNotEqualTo(200);
+
+        assertThat(http.json("POST", "/api/runs/" + id + "/resume", null).get("status").asString())
+                .isEqualTo("executing");
+        assertThat(awaitStatus(id, "done").get("status").asString()).isEqualTo("done");
+    }
+
+    @Test
+    void theCostLimitMakesTheRunWaitUntilTheClientRaisesIt() throws Exception {
+        UUID project = confirmedProject();
+        CountDownLatch hold = new CountDownLatch(1);
+        builder.hold = hold;
+        String id = http.json("POST", "/api/projects/" + project + "/runs", null).get("id").asString();
+        assertThat(builder.entered.await(30, TimeUnit.SECONDS)).isTrue();
+        jdbc.sql("update execution.runs set cost_limit_usd = 0.2 where id = :id")
+                .param("id", UUID.fromString(id)).update();
+        hold.countDown();
+
+        JsonNode waiting = awaitStatus(id, "waiting", "cost limit");
+
+        assertThat(waiting.get("waitKind").asString()).isEqualTo("cost_limit");
+        assertThat(waiting.get("tasks").get(0).get("steps").get(0).get("status").asString())
+                .isEqualTo("done");
+        assertThat(waiting.get("tasks").get(0).get("steps").get(1).get("status").asString())
+                .isEqualTo("waiting");
+        assertThat(http.call("POST", "/api/runs/" + id + "/resume", null).statusCode()).isEqualTo(400);
+        assertThat(http.call("POST", "/api/runs/" + id + "/resume", "{\"costLimitUsd\":0.25}")
+                .statusCode()).isEqualTo(400);
+        assertThat(http.json("GET", "/api/runs/" + id, null).get("status").asString()).isEqualTo("waiting");
+
+        JsonNode resumed = http.json("POST", "/api/runs/" + id + "/resume", "{\"costLimitUsd\":5}");
+        assertThat(resumed.get("costLimitUsd").asDouble()).isEqualTo(5.0);
+        JsonNode run = awaitStatus(id, "done");
+        assertThat(run.get("tasks")).allSatisfy(t -> assertThat(t.get("status").asString())
+                .isEqualTo("done"));
+        assertThat(builder.requests.stream().map(StepRequest::stepKey).filter("plan"::equals).count())
+                .isEqualTo(2);
+    }
+
+    @Test
+    void aRunWaitingForTokensIsInterruptedByAnEngineRestartAndCanBeResumed() throws Exception {
+        UUID project = confirmedProject();
+        builder.limitTimes.put("build", 100);
+        String id = http.json("POST", "/api/projects/" + project + "/runs", null).get("id").asString();
+        awaitStatus(id, "waiting", "Still limited");
+
+        service.recoverInterrupted();
+        assertThat(http.json("GET", "/api/runs/" + id, null).get("status").asString())
+                .isEqualTo("interrupted");
+        builder.limitTimes.clear();
+        assertThat(http.json("POST", "/api/runs/" + id + "/resume", null).get("resumeCount").asInt())
+                .isEqualTo(1);
+        assertThat(awaitStatus(id, "done").get("status").asString()).isEqualTo("done");
+    }
+
+    /** Polls until the run has this status, its thread has ended and the reason contains the text. */
+    private JsonNode awaitStatus(String runId, String status, String... reason) throws Exception {
+        long deadline = System.nanoTime() + Duration.ofSeconds(60).toNanos();
+        while (System.nanoTime() < deadline) {
+            JsonNode run = http.json("GET", "/api/runs/" + runId, null);
+            boolean reasonOk = reason.length == 0 || (run.hasNonNull("failureReason")
+                    && run.get("failureReason").asString().contains(reason[0]));
+            if (status.equals(run.get("status").asString()) && reasonOk
+                    && http.call("GET", "/api/runs/" + runId + "/zip", null).statusCode() == 200) {
+                return run;
+            }
+            Thread.sleep(50);
+        }
+        throw new AssertionError("The run did not reach " + status + " within 60 seconds");
     }
 
     /** The engine restarts while the run is under way: the row says executing, no thread exists. */

@@ -16,12 +16,15 @@ import java.util.regex.Pattern;
  * (and so CONTRACT.md) may hold markers that make it misbehave, so one run can be shown with a
  * defect: "stub-fail:build:3" makes the first 3 invocations of step build fail, "stub-slow:500"
  * makes every step take 500 ms, "stub-crash:build:1" makes the first invocation of step build
- * throw, which the orchestrator turns into an interrupted run (as an engine crash would).
+ * throw (the orchestrator turns that into an interrupted run, as an engine crash would),
+ * "stub-limit:build:2" makes the first 2 invocations answer "rate limit reached" (the run waits
+ * and tries again).
  */
 class StubBuilder implements Builder {
 
     private static final Pattern FAIL = Pattern.compile("stub-fail:(\\w+):(\\d+)");
     private static final Pattern CRASH = Pattern.compile("stub-crash:(\\w+):(\\d+)");
+    private static final Pattern LIMIT = Pattern.compile("stub-limit:(\\w+):(\\d+)");
     private static final Pattern SLOW = Pattern.compile("stub-slow:(\\d+)");
 
     private final Map<String, Integer> invocations = new ConcurrentHashMap<>();
@@ -37,6 +40,10 @@ class StubBuilder implements Builder {
         sleep(SLOW.matcher(contract));
         if (triggered(CRASH, contract, request, "crash")) {
             throw new IllegalStateException("Stub: step " + request.stepKey() + " crashed on purpose");
+        }
+        if (triggered(LIMIT, contract, request, "limit")) {
+            return new StepOutcome(false, BigDecimal.ZERO, 0, 0, "rate_limit",
+                    "Stub: rate limit reached");
         }
         if (triggered(FAIL, contract, request, "fail")) {
             return new StepOutcome(false, new BigDecimal("0.01"), 1, 0, "error_stub",

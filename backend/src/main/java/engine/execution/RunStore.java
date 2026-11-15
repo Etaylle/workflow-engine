@@ -140,6 +140,16 @@ class RunStore {
                 + " and status = 'running'").param("r", runId).update();
     }
 
+    BigDecimal costLimitOf(UUID runId) {
+        return jdbc.sql("select cost_limit_usd from execution.runs where id = :id").param("id", runId)
+                .query(BigDecimal.class).single();
+    }
+
+    void setCostLimit(UUID runId, BigDecimal limit) {
+        jdbc.sql("update execution.runs set cost_limit_usd = :l where id = :id").param("l", limit)
+                .param("id", runId).update();
+    }
+
     int resumeCount(UUID runId) {
         return jdbc.sql("select resume_count from execution.runs where id = :id").param("id", runId)
                 .query(Integer.class).single();
@@ -314,7 +324,8 @@ class RunStore {
     /** Marks runs that were under way when the engine stopped; returns their ids. */
     @Transactional
     List<UUID> interruptActive() {
-        List<UUID> ids = jdbc.sql("select id from execution.runs where status in ('preparing', 'executing')")
+        List<UUID> ids = jdbc.sql("select id from execution.runs where status in ('preparing', 'executing')"
+                        + " or (status = 'waiting' and wait_kind = 'tokens')")
                 .query(UUID.class).list();
         for (UUID id : ids) {
             jdbc.sql("update execution.step_runs set status = 'failed', result = 'Interrupted: the engine"

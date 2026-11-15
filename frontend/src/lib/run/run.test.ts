@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Run, RunEvent } from '#lib/api/client.js';
 import {
 	MAX_CONSOLE_LINES,
+	atCostLimit,
 	canDownload,
 	canResume,
 	canStop,
@@ -10,8 +11,10 @@ import {
 	hasQuestion,
 	isActive,
 	lastSeen,
+	limitHasRoom,
 	mergeConsole,
-	progress
+	progress,
+	suggestedLimit
 } from './run.js';
 
 const step = (status: 'waiting' | 'running' | 'done' | 'failed') => ({
@@ -57,6 +60,8 @@ describe('run state', () => {
 		for (const status of ['waiting', 'done', 'interrupted'] as const) {
 			expect(isActive(run(status))).toBe(false);
 		}
+		expect(isActive({ ...run('waiting'), waitKind: 'tokens' })).toBe(true);
+		expect(isActive({ ...run('waiting'), waitKind: 'cost_limit' })).toBe(false);
 	});
 
 	it('shows the question only while the run waits for the client', () => {
@@ -81,7 +86,20 @@ describe('run state', () => {
 		expect(canStop(null)).toBe(false);
 		expect(canResume(run('interrupted'))).toBe(true);
 		expect(canResume(run('waiting'))).toBe(false);
+		expect(canResume({ ...run('waiting'), waitKind: 'tokens' })).toBe(true);
+		expect(canResume({ ...run('waiting'), waitKind: 'cost_limit' })).toBe(true);
+		expect(canResume({ ...run('waiting'), waitKind: 'question' })).toBe(false);
 		expect(canResume(run('failed'))).toBe(false);
+	});
+
+	it('knows when a new cost limit leaves room', () => {
+		const atLimit: Run = { ...run('waiting'), waitKind: 'cost_limit', costUsd: 9.9 };
+		expect(atCostLimit(atLimit)).toBe(true);
+		expect(atCostLimit(run('waiting'))).toBe(false);
+		expect(limitHasRoom(atLimit, 10)).toBe(false);
+		expect(limitHasRoom(atLimit, 10.2)).toBe(true);
+		expect(limitHasRoom(atLimit, Number.NaN)).toBe(false);
+		expect(suggestedLimit(atLimit)).toBe(20);
 	});
 
 	it('does not offer a new Run while the run waits', () => {

@@ -109,3 +109,13 @@ test('an interrupted run continues from the last checkpoint', async ({ page }) =
 	await expect(page.getByTestId('run-progress')).toContainText('8 of 8 steps done');
 	await expect(page.getByTestId('run-console')).toContainText('Independent check');
 });
+
+test('a rate limit makes the run wait for tokens and continue by itself', async ({ page }) => {
+	await startRunWithWish(page, 'A canteen app where students order a meal stub-limit:build:1');
+
+	// US-06.10: the run does not fail; it waits, says why, and goes on
+	await expect(page.getByTestId('run-status')).toHaveText('Waiting', { timeout: 60_000 });
+	await expect(page.getByTestId('run-wait')).toContainText('Waiting for tokens');
+	await expect(page.getByTestId('run-status')).toHaveText('Finished', { timeout: 60_000 });
+	await expect(page.getByTestId('run-progress')).toContainText('8 of 8 steps done');
+});

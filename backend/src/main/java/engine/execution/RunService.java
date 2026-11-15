@@ -3,6 +3,8 @@ package engine.execution;
 import engine.shared.ApiProblem;
 import engine.shared.ContractPort;
 import engine.shared.ProjectPort;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -130,27 +132,55 @@ class RunService {
     }
 
     /**
-     * Continues a run that was interrupted by an engine restart, from the last checkpoint. The key
-     * is asked for again first (after a restart it is gone), and the number of resumes is bounded.
+     * Continues a run from the last checkpoint: an interrupted one (after an engine restart the key
+     * is asked for again first, and the resumes are bounded), one that stopped waiting for tokens, or
+     * one that reached the cost limit (then {@code raiseLimitTo} must lift the limit).
      */
-    RunView resume(UUID runId) {
+    RunView resume(UUID runId, BigDecimal raiseLimitTo) {
         RunView run = view(runId);
-        if (!"interrupted".equals(run.status())) {
-            throw new ApiProblem(409, "Not interrupted", "Only an interrupted run can be resumed.");
+        boolean interrupted = "interrupted".equals(run.status());
+        boolean waiting = "waiting".equals(run.status());
+        if (!interrupted && !(waiting && Set.of("tokens", "cost_limit").contains(run.waitKind()))) {
+            throw new ApiProblem(409, "Cannot continue", "Only an interrupted run, a run waiting for tokens"
+                    + " or a run at its cost limit can be continued; answer the question of a waiting run.");
+        }
+        if (orchestrator.isBuilding(runId)) {
+            throw new ApiProblem(409, "Run retrying", "The run is waiting for tokens and tries again by"
+                    + " itself; continue it only when it has stopped retrying.");
         }
         builder.checkReady();
-        if (store.resumeCount(runId) >= settings.maxResumes()) {
-            store.setRun(runId, "failed", "The run was resumed " + settings.maxResumes()
+        if ("cost_limit".equals(run.waitKind()) || raiseLimitTo != null) {
+            raiseLimit(run, raiseLimitTo);
+        }
+        if (interrupted) {
+            countResume(run);
+        }
+        events.publish(runId, "run", "continued by the client");
+        continueRun(runId, run.projectId(), run.contractVersion());
+        return view(runId);
+    }
+
+    private void raiseLimit(RunView run, BigDecimal raiseLimitTo) {
+        BigDecimal least = run.costUsd().add(RunOrchestrator.MIN_BUDGET);
+        if (raiseLimitTo == null || raiseLimitTo.compareTo(least) < 0) {
+            throw new ApiProblem(400, "Raise the limit", "The cost so far is USD " + run.costUsd()
+                    .setScale(2, RoundingMode.HALF_UP) + ". Give a limit of at least USD "
+                    + least.setScale(2, RoundingMode.CEILING) + " to continue.");
+        }
+        store.setCostLimit(run.id(), raiseLimitTo);
+    }
+
+    private void countResume(RunView run) {
+        if (store.resumeCount(run.id()) >= settings.maxResumes()) {
+            store.setRun(run.id(), "failed", "The run was resumed " + settings.maxResumes()
                     + " times and was interrupted again.");
-            events.publish(runId, "run", "failed: resumed " + settings.maxResumes() + " times already");
+            events.publish(run.id(), "run", "failed: resumed " + settings.maxResumes() + " times already");
             throw new ApiProblem(409, "Too many resumes", "This run was resumed " + settings.maxResumes()
                     + " times already. Start a new run; the ZIP of the last checkpoint is available.");
         }
-        store.addResume(runId);
-        events.publish(runId, "run", "resumed (" + store.resumeCount(runId) + " of "
+        store.addResume(run.id());
+        events.publish(run.id(), "run", "resumed (" + store.resumeCount(run.id()) + " of "
                 + settings.maxResumes() + ")");
-        continueRun(runId, run.projectId(), run.contractVersion());
-        return view(runId);
     }
 
     private void continueRun(UUID runId, UUID projectId, int contractVersion) {

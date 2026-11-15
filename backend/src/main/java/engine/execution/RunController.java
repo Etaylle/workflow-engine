@@ -1,5 +1,6 @@
 package engine.execution;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.http.ContentDisposition;
@@ -70,9 +71,13 @@ class RunController {
         return service.stop(runId);
     }
 
+    /** Optional body of resume: the new cost limit when the run waits at its limit. */
+    record ResumeRequest(BigDecimal costLimitUsd) {
+    }
+
     @PostMapping("/api/runs/{runId}/resume")
-    RunView resume(@PathVariable UUID runId) {
-        return service.resume(runId);
+    RunView resume(@PathVariable UUID runId, @RequestBody(required = false) ResumeRequest request) {
+        return service.resume(runId, request == null ? null : request.costLimitUsd());
     }
 
     @GetMapping("/api/runs/{runId}/zip")

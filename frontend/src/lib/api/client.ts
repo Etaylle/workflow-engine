@@ -230,7 +230,12 @@ export const answerRunQuestion = (
 	hint: string
 ) => json<Run>(`/api/runs/${runId}/answer`, 'POST', { questionId, choice, hint });
 export const stopRun = (runId: string) => json<Run>(`/api/runs/${runId}/stop`, 'POST');
-export const resumeRun = (runId: string) => json<Run>(`/api/runs/${runId}/resume`, 'POST');
+export const resumeRun = (runId: string, costLimitUsd?: number) =>
+	json<Run>(
+		`/api/runs/${runId}/resume`,
+		'POST',
+		costLimitUsd === undefined ? {} : { costLimitUsd }
+	);
 export const getRun = (runId: string) => json<Run>(`/api/runs/${runId}`);
 export const listRunEvents = (runId: string, after = 0) =>
 	json<RunEvent[]>(`/api/runs/${runId}/events?after=${after}`);

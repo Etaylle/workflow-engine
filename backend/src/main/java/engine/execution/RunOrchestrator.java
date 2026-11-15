@@ -31,7 +31,7 @@ import org.springframework.stereotype.Component;
 class RunOrchestrator {
 
     private static final Logger LOG = LoggerFactory.getLogger(RunOrchestrator.class);
-    private static final BigDecimal MIN_BUDGET = new BigDecimal("0.30");
+    static final BigDecimal MIN_BUDGET = new BigDecimal("0.30");
 
     private final RunStore store;
     private final RunEvents events;
@@ -200,7 +200,7 @@ class RunOrchestrator {
     }
 
     /** The result of one attempt at a step: passed with a summary, or failed with what went wrong. */
-    private record Attempt(boolean passed, String text) {
+    private record Attempt(boolean passed, boolean limited, String text) {
     }
 
     private boolean buildTask(Ctx ctx, String contract, List<RunStore.TaskRow> tasks, int index) {
@@ -231,15 +231,18 @@ class RunOrchestrator {
         events.publish(runId, "step", "Step " + def.title() + " started");
         int attempts = 1 + settings.fixAttempts();
         String failure = null;
-        for (int attempt = 1; attempt <= attempts; attempt++) {
+        int waits = 0;
+        int attempt = 1;
+        while (attempt <= attempts) {
             if (stopped(runId)) {
                 return false;
             }
-            BigDecimal remaining = ctx.run().costLimitUsd().subtract(store.costOf(runId));
+            BigDecimal limit = store.costLimitOf(runId);
+            BigDecimal remaining = limit.subtract(store.costOf(runId));
             if (remaining.compareTo(MIN_BUDGET) < 0) {
-                return costLimit(ctx.run(), task, row);
+                return costLimit(ctx.run().id(), limit, task, row);
             }
-            if (attempt > 1) {
+            if (attempt > 1 && waits == 0) {
                 events.publish(runId, "console", "Fix attempt " + (attempt - 1) + " of "
                         + settings.fixAttempts() + " for " + def.title());
             }
@@ -254,10 +257,68 @@ class RunOrchestrator {
                 events.publish(runId, "step", "Step " + def.title() + " done");
                 return true;
             }
+            if (result.limited()) {
+                if (!waitForTokens(ctx, task, row, result.text(), ++waits)) {
+                    return false;
+                }
+                continue;
+            }
+            waits = 0;
             failure = result.text();
             events.publish(runId, "console", "Attempt " + attempt + " failed: " + failure);
+            attempt++;
         }
         return askClient(ctx.run(), task, row, def.title(), attempts, failure);
+    }
+
+    /**
+     * The rate limit or the credit is exhausted: the run waits (status waiting, kind tokens) with a
+     * growing, bounded delay and then tries the same attempt again. After the allowed number of
+     * waits it stops retrying by itself and waits for the client to continue it.
+     *
+     * @return true when the step should be tried again, false when the run stays waiting or stopped
+     */
+    private boolean waitForTokens(Ctx ctx, RunStore.TaskRow task, RunStore.StepRow row, String what,
+            int retry) {
+        UUID runId = ctx.run().id();
+        if (retry > settings.limitMaxRetries()) {
+            store.setStep(row.id(), "waiting", null);
+            store.setTask(task.id(), "pending");
+            String reason = "Waiting for tokens: " + what + ". Still limited after "
+                    + settings.limitMaxRetries() + " tries; continue the run when the limit is lifted.";
+            store.setWaiting(runId, "tokens", reason);
+            events.publish(runId, "run", "waiting: " + reason);
+            return false;
+        }
+        long delayMs = Math.min(settings.limitWaitMax().toMillis(),
+                settings.limitWaitBase().toMillis() << Math.min(retry - 1, 20));
+        String reason = "Waiting for tokens: " + what + ". Try " + retry + " of "
+                + settings.limitMaxRetries() + " in " + Math.max(1, delayMs / 1000) + " s.";
+        store.setWaiting(runId, "tokens", reason);
+        events.publish(runId, "run", "waiting: " + reason);
+        if (!sleepUnlessStopped(runId, delayMs)) {
+            return false;
+        }
+        store.setRun(runId, "executing", null);
+        events.publish(runId, "run", "executing: trying again");
+        return true;
+    }
+
+    /** Sleeps in short slices so a stop is noticed; false when the run was stopped meanwhile. */
+    private boolean sleepUnlessStopped(UUID runId, long millis) {
+        long end = System.nanoTime() + millis * 1_000_000L;
+        while (System.nanoTime() < end) {
+            if (stopped(runId)) {
+                return false;
+            }
+            try {
+                Thread.sleep(Math.min(50, Math.max(1, (end - System.nanoTime()) / 1_000_000L)));
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return false;
+            }
+        }
+        return !stopped(runId);
     }
 
     private String hintsOf(RunStore.StepRow row, StepDef def) {
@@ -281,7 +342,7 @@ class RunOrchestrator {
                 + outcome.costUsd().setScale(2, java.math.RoundingMode.HALF_UP) + ", "
                 + outcome.turns() + " turns)");
         if (!outcome.ok()) {
-            return new Attempt(false, def.title() + " failed: " + outcome.summary());
+            return new Attempt(false, outcome.limited(), def.title() + " failed: " + outcome.summary());
         }
         if (def.gated()) {
             GateResult gate = builder.gate(ctx.workspace().dir(), ctx.appEnv(), ctx.logDir());
@@ -290,10 +351,10 @@ class RunOrchestrator {
                 String text = "The check after " + def.title() + " did not pass:\n"
                         + String.join("\n", gate.tail());
                 store.markCheckFailed(call, text);
-                return new Attempt(false, text);
+                return new Attempt(false, false, text);
             }
         }
-        return new Attempt(true, outcome.summary());
+        return new Attempt(true, false, outcome.summary());
     }
 
     /** Not fixable after the attempts: the run waits with one question for the client. */
@@ -310,13 +371,12 @@ class RunOrchestrator {
     }
 
     /** The cost limit is reached: the run waits until the client raises it. */
-    private boolean costLimit(RunStore.RunRow run, RunStore.TaskRow task, RunStore.StepRow step) {
+    private boolean costLimit(UUID runId, BigDecimal limit, RunStore.TaskRow task, RunStore.StepRow step) {
         store.setStep(step.id(), "waiting", null);
         store.setTask(task.id(), "pending");
-        String reason = "The cost limit of USD " + run.costLimitUsd() + " is reached. Raise the limit to"
-                + " continue.";
-        store.setWaiting(run.id(), "cost_limit", reason);
-        events.publish(run.id(), "run", "waiting: " + reason);
+        String reason = "The cost limit of USD " + limit + " is reached. Raise the limit to continue.";
+        store.setWaiting(runId, "cost_limit", reason);
+        events.publish(runId, "run", "waiting: " + reason);
         return false;
     }
 

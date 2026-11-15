@@ -93,12 +93,16 @@ class ClaudeCodeBuilder implements Builder {
             String subtype = json.path("subtype").asString("unknown");
             boolean ok = result.exitCode() == 0 && !json.path("is_error").asBoolean(false)
                     && "success".equals(subtype);
+            String limit = ok ? null : LimitDetector.classify(json.path("result").asString("")
+                    + read(err));
             return new StepOutcome(ok, BigDecimal.valueOf(json.path("total_cost_usd").asDouble(0)),
-                    json.path("num_turns").asInt(0), seconds, subtype,
+                    json.path("num_turns").asInt(0), seconds, limit != null ? limit : subtype,
                     oneLine(json.path("result").asString("")));
         } catch (RuntimeException e) {
-            return failed(seconds, "no_json", "Claude Code gave no readable answer (exit code "
-                    + result.exitCode() + "); see " + err.getFileName());
+            String limit = LimitDetector.classify(read(err) + read(out));
+            return failed(seconds, limit != null ? limit : "no_json",
+                    "Claude Code gave no readable answer (exit code " + result.exitCode() + "); see "
+                            + err.getFileName());
         }
     }
 

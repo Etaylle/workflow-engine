@@ -13,9 +13,13 @@ import java.math.BigDecimal;
  * @param createDatabase create a PostgreSQL database for the generated project of each run
  * @param costLimitUsd default cost limit of a run
  * @param maxResumes how many times a run interrupted by an engine restart may be resumed
+ * @param limitWaitBase first wait when the rate limit or credit is exhausted; it doubles each retry
+ * @param limitWaitMax longest single wait
+ * @param limitMaxRetries waits before the run stops retrying by itself and waits for the client
  * @param fixAttempts how many times a failed step is sent back to the builder with the failure
  */
 record ExecutionSettings(Path workspaceRoot, Path templateDir, String claudeBin, String model,
         boolean useSignIn, boolean createDatabase, BigDecimal costLimitUsd, Duration stepTimeout,
-        Duration checkTimeout, int fixAttempts, int maxResumes) {
+        Duration checkTimeout, int fixAttempts, int maxResumes,
+        Duration limitWaitBase, Duration limitWaitMax, int limitMaxRetries) {
 }

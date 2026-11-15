@@ -885,13 +885,24 @@ paths:
   /api/runs/{runId}/resume:
     post:
       operationId: resumeRun
-      summary: Continue an interrupted run from the last checkpoint
+      summary: Continue an interrupted or waiting run from the last checkpoint
       description: >
-        After an engine restart the key is gone: enter it again first (it is asked for, 409 "No
-        Anthropic key" otherwise). The workspace is reset to the last commit, the step that was
-        under way is built again. At most 3 resumes; the next interruption ends the run failed.
+        Continues an interrupted run, a run waiting for tokens that has stopped retrying by itself,
+        or a run waiting at its cost limit (then costLimitUsd is required and must leave room, at
+        least the cost so far plus USD 0.30; 400 otherwise). After an engine restart the key is
+        gone: enter it again first (409 "No Anthropic key" otherwise). The workspace is reset to the
+        last commit, the step that was under way is built again. An interrupted run is resumed at
+        most 3 times; the next interruption ends it failed.
       parameters:
         - $ref: "#/components/parameters/RunId"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                costLimitUsd: {type: number}
       responses:
         "200":
           description: The run, executing again
@@ -905,8 +916,14 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+        "400":
+          description: The new cost limit leaves no room
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
         "409":
-          description: Not interrupted, no key, contract changed, or resumed 3 times already
+          description: Cannot continue now, no key, contract changed, or resumed 3 times already
           content:
             application/problem+json:
               schema:
@@ -1177,8 +1194,10 @@ components:
           enum: [question, cost_limit, tokens]
           description: >
             Only while status is waiting. question = a defect is not fixable after the fix attempts
-            and the client must answer (`question`); cost_limit = the limit is reached; tokens =
-            the rate limit or credit is exhausted
+            and the client must answer (`question`); cost_limit = the limit is reached, the client
+            raises it (resume); tokens = the rate limit or the credit is exhausted: the run retries
+            by itself with doubling waits (1 minute at first, 15 minutes at most) and, after 6 tries, waits for
+            resume
         question:
           type: object
           nullable: true

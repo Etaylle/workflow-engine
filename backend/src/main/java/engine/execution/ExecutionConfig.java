@@ -28,13 +28,17 @@ class ExecutionConfig {
             @Value("${engine.execution.step-timeout-minutes:20}") long stepMinutes,
             @Value("${engine.execution.check-timeout-minutes:10}") long checkMinutes,
             @Value("${engine.execution.fix-attempts:2}") int fixAttempts,
-            @Value("${engine.execution.max-resumes:3}") int maxResumes) {
+            @Value("${engine.execution.max-resumes:3}") int maxResumes,
+            @Value("${engine.execution.limit-wait-base-ms:60000}") long limitBaseMs,
+            @Value("${engine.execution.limit-wait-max-ms:900000}") long limitMaxMs,
+            @Value("${engine.execution.limit-max-retries:6}") int limitMaxRetries) {
         Path root = workspaceDir.isBlank()
                 ? Path.of(System.getProperty("user.home"), ".workflow-engine", "workspaces")
                 : Path.of(workspaceDir);
         return new ExecutionSettings(root.toAbsolutePath(), Path.of(templateDir).toAbsolutePath(),
                 claudeBin, model, useSignIn, createDatabase, costLimit, Duration.ofMinutes(stepMinutes),
-                Duration.ofMinutes(checkMinutes), fixAttempts, maxResumes);
+                Duration.ofMinutes(checkMinutes), fixAttempts, maxResumes,
+                Duration.ofMillis(limitBaseMs), Duration.ofMillis(limitMaxMs), limitMaxRetries);
     }
 
     @Bean

@@ -134,6 +134,12 @@
 					{#if run.failureReason}<br />{run.failureReason}{/if}
 				</p>
 			{/if}
+			{#if run.status === 'waiting' && run.waitKind !== 'question'}
+				<p role="status" data-testid="run-wait" data-kind={run.waitKind}>
+					{locale.t(`run.wait.${run.waitKind}` as MessageKey)}
+					{#if run.failureReason}<br />{run.failureReason}{/if}
+				</p>
+			{/if}
 			{#if hasQuestion(run) && run.question}
 				<div class="question" role="alert" data-testid="run-question">
 					<h3>{locale.t('run.question.heading', { step: run.question.stepTitle })}</h3>
