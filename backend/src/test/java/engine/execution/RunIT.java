@@ -60,6 +60,7 @@ class RunIT {
         volatile int failGateTimes;
         final List<StepRequest> requests = new CopyOnWriteArrayList<>();
         volatile CountDownLatch hold;
+        volatile CountDownLatch entered = new CountDownLatch(1);
         volatile boolean ready = true;
 
         void reset() {
@@ -69,6 +70,7 @@ class RunIT {
             failGateTimes = 0;
             requests.clear();
             hold = null;
+            entered = new CountDownLatch(1);
             ready = true;
         }
 
@@ -81,6 +83,7 @@ class RunIT {
 
         @Override
         public StepOutcome run(StepRequest request) {
+            entered.countDown();
             await();
             requests.add(request);
             if (failSteps.contains(request.stepKey())
@@ -180,7 +183,7 @@ class RunIT {
         assertThat(run.get("question").get("text").asString()).contains("Build with tests")
                 .contains("could not be fixed after 3 attempts").contains("ran out of turns");
         assertThat(run.get("question").get("options")).extracting(JsonNode::asString)
-                .containsExactly("retry", "skip");
+                .containsExactly("retry", "skip", "stop");
         assertThat(run.get("failureReason").asString()).contains("ran out of turns");
         JsonNode first = run.get("tasks").get(0);
         assertThat(first.get("status").asString()).isEqualTo("failed");
@@ -423,6 +426,141 @@ class RunIT {
         assertThat(workspace).doesNotExist();
         assertThat(http.call("GET", "/api/runs/" + run.get("id").asString(), null).statusCode())
                 .isEqualTo(404);
+    }
+
+    @Test
+    void stoppingABuildEndsItFailedAndLeavesTheWorkspaceAtTheLastCheckpoint() throws Exception {
+        UUID project = confirmedProject();
+        CountDownLatch hold = new CountDownLatch(1);
+        builder.hold = hold;
+        String id = http.json("POST", "/api/projects/" + project + "/runs", null).get("id").asString();
+        assertThat(builder.entered.await(30, TimeUnit.SECONDS)).isTrue();
+
+        JsonNode stopped = http.json("POST", "/api/runs/" + id + "/stop", null);
+        assertThat(stopped.get("status").asString()).isEqualTo("failed");
+        assertThat(stopped.get("failureReason").asString()).isEqualTo("Stopped by the client");
+        assertThat(http.call("GET", "/api/runs/" + id + "/zip", null).statusCode()).isEqualTo(409);
+        hold.countDown();
+        awaitIdle(id);
+
+        JsonNode run = http.json("GET", "/api/runs/" + id, null);
+        assertThat(run.get("status").asString()).isEqualTo("failed");
+        assertThat(run.get("tasks").get(0).get("steps").get(0).get("status").asString())
+                .isEqualTo("failed");
+        assertThat(run.get("tasks").get(0).get("steps").get(1).get("status").asString())
+                .isEqualTo("waiting");
+        Path workspace = workspaceOf(run);
+        assertThat(workspace.resolve("docs/STUB-plan.md")).doesNotExist();
+        assertThat(gitStatus(workspace)).isEmpty();
+        assertThat(builder.requests).hasSize(1);
+        assertThat(events(id, 0).toString()).contains("failed: stopped by the client");
+        assertThat(http.call("GET", "/api/runs/" + id + "/zip", null).statusCode()).isEqualTo(200);
+        assertThat(http.call("POST", "/api/runs/" + id + "/stop", null).statusCode()).isEqualTo(409);
+        assertThat(http.call("POST", "/api/runs/" + id + "/resume", null).statusCode()).isEqualTo(409);
+    }
+
+    @Test
+    void aWaitingRunCanBeStoppedByTheClientOrByAnsweringStop() throws Exception {
+        UUID project = confirmedProject();
+        builder.failSteps.add("build");
+        JsonNode waiting = awaitEnd(http.json("POST", "/api/projects/" + project + "/runs", null)
+                .get("id").asString());
+        String id = waiting.get("id").asString();
+
+        JsonNode run = http.json("POST", "/api/runs/" + id + "/stop", null);
+
+        assertThat(run.get("status").asString()).isEqualTo("failed");
+        assertThat(run.get("question").isNull()).isTrue();
+
+        JsonNode second = awaitEnd(http.json("POST", "/api/projects/" + project + "/runs", null)
+                .get("id").asString());
+        assertThat(answer(second.get("id").asString(), second.get("question").get("id").asString(),
+                "stop", null).statusCode()).isEqualTo(200);
+        assertThat(http.json("GET", "/api/runs/" + second.get("id").asString(), null).get("status")
+                .asString()).isEqualTo("failed");
+    }
+
+    @Test
+    void anInterruptedRunNeedsTheKeyAgainThenContinuesFromTheLastCheckpoint() throws Exception {
+        UUID project = confirmedProject();
+        builder.failSteps.add("build");
+        JsonNode waiting = awaitEnd(http.json("POST", "/api/projects/" + project + "/runs", null)
+                .get("id").asString());
+        String id = waiting.get("id").asString();
+        assertThat(http.call("POST", "/api/runs/" + id + "/resume", null).statusCode()).isEqualTo(409);
+        simulateRestart(id);
+        Path workspace = workspaceOf(waiting);
+        Files.writeString(workspace.resolve("docs/half-written.md"), "not checkpointed");
+        Files.writeString(workspace.resolve("CONTRACT.md"), "broken");
+        builder.failSteps.clear();
+        builder.requests.clear();
+
+        builder.ready = false;
+        HttpResponse<String> noKey = http.call("POST", "/api/runs/" + id + "/resume", null);
+        assertThat(noKey.statusCode()).isEqualTo(409);
+        assertThat(noKey.body()).contains("No Anthropic key");
+        assertThat(http.json("GET", "/api/runs/" + id, null).get("status").asString())
+                .isEqualTo("interrupted");
+        builder.ready = true;
+        JsonNode resumed = http.json("POST", "/api/runs/" + id + "/resume", null);
+        assertThat(resumed.get("resumeCount").asInt()).isEqualTo(1);
+        JsonNode run = awaitEnd(id);
+
+        assertThat(run.get("status").asString()).isEqualTo("done");
+        assertThat(workspace.resolve("docs/half-written.md")).doesNotExist();
+        assertThat(builder.requests.get(0).stepKey()).isEqualTo("build");
+        assertThat(builder.requests.stream().map(StepRequest::stepKey).filter("plan"::equals).count())
+                .as("only the plan of task 2 runs, not the finished plan of task 1").isEqualTo(1);
+        assertThat(events(id, 0).toString()).contains("resumed (1 of 3)")
+                .contains("continued from the last checkpoint");
+        assertThat(Files.readString(workspace.resolve("CONTRACT.md"))).isNotEqualTo("broken");
+    }
+
+    @Test
+    void aRunIsResumedAtMostThreeTimes() throws Exception {
+        UUID project = confirmedProject();
+        builder.failSteps.add("build");
+        String id = awaitEnd(http.json("POST", "/api/projects/" + project + "/runs", null)
+                .get("id").asString()).get("id").asString();
+        simulateRestart(id);
+        jdbc.sql("update execution.runs set resume_count = 3 where id = :id")
+                .param("id", UUID.fromString(id)).update();
+
+        HttpResponse<String> response = http.call("POST", "/api/runs/" + id + "/resume", null);
+
+        assertThat(response.statusCode()).isEqualTo(409);
+        assertThat(response.body()).contains("3 times");
+        JsonNode run = http.json("GET", "/api/runs/" + id, null);
+        assertThat(run.get("status").asString()).isEqualTo("failed");
+        assertThat(run.get("failureReason").asString()).contains("resumed 3 times");
+    }
+
+    /** The engine restarts while the run is under way: the row says executing, no thread exists. */
+    private void simulateRestart(String runId) throws Exception {
+        jdbc.sql("update execution.runs set status = 'executing', wait_kind = null where id = :id")
+                .param("id", UUID.fromString(runId)).update();
+        service.recoverInterrupted();
+        assertThat(http.json("GET", "/api/runs/" + runId, null).get("status").asString())
+                .isEqualTo("interrupted");
+    }
+
+    private void awaitIdle(String runId) throws Exception {
+        long deadline = System.nanoTime() + Duration.ofSeconds(30).toNanos();
+        while (System.nanoTime() < deadline) {
+            if (http.call("GET", "/api/runs/" + runId + "/zip", null).statusCode() == 200) {
+                return;
+            }
+            Thread.sleep(100);
+        }
+        throw new AssertionError("The run thread did not end within 30 seconds");
+    }
+
+    private static String gitStatus(Path workspace) throws Exception {
+        Process process = new ProcessBuilder("git", "status", "--porcelain").directory(workspace.toFile())
+                .redirectErrorStream(true).start();
+        String out = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+        process.waitFor(30, TimeUnit.SECONDS);
+        return out.strip();
     }
 
     private HttpResponse<String> answer(String runId, String questionId, String choice, String hint)

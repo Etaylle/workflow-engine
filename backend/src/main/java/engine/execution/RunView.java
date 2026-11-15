@@ -14,6 +14,7 @@ public record RunView(
         String failureReason,
         String waitKind,
         Question question,
+        int resumeCount,
         BigDecimal costUsd,
         BigDecimal costLimitUsd,
         long lastSeq,

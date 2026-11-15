@@ -167,6 +167,15 @@
 	"run.question.skip": "Schritt überspringen",
 	"run.question.answering": "Senden...",
 	"run.question.skipNote": "Überspringen markiert den Schritt als erledigt, ohne ihn zu bauen.",
+	"run.status.failed": "Gestoppt",
+	"run.stop": "Lauf stoppen",
+	"run.stop.confirmText": "Lauf stoppen? Er endet hier und kann nicht fortgesetzt werden. Was bis zum letzten Kontrollpunkt gebaut wurde, lässt sich herunterladen.",
+	"run.stop.confirm": "Ja, Lauf stoppen",
+	"run.stop.cancel": "Weiterlaufen lassen",
+	"run.resume": "Ab dem letzten Kontrollpunkt fortsetzen",
+	"run.resumeKey": "Anthropic-Schlüssel (nach einem Neustart erneut nötig)",
+	"run.resumeCount": "{count} von 3 Mal fortgesetzt.",
+	"run.question.stop": "Lauf stoppen",
 	"run.status.done": "Abgeschlossen",
 	"run.status.interrupted": "Unterbrochen",
 	"run.progress": "{done} von {total} Schritten erledigt",
@@ -183,6 +192,6 @@
 	"run.step.failed": "fehlgeschlagen",
 	"run.console": "Konsole",
 	"run.zip": "ZIP herunterladen",
-	"run.interruptedHint": "Die Engine wurde neu gestartet, während der Lauf aktiv war, und der Schlüssel ist weg. Das bisher Gebaute lässt sich herunterladen; starten Sie einen neuen Lauf, um erneut zu bauen.",
+	"run.interruptedHint": "Die Engine wurde neu gestartet, während der Lauf aktiv war, und der Schlüssel ist weg. Geben Sie den Schlüssel erneut ein und setzen Sie ab dem letzten Kontrollpunkt fort, oder laden Sie das bisher Gebaute herunter.",
 	"run.reloadHint": "Sie können die Seite neu laden: Der Lauf geht weiter und die Anzeige knüpft wieder an."
 }

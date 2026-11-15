@@ -92,12 +92,16 @@ class RunService {
         RunStore.QuestionRow open = store.openQuestion(runId).filter(q -> "question".equals(run.waitKind()))
                 .filter(q -> q.id().equals(questionId)).orElseThrow(() -> new ApiProblem(409,
                         "No such question", "The run is not waiting for an answer to this question."));
-        if (!List.of("retry", "skip").contains(choice)) {
-            throw new ApiProblem(400, "Unknown answer", "Choose retry or skip.");
+        if (!List.of("retry", "skip", "stop").contains(choice)) {
+            throw new ApiProblem(400, "Unknown answer", "Choose retry, skip or stop.");
         }
         String text = hint == null ? null : hint.strip();
         if (text != null && text.length() > 1000) {
             throw new ApiProblem(400, "Hint too long", "Keep the hint under 1000 characters.");
+        }
+        if ("stop".equals(choice)) {
+            store.answerQuestion(open.id(), choice, text);
+            return stop(runId);
         }
         builder.checkReady();
         store.answerQuestion(open.id(), choice, text);
@@ -105,13 +109,57 @@ class RunService {
             store.setStep(open.stepId(), "done", "Skipped by the client");
         }
         events.publish(runId, "run", "answered: " + choice);
-        continueRun(runId, run.projectId());
+        continueRun(runId, run.projectId(), run.contractVersion());
         return view(runId);
     }
 
-    private void continueRun(UUID runId, UUID projectId) {
+    /**
+     * The client stops the run at any time: it ends as failed (the only way to failed), a build under
+     * way is ended, and the workspace goes back to the last green checkpoint (the ZIP shows it).
+     */
+    RunView stop(UUID runId) {
+        RunView run = view(runId);
+        if (!Set.of("preparing", "executing", "waiting", "interrupted").contains(run.status())) {
+            throw new ApiProblem(409, "Run has ended", "This run has already ended; there is nothing to stop.");
+        }
+        store.setRun(runId, "failed", "Stopped by the client");
+        store.failUnfinished(runId, "Stopped by the client");
+        events.publish(runId, "run", "failed: stopped by the client");
+        orchestrator.stop(runId);
+        return view(runId);
+    }
+
+    /**
+     * Continues a run that was interrupted by an engine restart, from the last checkpoint. The key
+     * is asked for again first (after a restart it is gone), and the number of resumes is bounded.
+     */
+    RunView resume(UUID runId) {
+        RunView run = view(runId);
+        if (!"interrupted".equals(run.status())) {
+            throw new ApiProblem(409, "Not interrupted", "Only an interrupted run can be resumed.");
+        }
+        builder.checkReady();
+        if (store.resumeCount(runId) >= settings.maxResumes()) {
+            store.setRun(runId, "failed", "The run was resumed " + settings.maxResumes()
+                    + " times and was interrupted again.");
+            events.publish(runId, "run", "failed: resumed " + settings.maxResumes() + " times already");
+            throw new ApiProblem(409, "Too many resumes", "This run was resumed " + settings.maxResumes()
+                    + " times already. Start a new run; the ZIP of the last checkpoint is available.");
+        }
+        store.addResume(runId);
+        events.publish(runId, "run", "resumed (" + store.resumeCount(runId) + " of "
+                + settings.maxResumes() + ")");
+        continueRun(runId, run.projectId(), run.contractVersion());
+        return view(runId);
+    }
+
+    private void continueRun(UUID runId, UUID projectId, int contractVersion) {
         ContractPort.ContractInfo contract = contracts.latestContract(projectId).orElseThrow(
                 () -> new ApiProblem(409, "No contract", "The project has no confirmed contract."));
+        if (contract.version() != contractVersion) {
+            throw new ApiProblem(409, "Contract changed", "The contract was confirmed again since this run"
+                    + " started. Start a new run on the new contract.");
+        }
         store.setRun(runId, "executing", null);
         orchestrator.submit(runId, contract.markdown());
     }
@@ -119,7 +167,8 @@ class RunService {
     /** The workspace of a run that is not being built, for the ZIP. */
     Workspace workspaceForZip(UUID runId) {
         RunView run = view(runId);
-        if ("preparing".equals(run.status()) || "executing".equals(run.status())) {
+        if ("preparing".equals(run.status()) || "executing".equals(run.status())
+                || orchestrator.isBuilding(runId)) {
             throw new ApiProblem(409, "Run under way", "The ZIP is available when the run has ended.");
         }
         Path dir = Path.of(store.row(runId).orElseThrow().workspacePath());

@@ -6,6 +6,7 @@ import java.time.Clock;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
@@ -105,7 +106,7 @@ class RunStore {
     }
 
     void setRun(UUID runId, String status, String reason) {
-        boolean finished = "done".equals(status) || "interrupted".equals(status);
+        boolean finished = Set.of("done", "interrupted", "failed").contains(status);
         jdbc.sql("update execution.runs set status = :s, failure_reason = :reason, wait_kind = null,"
                         + " updated_at = :now, finished_at = cast(:fin as timestamptz) where id = :id")
                 .param("s", status).param("reason", reason).param("now", now())
@@ -127,6 +128,26 @@ class RunStore {
                         + " where run_id = :r)").param("r", runId).update();
         jdbc.sql("update execution.task_runs set status = 'pending' where run_id = :r"
                 + " and status in ('failed', 'running')").param("r", runId).update();
+    }
+
+    /** The client stopped the run: the step that was under way is shown as failed, with the reason. */
+    @Transactional
+    void failUnfinished(UUID runId, String reason) {
+        jdbc.sql("update execution.step_runs set status = 'failed', result = :why where status = 'running'"
+                        + " and task_run_id in (select id from execution.task_runs where run_id = :r)")
+                .param("why", reason).param("r", runId).update();
+        jdbc.sql("update execution.task_runs set status = 'failed' where run_id = :r"
+                + " and status = 'running'").param("r", runId).update();
+    }
+
+    int resumeCount(UUID runId) {
+        return jdbc.sql("select resume_count from execution.runs where id = :id").param("id", runId)
+                .query(Integer.class).single();
+    }
+
+    void addResume(UUID runId) {
+        jdbc.sql("update execution.runs set resume_count = resume_count + 1 where id = :id")
+                .param("id", runId).update();
     }
 
     UUID addQuestion(UUID runId, UUID stepId, String text) {
@@ -234,11 +255,12 @@ class RunStore {
 
     Optional<RunView> view(UUID runId) {
         Optional<RunView> head = jdbc.sql("select id, project_id, contract_version, status, failure_reason,"
-                        + " wait_kind, cost_limit_usd, last_seq, started_at, finished_at from execution.runs"
+                        + " wait_kind, resume_count, cost_limit_usd, last_seq, started_at, finished_at from execution.runs"
                         + " where id = :id").param("id", runId)
                 .query((rs, n) -> new RunView(runId, rs.getObject("project_id", UUID.class),
                         rs.getInt("contract_version"), rs.getString("status"),
-                        rs.getString("failure_reason"), rs.getString("wait_kind"), null, BigDecimal.ZERO,
+                        rs.getString("failure_reason"), rs.getString("wait_kind"), null, rs.getInt("resume_count"),
+                        BigDecimal.ZERO,
                         rs.getBigDecimal("cost_limit_usd"), rs.getLong("last_seq"),
                         rs.getTimestamp("started_at").toInstant(),
                         rs.getTimestamp("finished_at") == null ? null
@@ -246,7 +268,7 @@ class RunStore {
                         List.of()))
                 .optional();
         return head.map(run -> new RunView(run.id(), run.projectId(), run.contractVersion(), run.status(),
-                run.failureReason(), run.waitKind(), questionOf(runId, run.waitKind()), costOf(runId), run.costLimitUsd(), run.lastSeq(), run.startedAt(),
+                run.failureReason(), run.waitKind(), questionOf(runId, run.waitKind()), run.resumeCount(), costOf(runId), run.costLimitUsd(), run.lastSeq(), run.startedAt(),
                 run.finishedAt(), tasksOf(runId)));
     }
 
@@ -259,7 +281,7 @@ class RunStore {
                         + " where q.run_id = :r and q.choice is null order by q.asked_at desc limit 1")
                 .param("r", runId)
                 .query((rs, n) -> new RunView.Question(rs.getObject("id", UUID.class),
-                        rs.getString("question"), rs.getString("title"), List.of("retry", "skip")))
+                        rs.getString("question"), rs.getString("title"), List.of("retry", "skip", "stop")))
                 .optional().orElse(null);
     }
 

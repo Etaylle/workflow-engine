@@ -63,7 +63,7 @@ class ClaudeCodeBuilder implements Builder {
                 "--strict-mcp-config", "--disable-slash-commands", "--tools",
                 "Read,Edit,Write,Glob,Grep,Bash", "--allowedTools", ALLOWED);
         ProcessRunner.Result result = ProcessRunner.run(command, request.workspace(), childEnv(request),
-                out, err, settings.stepTimeout());
+                out, err, settings.stepTimeout(), request.cancelled());
         int seconds = (int) ((System.nanoTime() - start) / 1_000_000_000L);
         return outcome(result, out, err, seconds);
     }
@@ -80,6 +80,9 @@ class ClaudeCodeBuilder implements Builder {
         String raw = read(out) + read(err);
         if (raw.contains("HARD STOP")) {
             return failed(seconds, "hard_stop", "Claude Code refused: HARD STOP (usage limit reached)");
+        }
+        if (result.cancelled()) {
+            return failed(seconds, "cancelled", "The step was ended because the client stopped the run");
         }
         if (result.timedOut()) {
             return failed(seconds, "timeout", "The step took longer than " + settings.stepTimeout()

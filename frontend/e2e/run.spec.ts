@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
 test('confirmed contract to a finished run and its ZIP, surviving a reload', async ({ page }) => {
 	await page.goto('/#new');
@@ -43,11 +43,9 @@ test('confirmed contract to a finished run and its ZIP, surviving a reload', asy
 	await expect(page.getByTestId('projects')).toContainText('Done');
 });
 
-test('an unfixable defect asks the client; the answer continues the run', async ({ page }) => {
+async function startRunWithWish(page: Page, wish: string) {
 	await page.goto('/#new');
-	await page
-		.getByTestId('wish')
-		.fill('A canteen app where students order a meal stub-fail:build:3 and pick it up');
+	await page.getByTestId('wish').fill(wish);
 	await page.getByTestId('project-key').fill('sk-any');
 	await page.getByTestId('create').click();
 	await page.getByTestId('ask').click();
@@ -59,6 +57,10 @@ test('an unfixable defect asks the client; the answer continues the run', async 
 	await page.getByTestId('confirm').click();
 	await expect(page.getByTestId('confirmed')).toContainText('contract version 1');
 	await page.getByTestId('start-run').click();
+}
+
+test('an unfixable defect asks the client; the answer continues the run', async ({ page }) => {
+	await startRunWithWish(page, 'A canteen app where students order a meal stub-fail:build:3');
 
 	// US-06.05/06: three attempts fail, then one question; the run asks only now
 	await expect(page.getByTestId('run-status')).toHaveText('Waiting', { timeout: 60_000 });
@@ -74,4 +76,36 @@ test('an unfixable defect asks the client; the answer continues the run', async 
 	await expect(page.getByTestId('run-status')).toHaveText('Finished', { timeout: 60_000 });
 	await expect(page.getByTestId('run-progress')).toContainText('8 of 8 steps done');
 	await expect(page.getByTestId('run-question')).toHaveCount(0);
+});
+
+test('the client stops a run after a confirmation; it ends stopped', async ({ page }) => {
+	await startRunWithWish(page, 'A canteen app where students order a meal stub-slow:1500');
+	await expect(page.getByTestId('run-status')).toHaveText('Building');
+
+	// US-06.09: stop needs a confirmation, and "keep going" changes nothing
+	await page.getByTestId('stop-run').click();
+	await expect(page.getByTestId('stop-confirm')).toContainText('cannot be continued');
+	await page.getByTestId('stop-confirm-no').click();
+	await expect(page.getByTestId('stop-confirm')).toHaveCount(0);
+	await expect(page.getByTestId('run-status')).toHaveText('Building');
+
+	await page.getByTestId('stop-run').click();
+	await page.getByTestId('stop-confirm-yes').click();
+	await expect(page.getByTestId('run-status')).toHaveText('Stopped');
+	await expect(page.getByTestId('stop-run')).toHaveCount(0);
+	await expect(page.getByTestId('run-progress')).not.toContainText('8 of 8');
+	await page.reload();
+	await expect(page.getByTestId('run-status')).toHaveText('Stopped');
+});
+
+test('an interrupted run continues from the last checkpoint', async ({ page }) => {
+	await startRunWithWish(page, 'A canteen app where students order a meal stub-crash:build:1');
+
+	// US-06.10: the run is interrupted (the stub crashes once), then resumed
+	await expect(page.getByTestId('run-status')).toHaveText('Interrupted', { timeout: 60_000 });
+	await expect(page.getByTestId('run-progress')).toContainText('1 of 8 steps done');
+	await page.getByTestId('resume-run').click();
+	await expect(page.getByTestId('run-status')).toHaveText('Finished', { timeout: 60_000 });
+	await expect(page.getByTestId('run-progress')).toContainText('8 of 8 steps done');
+	await expect(page.getByTestId('run-console')).toContainText('Independent check');
 });

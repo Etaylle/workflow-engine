@@ -15,11 +15,13 @@ import java.util.regex.Pattern;
  * Deterministic builder for tests and ENGINE_AI_STUB=true: writes one small file per step. A wish
  * (and so CONTRACT.md) may hold markers that make it misbehave, so one run can be shown with a
  * defect: "stub-fail:build:3" makes the first 3 invocations of step build fail, "stub-slow:500"
- * makes every step take 500 ms.
+ * makes every step take 500 ms, "stub-crash:build:1" makes the first invocation of step build
+ * throw, which the orchestrator turns into an interrupted run (as an engine crash would).
  */
 class StubBuilder implements Builder {
 
     private static final Pattern FAIL = Pattern.compile("stub-fail:(\\w+):(\\d+)");
+    private static final Pattern CRASH = Pattern.compile("stub-crash:(\\w+):(\\d+)");
     private static final Pattern SLOW = Pattern.compile("stub-slow:(\\d+)");
 
     private final Map<String, Integer> invocations = new ConcurrentHashMap<>();
@@ -33,14 +35,12 @@ class StubBuilder implements Builder {
     public StepOutcome run(StepRequest request) {
         String contract = read(request.workspace().resolve("CONTRACT.md"));
         sleep(SLOW.matcher(contract));
-        Matcher fail = FAIL.matcher(contract);
-        while (fail.find()) {
-            String key = request.workspace() + ":" + request.stepKey();
-            if (fail.group(1).equals(request.stepKey())
-                    && invocations.merge(key, 1, Integer::sum) <= Integer.parseInt(fail.group(2))) {
-                return new StepOutcome(false, new BigDecimal("0.01"), 1, 0, "error_stub",
-                        "Stub: step " + request.stepKey() + " failed on purpose");
-            }
+        if (triggered(CRASH, contract, request, "crash")) {
+            throw new IllegalStateException("Stub: step " + request.stepKey() + " crashed on purpose");
+        }
+        if (triggered(FAIL, contract, request, "fail")) {
+            return new StepOutcome(false, new BigDecimal("0.01"), 1, 0, "error_stub",
+                    "Stub: step " + request.stepKey() + " failed on purpose");
         }
         try {
             Path docs = Files.createDirectories(request.workspace().resolve("docs"));
@@ -51,6 +51,19 @@ class StubBuilder implements Builder {
         }
         return new StepOutcome(true, new BigDecimal("0.01"), 1, 0, "success",
                 "Stub: step " + request.stepKey() + " done");
+    }
+
+    /** True when a marker names this step and its count of invocations is not used up yet. */
+    private boolean triggered(Pattern marker, String contract, StepRequest request, String what) {
+        Matcher match = marker.matcher(contract);
+        while (match.find()) {
+            String key = what + request.workspace() + ":" + request.stepKey();
+            if (match.group(1).equals(request.stepKey())
+                    && invocations.merge(key, 1, Integer::sum) <= Integer.parseInt(match.group(2))) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Override

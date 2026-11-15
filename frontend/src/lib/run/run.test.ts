@@ -3,6 +3,8 @@ import type { Run, RunEvent } from '#lib/api/client.js';
 import {
 	MAX_CONSOLE_LINES,
 	canDownload,
+	canResume,
+	canStop,
 	canStart,
 	formatUsd,
 	hasQuestion,
@@ -29,6 +31,7 @@ const run = (status: Run['status']): Run => ({
 	projectId: 'p1',
 	contractVersion: 1,
 	status,
+	resumeCount: 0,
 	costUsd: 0.5,
 	costLimitUsd: 10,
 	lastSeq: 3,
@@ -66,6 +69,19 @@ describe('run state', () => {
 		expect(hasQuestion({ ...asking, waitKind: 'cost_limit' })).toBe(false);
 		expect(hasQuestion(run('executing'))).toBe(false);
 		expect(hasQuestion(null)).toBe(false);
+	});
+
+	it('lets the client stop a run that is not over, and resume only an interrupted one', () => {
+		for (const status of ['preparing', 'executing', 'waiting', 'interrupted'] as const) {
+			expect(canStop(run(status))).toBe(true);
+		}
+		for (const status of ['done', 'failed'] as const) {
+			expect(canStop(run(status))).toBe(false);
+		}
+		expect(canStop(null)).toBe(false);
+		expect(canResume(run('interrupted'))).toBe(true);
+		expect(canResume(run('waiting'))).toBe(false);
+		expect(canResume(run('failed'))).toBe(false);
 	});
 
 	it('does not offer a new Run while the run waits', () => {

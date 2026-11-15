@@ -167,6 +167,15 @@
 	"run.question.skip": "Skip this step",
 	"run.question.answering": "Sending...",
 	"run.question.skipNote": "Skipping marks the step as done without building it.",
+	"run.status.failed": "Stopped",
+	"run.stop": "Stop the run",
+	"run.stop.confirmText": "Stop the run? It ends here and cannot be continued. What was built up to the last checkpoint can be downloaded.",
+	"run.stop.confirm": "Yes, stop the run",
+	"run.stop.cancel": "Keep going",
+	"run.resume": "Continue from the last checkpoint",
+	"run.resumeKey": "Anthropic key (needed again after a restart)",
+	"run.resumeCount": "Resumed {count} of 3 times.",
+	"run.question.stop": "Stop the run",
 	"run.status.done": "Finished",
 	"run.status.interrupted": "Interrupted",
 	"run.progress": "{done} of {total} steps done",
@@ -183,6 +192,6 @@
 	"run.step.failed": "failed",
 	"run.console": "Console",
 	"run.zip": "Download ZIP",
-	"run.interruptedHint": "The engine restarted while the run was under way, and the key is gone. What was built so far can be downloaded; start a new run to build again.",
+	"run.interruptedHint": "The engine restarted while the run was under way, and the key is gone. Enter the key again and continue from the last checkpoint, or download what was built so far.",
 	"run.reloadHint": "You can reload this page: the run goes on and the screen picks it up again."
 }

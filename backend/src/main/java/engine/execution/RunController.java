@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
-/** Operations startRun, answerRunQuestion, getLatestRun, getRun, listRunEvents, streamRunEvents and downloadRunZip. */
+/** Operations startRun, answerRunQuestion, stopRun, resumeRun, getLatestRun, getRun, listRunEvents, streamRunEvents and downloadRunZip. */
 @RestController
 class RunController {
 
@@ -63,6 +63,16 @@ class RunController {
     @PostMapping("/api/runs/{runId}/answer")
     RunView answer(@PathVariable UUID runId, @RequestBody AnswerRequest request) {
         return service.answer(runId, request.questionId(), request.choice(), request.hint());
+    }
+
+    @PostMapping("/api/runs/{runId}/stop")
+    RunView stop(@PathVariable UUID runId) {
+        return service.stop(runId);
+    }
+
+    @PostMapping("/api/runs/{runId}/resume")
+    RunView resume(@PathVariable UUID runId) {
+        return service.resume(runId);
     }
 
     @GetMapping("/api/runs/{runId}/zip")

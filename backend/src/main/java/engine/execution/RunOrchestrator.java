@@ -10,7 +10,9 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.stream.Stream;
@@ -40,6 +42,8 @@ class RunOrchestrator {
     private final String dbUrl;
     private final String dbUser;
     private final String dbPassword;
+    private final Set<UUID> active = ConcurrentHashMap.newKeySet();
+    private final Set<UUID> stopRequested = ConcurrentHashMap.newKeySet();
     private final List<StepDef> profile = StepProfile.shortProfile();
     private final ExecutorService executor = Executors.newCachedThreadPool(runnable -> {
         Thread thread = new Thread(runnable, "run-orchestrator");
@@ -70,16 +74,62 @@ class RunOrchestrator {
         return "run_" + runId.toString().replace("-", "").substring(0, 12);
     }
 
-    /** Starts the run in the background and returns at once. */
+    /** Starts (or continues) the run in the background and returns at once. */
     void submit(UUID runId, String contract) {
+        active.add(runId);
         executor.submit(() -> {
             try {
-                execute(runId, contract);
+                if (!stopRequested.contains(runId)) {
+                    execute(runId, contract);
+                }
             } catch (RuntimeException e) {
                 LOG.error("Run {} stopped on an unexpected error", runId, e);
-                interrupt(runId, "The run could not continue: " + e.getMessage());
+                if (!stopRequested.contains(runId)) {
+                    interrupt(runId, "The run could not continue: " + e.getMessage());
+                }
+            } finally {
+                finish(runId);
             }
         });
+    }
+
+    /** The thread of a run ends: after a stop the workspace goes back to the last green checkpoint. */
+    private void finish(UUID runId) {
+        try {
+            if (stopRequested.contains(runId)) {
+                resetWorkspace(runId);
+            }
+        } finally {
+            stopRequested.remove(runId);
+            active.remove(runId);
+        }
+    }
+
+    private void resetWorkspace(UUID runId) {
+        store.row(runId).map(row -> Path.of(row.workspacePath())).filter(Files::isDirectory)
+                .filter(dir -> Files.isDirectory(dir.resolve(".git")))
+                .ifPresent(dir -> new Workspace(dir).resetToCheckpoint());
+    }
+
+    /** True while a thread builds this run (the workspace is then not safe to read or zip). */
+    boolean isBuilding(UUID runId) {
+        return active.contains(runId);
+    }
+
+    /**
+     * The client stops the run: a build under way ends at once and its thread resets the workspace
+     * to the last checkpoint; a run that only waits is reset here.
+     */
+    void stop(UUID runId) {
+        if (active.contains(runId)) {
+            stopRequested.add(runId);
+        } else {
+            resetWorkspace(runId);
+        }
+    }
+
+    private boolean stopped(UUID runId) {
+        return stopRequested.contains(runId);
     }
 
     @jakarta.annotation.PreDestroy
@@ -182,6 +232,9 @@ class RunOrchestrator {
         int attempts = 1 + settings.fixAttempts();
         String failure = null;
         for (int attempt = 1; attempt <= attempts; attempt++) {
+            if (stopped(runId)) {
+                return false;
+            }
             BigDecimal remaining = ctx.run().costLimitUsd().subtract(store.costOf(runId));
             if (remaining.compareTo(MIN_BUDGET) < 0) {
                 return costLimit(ctx.run(), task, row);
@@ -191,6 +244,9 @@ class RunOrchestrator {
                         + settings.fixAttempts() + " for " + def.title());
             }
             Attempt result = attempt(ctx, row, def, remaining, failure);
+            if (stopped(runId)) {
+                return false;
+            }
             if (result.passed()) {
                 String sha = ctx.workspace().commit("Task " + taskNo + " step " + def.key() + " green");
                 store.addCheckpoint(row.id(), sha);
@@ -219,7 +275,7 @@ class RunOrchestrator {
                 + "\n\nFix this. Change only what is needed, then run ./check.sh until it prints"
                 + " CHECK PASSED.";
         StepOutcome outcome = builder.run(new StepRequest(ctx.workspace().dir(), def.key(), prompt,
-                def.capUsd().min(remaining), ctx.appEnv(), ctx.logDir()));
+                def.capUsd().min(remaining), ctx.appEnv(), ctx.logDir(), () -> stopped(runId)));
         UUID call = store.addAgentCall(row.id(), outcome);
         events.publish(runId, "console", def.title() + ": " + outcome.summary() + " (USD "
                 + outcome.costUsd().setScale(2, java.math.RoundingMode.HALF_UP) + ", "

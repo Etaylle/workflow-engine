@@ -11,6 +11,7 @@
 		type Run,
 		type RunEvent
 	} from '#lib/api/client.js';
+	import RunControls from '#lib/components/RunControls.svelte';
 	import { createAction } from '#lib/api/action.svelte.js';
 	import type { MessageKey } from '#lib/i18n/i18n.js';
 	import { locale } from '#lib/i18n/state.svelte.js';
@@ -51,7 +52,7 @@
 		if (ok) changed();
 	}
 
-	async function answer(choice: 'retry' | 'skip') {
+	async function answer(choice: 'retry' | 'skip' | 'stop') {
 		const question = run?.question;
 		if (!run || !question) return;
 		const ok = await answering.run(async () => {
@@ -158,6 +159,13 @@
 						>
 							{locale.t('run.question.skip')}
 						</button>
+						<button
+							onclick={() => answer('stop')}
+							disabled={answering.busy}
+							data-testid="answer-stop"
+						>
+							{locale.t('run.question.stop')}
+						</button>
 					</div>
 					<p class="notice">{locale.t('run.question.skipNote')}</p>
 					{#if answering.error}<p role="alert" data-testid="answer-error">{answering.error}</p>{/if}
@@ -185,6 +193,14 @@
 					</li>
 				{/each}
 			</ol>
+
+			<RunControls
+				{run}
+				updated={(fresh) => {
+					run = fresh;
+					if (!isActive(fresh)) changed();
+				}}
+			/>
 
 			<h3>{locale.t('run.console')}</h3>
 			<pre class="console" data-testid="run-console" aria-live="polite">{console_

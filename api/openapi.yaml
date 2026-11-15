@@ -812,7 +812,7 @@ paths:
       summary: Answer the open question of a waiting run; the run continues with the answer
       description: >
         retry builds the step again (the optional hint is told to the builder); skip marks the step
-        done without building it. The run asks only when a defect is not fixable after the fix
+        done without building it; stop ends the run as failed (like the stop operation). The run asks only when a defect is not fixable after the fix
         attempts.
       parameters:
         - $ref: "#/components/parameters/RunId"
@@ -825,7 +825,7 @@ paths:
               required: [questionId, choice]
               properties:
                 questionId: {type: string, format: uuid}
-                choice: {type: string, enum: [retry, skip]}
+                choice: {type: string, enum: [retry, skip, stop]}
                 hint: {type: string, maxLength: 1000}
       responses:
         "200":
@@ -848,6 +848,65 @@ paths:
                 $ref: "#/components/schemas/Problem"
         "404":
           description: No such run
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/runs/{runId}/stop:
+    post:
+      operationId: stopRun
+      summary: Stop the run (the client's decision; the only way a run ends failed)
+      description: >
+        Ends a build under way at once, resets the workspace to the last green checkpoint and sets
+        the run to failed with the reason "Stopped by the client". What was built up to the
+        checkpoint can be downloaded as ZIP. Allowed while preparing, executing, waiting or
+        interrupted.
+      parameters:
+        - $ref: "#/components/parameters/RunId"
+      responses:
+        "200":
+          description: The run, failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Run"
+        "404":
+          description: No such run
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: The run has ended already
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/runs/{runId}/resume:
+    post:
+      operationId: resumeRun
+      summary: Continue an interrupted run from the last checkpoint
+      description: >
+        After an engine restart the key is gone: enter it again first (it is asked for, 409 "No
+        Anthropic key" otherwise). The workspace is reset to the last commit, the step that was
+        under way is built again. At most 3 resumes; the next interruption ends the run failed.
+      parameters:
+        - $ref: "#/components/parameters/RunId"
+      responses:
+        "200":
+          description: The run, executing again
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Run"
+        "404":
+          description: No such run
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: Not interrupted, no key, contract changed, or resumed 3 times already
           content:
             application/problem+json:
               schema:
@@ -1103,11 +1162,15 @@ components:
         contractVersion: {type: integer}
         status:
           type: string
-          enum: [preparing, executing, waiting, done, interrupted]
+          enum: [preparing, executing, waiting, done, interrupted, failed]
           description: >
             waiting = the run waits, see waitKind (the reason is in failureReason); interrupted =
-            the engine restarted while the run was under way (the key is gone)
+            the engine restarted while the run was under way (the key is gone), resume continues it;
+            failed = only ever the client's stop (or a third interruption after the resumes)
         failureReason: {type: string, nullable: true}
+        resumeCount:
+          type: integer
+          description: How many times the run was resumed after an engine restart (at most 3)
         waitKind:
           type: string
           nullable: true
@@ -1127,7 +1190,7 @@ components:
             stepTitle: {type: string}
             options:
               type: array
-              items: {type: string, enum: [retry, skip]}
+              items: {type: string, enum: [retry, skip, stop]}
         costUsd: {type: number, description: Sum of the Claude Code invocations so far}
         costLimitUsd: {type: number}
         lastSeq: {type: integer, format: int64}

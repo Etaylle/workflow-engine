@@ -7,6 +7,13 @@ export const MAX_CONSOLE_LINES = 200;
 export const isActive = (run: Run | null): boolean =>
 	run !== null && (run.status === 'preparing' || run.status === 'executing');
 
+/** The client may stop a run that is not over: building, waiting or interrupted. */
+export const canStop = (run: Run | null): boolean =>
+	run !== null && ['preparing', 'executing', 'waiting', 'interrupted'].includes(run.status);
+
+/** An interrupted run continues from the last checkpoint once the key is entered again. */
+export const canResume = (run: Run | null): boolean => run !== null && run.status === 'interrupted';
+
 /** The run waits for an answer of the client: a defect that is not fixable. */
 export const hasQuestion = (run: Run | null): boolean =>
 	run !== null && run.status === 'waiting' && run.waitKind === 'question' && !!run.question;

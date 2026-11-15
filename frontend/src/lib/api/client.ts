@@ -170,13 +170,13 @@ export const getDocument = (projectId: string, kind: DocumentKind) =>
 export const documentUrl = (projectId: string, kind: DocumentKind, format: 'docx' | 'md') =>
 	`/api/projects/${projectId}/documents/${kind}/download?format=${format}`;
 
-export type RunStatus = 'preparing' | 'executing' | 'waiting' | 'done' | 'interrupted';
+export type RunStatus = 'preparing' | 'executing' | 'waiting' | 'done' | 'interrupted' | 'failed';
 export type RunWaitKind = 'question' | 'cost_limit' | 'tokens';
 export type RunQuestion = {
 	id: string;
 	text: string;
 	stepTitle: string;
-	options: ('retry' | 'skip')[];
+	options: ('retry' | 'skip' | 'stop')[];
 };
 export type RunStep = {
 	id: string;
@@ -206,6 +206,7 @@ export type Run = {
 	status: RunStatus;
 	failureReason?: string | null;
 	waitKind?: RunWaitKind | null;
+	resumeCount: number;
 	question?: RunQuestion | null;
 	costUsd: number;
 	costLimitUsd: number;
@@ -225,9 +226,11 @@ export const startRun = (projectId: string) => json<Run>(`/api/projects/${projec
 export const answerRunQuestion = (
 	runId: string,
 	questionId: string,
-	choice: 'retry' | 'skip',
+	choice: 'retry' | 'skip' | 'stop',
 	hint: string
 ) => json<Run>(`/api/runs/${runId}/answer`, 'POST', { questionId, choice, hint });
+export const stopRun = (runId: string) => json<Run>(`/api/runs/${runId}/stop`, 'POST');
+export const resumeRun = (runId: string) => json<Run>(`/api/runs/${runId}/resume`, 'POST');
 export const getRun = (runId: string) => json<Run>(`/api/runs/${runId}`);
 export const listRunEvents = (runId: string, after = 0) =>
 	json<RunEvent[]>(`/api/runs/${runId}/events?after=${after}`);
