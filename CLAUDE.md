@@ -8,7 +8,7 @@ A web application that turns a client's wish into AI research and questions, req
 
 ## 2. How we work (decisions D-17 to D-25 in `todo.md`)
 
-- One developer with Claude Code on the local machine. No push to any remote until the owner names their own GitHub repository; never push to the earlier remote `ekarimova/workflow-engine`.
+- One developer with Claude Code on the local machine. Push only to the owner's fork `Etaylle/workflow-engine` (remote `mine`, branch `develop`); never push to the earlier remote `ekarimova/workflow-engine` (`origin`).
 - Work in the order of the milestones in `ai-docs/plan.md`, in small vertical slices (database, API, backend, frontend, tests together). One slice at a time; finish before starting the next.
 - A slice is done when its behaviour is shown in the running application, its tests are written and `ci/run all-local` is green. Report what was run and what was not.
 - Quality comes from tools, not from rule documents: formatter, linter, type check, one architecture test, tests. A rule worth keeping becomes a check. Fix every warning.
