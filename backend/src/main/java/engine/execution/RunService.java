@@ -5,6 +5,7 @@ import engine.shared.ContractPort;
 import engine.shared.BuilderChoice;
 import engine.shared.Harness;
 import engine.shared.ProjectPort;
+import engine.shared.ReviewerChoice;
 import engine.shared.RunSettingsPort;
 import engine.shared.Template;
 import engine.shared.TemplateCatalog;
@@ -13,6 +14,7 @@ import java.math.RoundingMode;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -88,29 +90,53 @@ class RunService {
                     "The workflow has no software task to build. Mark a task as software first.");
         }
         Harness harness = projects.harnessOf(projectId).orElseThrow();
-        builders.forHarness(harness).checkReady();
+        Optional<ReviewerChoice> reviewer = projects.reviewerOf(projectId);
+        checkReady(harness, reviewer.map(ReviewerChoice::harness).orElse(null));
         Template template = templates.require(projects.templateIdOf(projectId).orElseThrow());
         UUID runId = UUID.randomUUID();
         String buildMode = projects.buildModeOf(projectId)
                 .orElse(defaultBuildMode(contract.softwareTasks().size()));
         BuilderChoice choice = projects.builderChoiceOf(projectId).orElseThrow();
-        String model = choice.model() != null ? choice.model()
-                : switch (harness) {
-                    case GEMINI_CLI -> settings.geminiModel();
-                    case CODEX_CLI -> settings.codexModel();
-                    case CLAUDE_CODE -> settings.model();
-                };
+        BuilderRun reviewerRun = reviewer.map(r -> new BuilderRun(r.harness(),
+                resolvedModel(r.harness(), r.choice()), r.choice().effort())).orElse(null);
         Path workspace = settings.workspaceRoot().resolve("run-" + runId);
         RunSettingsPort.RunSettings chosen = runSettings.forProject(projectId);
         store.create(runId, projectId, contract.version(), harness,
                 chosen.costLimitUsd().orElse(contract.costLimitUsd().orElse(settings.costLimitUsd())),
                 workspace.toString(), template.id(),
                 settings.createDatabase() && template.needsDatabase() ? RunOrchestrator.databaseName(runId) : null,
-                buildMode, model, choice.effort(), "whole".equals(buildMode) ? List.of(wholeUnit(contract)) : contract.softwareTasks(),
+                buildMode, resolvedModel(harness, choice), choice.effort(), reviewerRun,
+                "whole".equals(buildMode) ? List.of(wholeUnit(contract)) : contract.softwareTasks(),
                 chosen.steps());
         projects.markStatus(projectId, "executing");
         orchestrator.submit(runId, contract.markdown());
         return view(runId);
+    }
+
+    /** The model a run snapshots: the project's choice, else the default of the builder. */
+    private String resolvedModel(Harness harness, BuilderChoice choice) {
+        if (choice.model() != null) {
+            return choice.model();
+        }
+        return switch (harness) {
+            case GEMINI_CLI -> settings.geminiModel();
+            case CODEX_CLI -> settings.codexModel();
+            case CLAUDE_CODE -> settings.model();
+        };
+    }
+
+    /** Both builders of a run must be ready before it starts or continues; the problem names which one is not. */
+    private void checkReady(Harness main, Harness reviewer) {
+        builders.forHarness(main).checkReady();
+        if (reviewer == null) {
+            return;
+        }
+        try {
+            builders.forHarness(reviewer).checkReady();
+        } catch (ApiProblem e) {
+            throw new ApiProblem(e.status(), "Reviewer not ready: " + reviewer.label(),
+                    "The reviewer is not ready. " + e.getMessage(), e);
+        }
     }
 
     RunView view(UUID runId) {
@@ -158,7 +184,7 @@ class RunService {
             store.answerQuestion(open.id(), choice, text);
             return stop(runId);
         }
-        builderOf(run).checkReady();
+        checkReady(run);
         store.answerQuestion(open.id(), choice, text);
         if ("skip".equals(choice)) {
             store.setStep(open.stepId(), "done", "Skipped by the client");
@@ -202,7 +228,7 @@ class RunService {
             throw new ApiProblem(409, "Run retrying", "The run is waiting for tokens and tries again by"
                     + " itself; continue it only when it has stopped retrying.");
         }
-        builderOf(run).checkReady();
+        checkReady(run);
         if ("cost_limit".equals(run.waitKind()) || raiseLimitTo != null) {
             raiseLimit(run, raiseLimitTo);
         }
@@ -214,9 +240,10 @@ class RunService {
         return view(runId);
     }
 
-    /** The builder the run started with: a resume never switches builders. */
-    private Builder builderOf(RunView run) {
-        return builders.forHarness(Harness.ofId(run.harness()));
+    /** The builders the run started with: a resume never switches builders. */
+    private void checkReady(RunView run) {
+        checkReady(Harness.ofId(run.harness()),
+                run.reviewerHarness() == null ? null : Harness.ofId(run.reviewerHarness()));
     }
 
     private void raiseLimit(RunView run, BigDecimal raiseLimitTo) {

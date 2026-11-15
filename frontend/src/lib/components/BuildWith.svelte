@@ -2,8 +2,9 @@
 	import { getBuilders, setClaudeAuth, type Builder, type Builders } from '#lib/api/execution.js';
 	import { createAction } from '#lib/api/action.svelte.js';
 	import BuilderChoice from '#lib/components/BuilderChoice.svelte';
+	import ReviewerChoice from '#lib/components/ReviewerChoice.svelte';
 	import { engineKey } from '#lib/ai/key.svelte.js';
-	import { actionFor, builderIds, otherAuthMode } from '#lib/execution/builders.js';
+	import { actionFor, builderIds, otherAuthMode, type Reviewer } from '#lib/execution/builders.js';
 	import type { MessageKey } from '#lib/i18n/i18n.js';
 	import { locale } from '#lib/i18n/state.svelte.js';
 
@@ -15,6 +16,8 @@
 		model,
 		effort,
 		saveChoice,
+		reviewer,
+		saveReviewer,
 		choose: pick
 	}: {
 		harness: string;
@@ -22,6 +25,9 @@
 		model: string;
 		effort: string;
 		saveChoice: (model: string, effort: string) => Promise<void>;
+		/** The optional second builder for the independent review steps, and how to save it. */
+		reviewer: Reviewer;
+		saveReviewer: (next: Reviewer) => Promise<void>;
 		builders: Builders;
 		update: (fresh: Builders | null) => void;
 		choose: (id: Builder['id']) => Promise<void>;
@@ -36,6 +42,10 @@
 
 	async function savingChoice(newModel: string, newEffort: string) {
 		await acting.run(() => saveChoice(newModel, newEffort));
+	}
+
+	async function savingReviewer(next: Reviewer) {
+		await acting.run(() => saveReviewer(next));
 	}
 
 	async function auth(builder: Builder) {
@@ -114,6 +124,14 @@
 			{/if}
 		{/each}
 	</div>
+	<ReviewerChoice
+		{builders}
+		{harness}
+		{model}
+		{reviewer}
+		save={savingReviewer}
+		disabled={acting.busy}
+	/>
 	<div class="line">
 		<button
 			type="button"

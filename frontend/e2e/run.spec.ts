@@ -46,6 +46,16 @@ test('confirmed contract to a finished run and its ZIP, surviving a reload', asy
 	await page.getByTestId('check-again').click();
 	await expect(page.getByTestId('state-gemini_cli')).toHaveText('Ready');
 
+	// Second opinion: a different AI runs the independent review steps; shown on Review and in the run
+	await page.getByTestId('reviewer-switch').check();
+	await page.getByTestId('reviewer-pick-codex_cli').click();
+	await expect(page.getByTestId('reviewer-pick-codex_cli')).toHaveAttribute('aria-checked', 'true');
+	await expect(page.getByText('Reviewer saved.').first()).toBeVisible();
+	await page.getByTestId('step-back').click();
+	await expect(page.getByTestId('review-reviewer')).toContainText('Codex CLI');
+	await page.getByTestId('review-continue').click();
+	await expect(page.getByTestId('reviewer-switch')).toBeChecked();
+
 	// US-06.03/04/07: start, watch tasks, steps, cost and console, reload during or after the run
 	await page.getByTestId('start-run').click();
 	await expect(page.getByTestId('run-card')).toBeVisible();
@@ -53,6 +63,8 @@ test('confirmed contract to a finished run and its ZIP, surviving a reload', asy
 	await expect(page.getByTestId('run-card')).toBeVisible();
 	await expect(page.getByTestId('run-status')).toHaveText('Finished', { timeout: 60_000 });
 	await expect(page.getByTestId('run-progress')).toContainText('8 of 8 steps done');
+	await expect(page.getByTestId('run-reviewer')).toContainText('Codex CLI');
+	await expect(page.getByTestId('review-by-check').first()).toContainText('Independent check');
 	await expect(page.getByTestId('run-task-1')).toContainText('Order a meal');
 	await expect(page.getByTestId('run-task-2')).toContainText('Notify the student');
 	await expect(page.getByTestId('run-builder')).toHaveText('Built with Claude Code · opus · high');

@@ -7,9 +7,11 @@ import engine.shared.TemplateCatalog;
 import engine.shared.ProjectCleanup;
 import engine.shared.AiTarget;
 import engine.shared.ProjectPort;
+import engine.shared.ReviewerChoice;
 import java.sql.Timestamp;
 import java.time.Clock;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -25,7 +27,7 @@ public class ProjectService implements ProjectPort {
     static final int MAX_WISH_LENGTH = 20_000;
     static final int MAX_NAME_LENGTH = 120;
     private static final int NAME_LENGTH = 60;
-    private static final String COLUMNS = "id, name, wish, status, agent_harness, template_id, build_mode, model, builder_model, builder_effort, created_at, updated_at,"
+    private static final String COLUMNS = "id, name, wish, status, agent_harness, template_id, build_mode, model, builder_model, builder_effort, reviewer_harness, reviewer_model, reviewer_effort, created_at, updated_at,"
             + " (select b.software_kind from projects.project_briefs b where b.project_id = projects.projects.id)"
             + " as brief_kind";
 
@@ -68,11 +70,11 @@ public class ProjectService implements ProjectPort {
      */
     @Transactional
     public Project update(UUID id, String name, String wish, String agentHarness, String templateId,
-            String buildMode, String builderModel, String builderEffort) {
+            String buildMode, String builderModel, String builderEffort, ReviewerChange reviewer) {
         if (name == null && wish == null && agentHarness == null && templateId == null
-                && buildMode == null && builderModel == null && builderEffort == null) {
+                && buildMode == null && builderModel == null && builderEffort == null && reviewer.isEmpty()) {
             throw new ApiProblem(400, "Nothing to change",
-                    "Send a name, a wish, a builder (agentHarness), a template (templateId), a build mode (buildMode), a builder model (builderModel), a builder effort (builderEffort), or several.");
+                    "Send a name, a wish, a builder (agentHarness), a template (templateId), a build mode (buildMode), a builder model (builderModel), a builder effort (builderEffort), a reviewer (reviewerHarness, reviewerModel, reviewerEffort), or several.");
         }
         Project current = get(id).orElseThrow(() -> notFound(id));
         String newName = name == null ? current.name() : checkedName(name);
@@ -80,15 +82,20 @@ public class ProjectService implements ProjectPort {
         boolean wishChanged = !newWish.equals(current.wish());
         String harness = agentHarness == null ? current.agentHarness() : Harness.ofId(agentHarness).id();
         BuilderChoice choice = nextChoice(current, harness, builderModel, builderEffort);
+        Reviewer nextReviewer = nextReviewer(current, harness, choice, reviewer);
         String template = templateId == null ? storedTemplateOf(id) : templates.require(templateId).id();
         String mode = buildMode == null ? current.buildMode() : checkedBuildMode(buildMode);
-        jdbc.sql("update projects.projects set name = :name, template_id = :template, build_mode = :mode, builder_model = :bmodel, builder_effort = :beffort, wish = :wish, status = :status,"
+        jdbc.sql("update projects.projects set name = :name, template_id = :template, build_mode = :mode, builder_model = :bmodel, builder_effort = :beffort, reviewer_harness = :rharness, reviewer_model = :rmodel,"
+                        + " reviewer_effort = :reffort, wish = :wish, status = :status,"
                         + " agent_harness = :harness, updated_at = :now, version = version + 1 where id = :id")
                 .param("harness", harness)
                 .param("template", template)
                 .param("mode", mode)
                 .param("bmodel", choice.model())
                 .param("beffort", choice.effort())
+                .param("rharness", nextReviewer.harness())
+                .param("rmodel", nextReviewer.model())
+                .param("reffort", nextReviewer.effort())
                 .param("name", newName)
                 .param("wish", newWish)
                 .param("status", wishChanged ? "draft" : current.status())
@@ -96,6 +103,48 @@ public class ProjectService implements ProjectPort {
                 .param("id", id)
                 .update();
         return get(id).orElseThrow();
+    }
+
+    /** The reviewer fields of a PATCH; null = not sent, blank harness = no separate reviewer. */
+    public record ReviewerChange(String harness, String model, String effort) {
+
+        boolean isEmpty() {
+            return harness == null && model == null && effort == null;
+        }
+    }
+
+    private record Reviewer(String harness, String model, String effort) {
+    }
+
+    /**
+     * The reviewer after a change: a blank harness removes it, a new harness clears its model and
+     * effort, a sent value replaces the old one. It must differ from the builder in harness or model.
+     */
+    private static Reviewer nextReviewer(Project current, String builderHarness, BuilderChoice builder,
+            ReviewerChange change) {
+        String harness = change.harness() == null ? current.reviewerHarness() : blankToNull(change.harness());
+        if (harness == null) {
+            if (change.harness() == null && (change.model() != null || change.effort() != null)) {
+                throw new ApiProblem(400, "No reviewer chosen",
+                        "Send reviewerHarness before a reviewer model or effort.");
+            }
+            return new Reviewer(null, null, null);
+        }
+        Harness reviewerHarness = Harness.ofId(harness);
+        boolean same = reviewerHarness.id().equals(current.reviewerHarness());
+        BuilderChoice choice = BuilderChoice.checked(reviewerHarness,
+                change.model() == null && same ? current.reviewerModel() : change.model(),
+                change.effort() == null && same ? current.reviewerEffort() : change.effort());
+        if (reviewerHarness.id().equals(builderHarness) && Objects.equals(choice.model(), builder.model())) {
+            throw new ApiProblem(400, "Reviewer must differ from the builder",
+                    "The reviewer uses the same builder and model as the one that writes the software."
+                            + " Choose another builder or another model for the reviewer.");
+        }
+        return new Reviewer(reviewerHarness.id(), choice.model(), choice.effort());
+    }
+
+    private static String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value.strip();
     }
 
     /**
@@ -213,6 +262,14 @@ public class ProjectService implements ProjectPort {
     }
 
     @Override
+    public Optional<ReviewerChoice> reviewerOf(UUID projectId) {
+        return get(projectId).filter(p -> p.reviewerHarness() != null).map(p -> {
+            Harness harness = Harness.ofId(p.reviewerHarness());
+            return new ReviewerChoice(harness, new BuilderChoice(p.reviewerModel(), p.reviewerEffort()));
+        });
+    }
+
+    @Override
     public Optional<String> templateIdOf(UUID projectId) {
         return get(projectId).map(Project::templateId);
     }
@@ -282,6 +339,9 @@ public class ProjectService implements ProjectPort {
                 rs.getString("model"),
                 rs.getString("builder_model"),
                 rs.getString("builder_effort"),
+                rs.getString("reviewer_harness"),
+                rs.getString("reviewer_model"),
+                rs.getString("reviewer_effort"),
                 rs.getTimestamp("created_at").toInstant(),
                 rs.getTimestamp("updated_at").toInstant());
     }

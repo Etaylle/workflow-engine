@@ -26,7 +26,13 @@
 	import StepShell from '#lib/components/StepShell.svelte';
 	import { getBuilders, type Builders } from '#lib/api/execution.js';
 	import { toasts } from '#lib/shell/toast.svelte.js';
-	import { missingCodes, modelEffortText, startBlock } from '#lib/execution/builders.js';
+	import {
+		missingCodes,
+		modelEffortText,
+		reviewerOf,
+		startBlock,
+		type Reviewer
+	} from '#lib/execution/builders.js';
 	import { createAction } from '#lib/api/action.svelte.js';
 	import type { MessageKey } from '#lib/i18n/i18n.js';
 	import { locale } from '#lib/i18n/state.svelte.js';
@@ -90,6 +96,16 @@
 		await updateProject(project.id, { builderModel, builderEffort });
 		await changed();
 		toasts.show(locale.t('build.choiceSaved'));
+	}
+
+	async function saveReviewer(next: Reviewer) {
+		await updateProject(project.id, {
+			reviewerHarness: next.harness,
+			reviewerModel: next.model,
+			reviewerEffort: next.effort
+		});
+		await changed();
+		toasts.show(locale.t('build.second.saved'));
 	}
 
 	async function loadBuilders() {
@@ -253,6 +269,8 @@
 			model={project.builderModel ?? ''}
 			effort={project.builderEffort ?? ''}
 			{saveChoice}
+			reviewer={reviewerOf(project)}
+			{saveReviewer}
 			{builders}
 			update={(fresh) => (builders = fresh)}
 			choose={chooseBuilder}
@@ -285,6 +303,18 @@
 							.join(' · ')
 					})}
 				</span>
+				{#if run.reviewerHarness}
+					<span data-testid="run-reviewer">
+						{locale.t('run.reviewer', {
+							reviewer: [
+								locale.t(`build.${run.reviewerHarness}` as MessageKey),
+								modelEffortText(run.reviewerModel, run.reviewerEffort)
+							]
+								.filter(Boolean)
+								.join(' · ')
+						})}
+					</span>
+				{/if}
 				<span data-testid="run-cost">
 					{locale.t('run.cost', {
 						cost: formatUsd(run.costUsd),
@@ -369,6 +399,18 @@
 												({locale.t('run.stepTokens', {
 													tokens: step.tokens.toLocaleString(locale.current)
 												})}){/if}
+											{#if step.review && step.builderHarness}
+												<span class="hint" data-testid={`review-by-${step.key}`}>
+													{locale.t('run.independentCheck', {
+														builder: [
+															locale.t(`build.${step.builderHarness}` as MessageKey),
+															step.builderModel
+														]
+															.filter(Boolean)
+															.join(' · ')
+													})}
+												</span>
+											{/if}
 											{#if step.attempts > 1}
 												<span data-testid={`attempts-${step.key}`}>
 													{locale.t('run.attempts', { count: String(step.attempts) })}
@@ -441,6 +483,8 @@
 			model={project.builderModel ?? ''}
 			effort={project.builderEffort ?? ''}
 			{saveChoice}
+			reviewer={reviewerOf(project)}
+			{saveReviewer}
 			{builders}
 			update={(fresh) => (builders = fresh)}
 			choose={chooseBuilder}

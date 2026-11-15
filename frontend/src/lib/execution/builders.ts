@@ -61,6 +61,49 @@ export function choiceAfterBuilderChange(
 	return oldId === newId ? choice : { model: '', effort: '' };
 }
 
+/** The second builder of a project: an empty harness means none (the builder checks its own work). */
+export type Reviewer = { harness: string; model: string; effort: string };
+
+export const noReviewer: Reviewer = { harness: '', model: '', effort: '' };
+
+/** The reviewer a project has chosen, with empty strings for the defaults. */
+export function reviewerOf(project: {
+	reviewerHarness: string | null;
+	reviewerModel: string | null;
+	reviewerEffort: string | null;
+}): Reviewer {
+	return {
+		harness: project.reviewerHarness ?? '',
+		model: project.reviewerModel ?? '',
+		effort: project.reviewerEffort ?? ''
+	};
+}
+
+/** The builder offered first when the switch goes on: the first one that is not the builder. */
+export function defaultReviewerHarness(builderHarness: string): string {
+	return builderIds.find((id) => id !== builderHarness) ?? builderIds[0]!;
+}
+
+/**
+ * True when the reviewer would be the same builder with the same model as the one that writes the
+ * software (the engine answers 400 for that). Two empty models are both the default of the builder.
+ */
+export function reviewerConflict(
+	builder: { harness: string; model: string },
+	reviewer: Reviewer
+): boolean {
+	return (
+		reviewer.harness !== '' &&
+		reviewer.harness === builder.harness &&
+		reviewer.model === builder.model
+	);
+}
+
+/** The reviewer after a change of its harness: a new harness starts with the defaults. */
+export function reviewerAfterHarnessChange(old: Reviewer, harness: string): Reviewer {
+	return old.harness === harness ? old : { harness, model: '', effort: '' };
+}
+
 /** The value to send for the model typed or picked: trimmed; null when it is not a valid id. */
 export function modelToSave(text: string): string | null {
 	const trimmed = text.trim();

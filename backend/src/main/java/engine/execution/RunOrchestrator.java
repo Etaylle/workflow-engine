@@ -222,6 +222,12 @@ class RunOrchestrator {
     static final String NEEDS_FILE = "NEEDS.md";
     private static final int NEEDS_LENGTH = 1500;
 
+    /** Added to the prompt of a review step that a separate reviewer builder runs (D-103). */
+    static final String REVIEWER_NOTE = "\n\nYou are reviewing work written by another AI builder. Judge it"
+            + " independently, do not assume it is right, fix real defects yourself where this step allows"
+            + " changing code, and note in docs/CHECK.md (or the document this step writes) what you"
+            + " changed.";
+
     private boolean buildTask(Ctx ctx, String contract, List<RunStore.TaskRow> tasks, int index) {
         RunStore.TaskRow task = tasks.get(index);
         store.setTask(task.id(), "running");
@@ -295,7 +301,7 @@ class RunOrchestrator {
     /** The prompt of a step may name the task as {task}. */
     private static Step withTask(Step step, String taskTitle) {
         return new Step(step.key(), step.title(), step.gated(), step.capUsd(),
-                step.prompt().replace("{task}", taskTitle));
+                step.prompt().replace("{task}", taskTitle), step.review());
     }
 
     private void announceFix(UUID runId, Step def, int attempt, int waits) {
@@ -384,11 +390,15 @@ class RunOrchestrator {
                 + "\n\nYour previous attempt at this step failed. What went wrong:\n" + previousFailure
                 + "\n\nFix this. Change only what is needed, then run ./check.sh until it prints"
                 + " CHECK PASSED.";
-        Builder builder = builders.forHarness(ctx.run().harness());
-        StepOutcome outcome = builder.run(new StepRequest(ctx.workspace().dir(), def.key(), prompt,
-                capOf(ctx.run(), def).min(remaining), ctx.run().builderModel(), ctx.run().builderEffort(), ctx.appEnv(), ctx.logDir(), () -> stopped(runId),
+        boolean separate = def.review() && ctx.run().reviewer() != null;
+        BuilderRun by = separate ? ctx.run().reviewer() : new BuilderRun(ctx.run().harness(),
+                ctx.run().builderModel(), ctx.run().builderEffort());
+        Builder builder = builders.forHarness(by.harness());
+        StepOutcome outcome = builder.run(new StepRequest(ctx.workspace().dir(), def.key(),
+                separate ? prompt + REVIEWER_NOTE : prompt, capOf(ctx.run(), def).min(remaining), by.model(),
+                by.effort(), ctx.appEnv(), ctx.logDir(), () -> stopped(runId),
                 line -> events.publish(runId, "console", line)));
-        UUID call = store.addAgentCall(row.id(), outcome);
+        UUID call = store.addAgentCall(row.id(), outcome, by);
         events.publish(runId, "console", def.title() + ": " + outcome.summary() + " (USD "
                 + outcome.costUsd().setScale(2, java.math.RoundingMode.HALF_UP) + ", "
                 + outcome.turns() + " turns)");

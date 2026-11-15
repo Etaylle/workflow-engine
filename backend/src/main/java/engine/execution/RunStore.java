@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,7 +33,7 @@ class RunStore {
     record RunRow(UUID id, UUID projectId, String workspacePath, String databaseName,
             BigDecimal costLimitUsd, int contractVersion, String status, List<Step> steps,
             Harness harness, String templateId, String buildMode, String builderModel,
-            String builderEffort) {
+            String builderEffort, BuilderRun reviewer) {
     }
 
     /** One question to the client; choice is null until it is answered. */
@@ -58,11 +59,16 @@ class RunStore {
     void create(UUID runId, UUID projectId, int contractVersion, Harness harness, BigDecimal limit,
             String workspacePath,
             String templateId, String databaseName, String buildMode, String builderModel,
-            String builderEffort,
+            String builderEffort, BuilderRun reviewer,
             List<engine.shared.ContractPort.TaskLine> tasks, List<Step> steps) {
         jdbc.sql("insert into execution.runs (id, project_id, contract_version, status, cost_limit_usd,"
-                        + " workspace_path, template_id, database_name, started_at, steps_json, harness, build_mode, builder_model, builder_effort) values (:id, :p, :v,"
-                        + " 'preparing', :limit, :ws, :tpl, :db, :now, :steps, :harness, :mode, :bmodel, :beffort)")
+                        + " workspace_path, template_id, database_name, started_at, steps_json, harness, build_mode, builder_model, builder_effort, reviewer_harness,"
+                        + " reviewer_model, reviewer_effort) values (:id, :p, :v,"
+                        + " 'preparing', :limit, :ws, :tpl, :db, :now, :steps, :harness, :mode, :bmodel, :beffort,"
+                        + " :rharness, :rmodel, :reffort)")
+                .param("rharness", reviewer == null ? null : reviewer.harness().id())
+                .param("rmodel", reviewer == null ? null : reviewer.model())
+                .param("reffort", reviewer == null ? null : reviewer.effort())
                 .param("bmodel", builderModel).param("beffort", builderEffort)
                 .param("mode", buildMode)
                 .param("harness", harness.id()).param("id", runId).param("p", projectId).param("v", contractVersion)
@@ -87,7 +93,8 @@ class RunStore {
 
     Optional<RunRow> row(UUID runId) {
         return jdbc.sql("select id, project_id, workspace_path, database_name, cost_limit_usd,"
-                        + " contract_version, status, steps_json, harness, template_id, build_mode, builder_model, builder_effort from execution.runs where id = :id")
+                        + " contract_version, status, steps_json, harness, template_id, build_mode, builder_model, builder_effort, reviewer_harness, reviewer_model,"
+                        + " reviewer_effort from execution.runs where id = :id")
                 .param("id", runId)
                 .query((rs, n) -> new RunRow(rs.getObject("id", UUID.class),
                         rs.getObject("project_id", UUID.class), rs.getString("workspace_path"),
@@ -95,7 +102,10 @@ class RunStore {
                         rs.getInt("contract_version"), rs.getString("status"),
                         json.readValue(rs.getString("steps_json"), new TypeReference<List<Step>>() { }),
                         Harness.ofId(rs.getString("harness")), rs.getString("template_id"), rs.getString("build_mode"),
-                        rs.getString("builder_model"), rs.getString("builder_effort")))
+                        rs.getString("builder_model"), rs.getString("builder_effort"),
+                        rs.getString("reviewer_harness") == null ? null
+                                : new BuilderRun(Harness.ofId(rs.getString("reviewer_harness")),
+                                        rs.getString("reviewer_model"), rs.getString("reviewer_effort"))))
                 .optional();
     }
 
@@ -232,12 +242,14 @@ class RunStore {
     }
 
     /** Records one attempt of a step and returns its id. */
-    UUID addAgentCall(UUID stepId, StepOutcome outcome) {
+    UUID addAgentCall(UUID stepId, StepOutcome outcome, BuilderRun by) {
         UUID id = UUID.randomUUID();
         int attempt = jdbc.sql("select count(*) + 1 from execution.agent_calls where step_run_id = :s")
                 .param("s", stepId).query(Integer.class).single();
         jdbc.sql("insert into execution.agent_calls (id, step_run_id, attempt, seconds, cost_usd, turns,"
-                        + " outcome, created_at, tokens) values (:id, :s, :a, :sec, :cost, :turns, :o, :now, :tokens)")
+                        + " outcome, created_at, tokens, harness, model, effort) values (:id, :s, :a, :sec, :cost, :turns,"
+                        + " :o, :now, :tokens, :harness, :model, :effort)")
+                .param("harness", by.harness().id()).param("model", by.model()).param("effort", by.effort())
                 .param("tokens", outcome.tokens())
                 .param("id", id).param("s", stepId).param("a", attempt)
                 .param("sec", outcome.seconds()).param("cost", outcome.costUsd())
@@ -309,12 +321,14 @@ class RunStore {
     }
 
     Optional<RunView> view(UUID runId) {
-        Optional<RunView> head = jdbc.sql("select id, project_id, contract_version, harness, builder_model, builder_effort, status, failure_reason,"
+        Optional<RunView> head = jdbc.sql("select id, project_id, contract_version, harness, builder_model, builder_effort, reviewer_harness, reviewer_model,"
+                        + " reviewer_effort, status, failure_reason,"
                         + " wait_kind, resume_count, cost_limit_usd, last_seq, started_at, finished_at from execution.runs"
                         + " where id = :id").param("id", runId)
                 .query((rs, n) -> new RunView(runId, rs.getObject("project_id", UUID.class),
                         rs.getInt("contract_version"), rs.getString("harness"), rs.getString("builder_model"),
-                        rs.getString("builder_effort"), rs.getString("status"),
+                        rs.getString("builder_effort"), rs.getString("reviewer_harness"),
+                        rs.getString("reviewer_model"), rs.getString("reviewer_effort"), rs.getString("status"),
                         rs.getString("failure_reason"), rs.getString("wait_kind"), null, rs.getInt("resume_count"),
                         BigDecimal.ZERO,
                         rs.getBigDecimal("cost_limit_usd"), rs.getLong("last_seq"),
@@ -323,9 +337,10 @@ class RunStore {
                                 : rs.getTimestamp("finished_at").toInstant(),
                         List.of()))
                 .optional();
-        return head.map(run -> new RunView(run.id(), run.projectId(), run.contractVersion(), run.harness(), run.builderModel(), run.builderEffort(), run.status(),
+        return head.map(run -> new RunView(run.id(), run.projectId(), run.contractVersion(), run.harness(), run.builderModel(), run.builderEffort(), run.reviewerHarness(),
+                run.reviewerModel(), run.reviewerEffort(), run.status(),
                 run.failureReason(), run.waitKind(), questionOf(runId, run.waitKind()), run.resumeCount(), costOf(runId), run.costLimitUsd(), run.lastSeq(), run.startedAt(),
-                run.finishedAt(), tasksOf(runId)));
+                run.finishedAt(), tasksOf(runId, reviewKeysOf(runId))));
     }
 
     private RunView.Question questionOf(UUID runId, String waitKind) {
@@ -341,16 +356,22 @@ class RunStore {
                 .optional().orElse(null);
     }
 
-    private List<RunView.Task> tasksOf(UUID runId) {
+    /** The keys of the review steps in the run's snapshot of its step profile. */
+    private Set<String> reviewKeysOf(UUID runId) {
+        return row(runId).map(run -> run.steps().stream().filter(Step::review).map(Step::key)
+                .collect(Collectors.toSet())).orElse(Set.of());
+    }
+
+    private List<RunView.Task> tasksOf(UUID runId, Set<String> reviewKeys) {
         return jdbc.sql("select id, seq, title, lane, status from execution.task_runs"
                         + " where run_id = :r order by seq").param("r", runId)
                 .query((rs, n) -> new RunView.Task(rs.getObject("id", UUID.class), rs.getInt("seq"),
                         rs.getString("title"), rs.getString("lane"), rs.getString("status"),
-                        stepsOf(rs.getObject("id", UUID.class))))
+                        stepsOf(rs.getObject("id", UUID.class), reviewKeys)))
                 .list();
     }
 
-    private List<RunView.Step> stepsOf(UUID taskId) {
+    private List<RunView.Step> stepsOf(UUID taskId, Set<String> reviewKeys) {
         return jdbc.sql("select s.id, s.seq, s.step_key, s.title, s.status, s.result,"
                         + " coalesce((select sum(cost_usd) from execution.agent_calls where step_run_id = s.id), 0) cost,"
                         + " coalesce((select sum(turns) from execution.agent_calls where step_run_id = s.id), 0) turns,"
@@ -358,13 +379,21 @@ class RunStore {
                         + " coalesce((select sum(seconds) from execution.agent_calls where step_run_id = s.id), 0) seconds,"
                         + " (select count(*) from execution.agent_calls where step_run_id = s.id) attempts,"
                         + " (select commit_sha from execution.checkpoints where step_run_id = s.id"
-                        + "  order by created_at desc limit 1) sha"
+                        + "  order by created_at desc limit 1) sha,"
+                        + " (select harness from execution.agent_calls where step_run_id = s.id"
+                        + "  order by attempt desc limit 1) call_harness,"
+                        + " (select model from execution.agent_calls where step_run_id = s.id"
+                        + "  order by attempt desc limit 1) call_model,"
+                        + " (select effort from execution.agent_calls where step_run_id = s.id"
+                        + "  order by attempt desc limit 1) call_effort"
                         + " from execution.step_runs s where s.task_run_id = :t order by s.seq")
                 .param("t", taskId)
                 .query((rs, n) -> new RunView.Step(rs.getObject("id", UUID.class), rs.getInt("seq"),
                         rs.getString("step_key"), rs.getString("title"), rs.getString("status"),
                         rs.getString("result"), rs.getBigDecimal("cost"), rs.getInt("turns"),
-                        rs.getInt("seconds"), rs.getInt("attempts"), rs.getString("sha"), rs.getLong("tokens")))
+                        rs.getInt("seconds"), rs.getInt("attempts"), rs.getString("sha"), rs.getLong("tokens"),
+                        reviewKeys.contains(rs.getString("step_key")), rs.getString("call_harness"),
+                        rs.getString("call_model"), rs.getString("call_effort")))
                 .list();
     }
 

@@ -30,6 +30,9 @@ public interface ProjectPort {
     /** The model and effort the project chose for its builder (the default when none was chosen). */
     Optional<BuilderChoice> builderChoiceOf(UUID projectId);
 
+    /** The separate reviewer the project chose, or empty when the builder checks its own work. */
+    Optional<ReviewerChoice> reviewerOf(UUID projectId);
+
     /** Records which provider and model the planning of the project really uses. */
     void recordAi(UUID projectId, AiTarget target);
 

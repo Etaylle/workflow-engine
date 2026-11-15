@@ -47,6 +47,19 @@
 			.filter(Boolean)
 			.join(' · ')
 	);
+	const reviewerBuilder = $derived(
+		builders?.builders.find((b) => b.id === project.reviewerHarness) ?? null
+	);
+	const reviewerLine = $derived(
+		project.reviewerHarness
+			? [
+					locale.t(`build.${project.reviewerHarness}` as MessageKey),
+					modelEffortText(project.reviewerModel ?? reviewerBuilder?.model, project.reviewerEffort)
+				]
+					.filter(Boolean)
+					.join(' · ')
+			: locale.t('review.reviewerNone')
+	);
 	const planningName = $derived(
 		engineKey.nameOf(
 			locale.t('key.nameAnthropic'),
@@ -74,6 +87,8 @@
 		<dd data-testid="review-planning">{planningName} · {project.model}</dd>
 		<dt>{locale.t('review.builder')}</dt>
 		<dd data-testid="review-builder">{builderLine}</dd>
+		<dt>{locale.t('review.reviewer')}</dt>
+		<dd data-testid="review-reviewer">{reviewerLine}</dd>
 		<dt>{locale.t('review.buildMode')}</dt>
 		<dd data-testid="review-build-mode">{locale.t(`buildMode.${mode}Short` as MessageKey)}</dd>
 		<dt>{locale.t('review.requirements')}</dt>

@@ -207,7 +207,7 @@ paths:
           application/json:
             schema:
               type: object
-              description: At least one of name, wish, agentHarness, templateId, buildMode, builderModel and builderEffort
+              description: At least one of name, wish, agentHarness, templateId, buildMode, builderModel, builderEffort, reviewerHarness, reviewerModel and reviewerEffort
               properties:
                 builderModel:
                   type: string
@@ -223,6 +223,23 @@ paths:
                     The effort of Claude Code (low to max) or Codex CLI (low, medium, high, xhigh); an empty string = the CLI's own default. 400 for Gemini CLI.
                     Changing agentHarness clears both builderModel and builderEffort (values sent in the
                     same request apply to the new builder).
+                reviewerHarness:
+                  type: string
+                  enum: ["", claude_code, gemini_cli, codex_cli]
+                  description: >
+                    The optional second builder that runs the independent review steps (steps with
+                    review = true); an empty string = no separate reviewer (the builder checks its own
+                    work). Changing it clears reviewerModel and reviewerEffort. 400 when the reviewer has
+                    the same builder and the same model as the builder that writes the software. A run
+                    snapshots it and checks that it is ready (409 "Reviewer not ready" otherwise).
+                reviewerModel:
+                  type: string
+                  maxLength: 80
+                  description: The model of the reviewer, checked like builderModel; an empty string = the default
+                reviewerEffort:
+                  type: string
+                  enum: ["", low, medium, high, xhigh, max]
+                  description: The effort of the reviewer, checked like builderEffort; an empty string = the default
                 buildMode:
                   type: string
                   enum: [whole, tasks, auto]
@@ -1546,7 +1563,7 @@ components:
         description: {type: string}
     Project:
       type: object
-      required: [id, name, wish, status, agentHarness, templateId, buildMode, model, builderModel, builderEffort, createdAt, updatedAt]
+      required: [id, name, wish, status, agentHarness, templateId, buildMode, model, builderModel, builderEffort, reviewerHarness, reviewerModel, reviewerEffort, createdAt, updatedAt]
       properties:
         id: {type: string, format: uuid}
         name: {type: string, description: The start of the wish}
@@ -1569,6 +1586,9 @@ components:
         model: {type: string, description: The model of the planning AI}
         builderModel: {type: string, nullable: true, description: The model chosen for the builder; null = the engine's default}
         builderEffort: {type: string, nullable: true, enum: [low, medium, high, xhigh, max], description: The effort chosen for Claude Code; null = the CLI's own default}
+        reviewerHarness: {type: string, nullable: true, enum: [claude_code, gemini_cli, codex_cli], description: The separate builder of the independent review steps; null = the builder checks its own work}
+        reviewerModel: {type: string, nullable: true}
+        reviewerEffort: {type: string, nullable: true, enum: [low, medium, high, xhigh, max]}
         createdAt: {type: string, format: date-time}
         updatedAt: {type: string, format: date-time}
     Brief:
@@ -1783,13 +1803,16 @@ components:
         message: {type: [string, "null"], description: What it is doing, or why it stopped or failed}
     RunReport:
       type: object
-      required: [runId, status, harness, builderModel, builderEffort, startedAt, seconds, costUsd, costLimitUsd, resumeCount, tasksDone, tasksTotal, stepsDone, stepsTotal, attempts, checkpoints, tasks, questions]
+      required: [runId, status, harness, builderModel, builderEffort, reviewerHarness, reviewerModel, reviewerEffort, startedAt, seconds, costUsd, costLimitUsd, resumeCount, tasksDone, tasksTotal, stepsDone, stepsTotal, attempts, checkpoints, tasks, questions]
       properties:
         runId: {type: string, format: uuid}
         status: {type: string, enum: [preparing, executing, waiting, done, interrupted, failed]}
         harness: {type: string, enum: [claude_code, gemini_cli, codex_cli]}
         builderModel: {type: string, nullable: true}
         builderEffort: {type: string, nullable: true, enum: [low, medium, high, xhigh, max]}
+        reviewerHarness: {type: string, nullable: true, enum: [claude_code, gemini_cli, codex_cli]}
+        reviewerModel: {type: string, nullable: true}
+        reviewerEffort: {type: string, nullable: true, enum: [low, medium, high, xhigh, max]}
         startedAt: {type: string, format: date-time}
         finishedAt: {type: string, format: date-time, nullable: true}
         seconds: {type: integer, description: From start to finish (to now while the run is under way)}
@@ -1822,6 +1845,10 @@ components:
                     costUsd: {type: number}
                     seconds: {type: integer}
                     commit: {type: string, nullable: true}
+                    review: {type: boolean, description: An independent review step}
+                    builderHarness: {type: string, nullable: true, description: The builder of the last attempt}
+                    builderModel: {type: string, nullable: true}
+                    builderEffort: {type: string, nullable: true}
         questions:
           type: array
           description: What the run asked the client, and what the client answered
@@ -1836,7 +1863,7 @@ components:
               askedAt: {type: string, format: date-time}
     Run:
       type: object
-      required: [id, projectId, contractVersion, harness, builderModel, builderEffort, status, costUsd, costLimitUsd, lastSeq, startedAt, tasks]
+      required: [id, projectId, contractVersion, harness, builderModel, builderEffort, reviewerHarness, reviewerModel, reviewerEffort, status, costUsd, costLimitUsd, lastSeq, startedAt, tasks]
       properties:
         id: {type: string, format: uuid}
         projectId: {type: string, format: uuid}
@@ -1847,6 +1874,9 @@ components:
           description: The builder the run started with (snapshot; a resume uses the same one)
         builderModel: {type: string, nullable: true, description: "The model the run builds with (snapshot, the default resolved at start; null only for runs made before the choice existed)"}
         builderEffort: {type: string, nullable: true, enum: [low, medium, high, xhigh, max], description: "The effort the run builds with (snapshot); null = the CLI's own default"}
+        reviewerHarness: {type: string, nullable: true, enum: [claude_code, gemini_cli, codex_cli], description: "The separate builder that runs the review steps (snapshot); null = none"}
+        reviewerModel: {type: string, nullable: true}
+        reviewerEffort: {type: string, nullable: true, enum: [low, medium, high, xhigh, max]}
         status:
           type: string
           enum: [preparing, executing, waiting, done, interrupted, failed]
@@ -1918,6 +1948,10 @@ components:
                         Builder invocations so far (the first try and the fix attempts); every one
                         is recorded as an agent call
                     commit: {type: string, nullable: true}
+                    review: {type: boolean, description: An independent review step (run by the reviewer when the run has one)}
+                    builderHarness: {type: string, nullable: true, description: The builder that ran the last attempt of the step}
+                    builderModel: {type: string, nullable: true}
+                    builderEffort: {type: string, nullable: true}
     Builders:
       type: object
       required: [demo, builders]
@@ -2089,6 +2123,7 @@ components:
       type: object
       required: [key, title, gated, capUsd, prompt]
       properties:
+        review: {type: boolean, default: false, description: "An independent review step: a separate reviewer builder runs it when the project has one (all its attempts)"}
         key: {type: string, pattern: "^[a-z0-9-]{1,40}$"}
         title: {type: string, maxLength: 80}
         gated: {type: boolean, description: The orchestrator runs ./check.sh after the step and it must pass}

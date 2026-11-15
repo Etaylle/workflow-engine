@@ -2,7 +2,14 @@ import { describe, expect, it } from 'vitest';
 import type { StepDef } from '#lib/api/client.js';
 import { moveStep, profileSummary, stepProblem } from './steps.js';
 
-const step = (key: string): StepDef => ({ key, title: key, gated: false, capUsd: 1, prompt: 'p' });
+const step = (key: string): StepDef => ({
+	key,
+	title: key,
+	gated: false,
+	review: false,
+	capUsd: 1,
+	prompt: 'p'
+});
 
 describe('moveStep', () => {
 	const steps = [step('a'), step('b'), step('c')];

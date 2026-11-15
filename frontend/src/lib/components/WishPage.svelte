@@ -2,7 +2,12 @@
 	import { createProject, updateProject, type Project } from '#lib/api/client.js';
 	import { describeError } from '#lib/api/problem.js';
 	import { getBuilders, type Builders } from '#lib/api/execution.js';
-	import { choiceAfterBuilderChange } from '#lib/execution/builders.js';
+	import {
+		choiceAfterBuilderChange,
+		noReviewer,
+		reviewerConflict,
+		type Reviewer
+	} from '#lib/execution/builders.js';
 	import { engineKey } from '#lib/ai/key.svelte.js';
 	import BuildWith from '#lib/components/BuildWith.svelte';
 	import { locale } from '#lib/i18n/state.svelte.js';
@@ -16,6 +21,7 @@
 	let harness = $state('claude_code');
 	let builderModel = $state('');
 	let builderEffort = $state('');
+	let reviewer = $state<Reviewer>({ ...noReviewer });
 	let builders = $state<Builders | null>(null);
 	let busy = $state(false);
 	let error = $state<string | null>(null);
@@ -41,6 +47,10 @@
 		builderEffort = effort;
 	}
 
+	async function saveReviewer(next: Reviewer) {
+		reviewer = next;
+	}
+
 	async function submit(event: SubmitEvent) {
 		event.preventDefault();
 		if (wish.trim() === '') {
@@ -48,16 +58,27 @@
 			wishField?.focus();
 			return;
 		}
+		if (reviewerConflict({ harness, model: builderModel }, reviewer)) {
+			error = locale.t('build.second.same');
+			return;
+		}
 		busy = true;
 		error = null;
 		wishError = null;
 		try {
 			let project = await createProject(wish, '', name);
-			if (harness !== project.agentHarness || builderModel || builderEffort) {
+			if (harness !== project.agentHarness || builderModel || builderEffort || reviewer.harness) {
 				project = await updateProject(project.id, {
 					agentHarness: harness,
 					builderModel,
-					builderEffort
+					builderEffort,
+					...(reviewer.harness
+						? {
+								reviewerHarness: reviewer.harness,
+								reviewerModel: reviewer.model,
+								reviewerEffort: reviewer.effort
+							}
+						: {})
 				});
 			}
 			created(project);
@@ -131,6 +152,8 @@
 			model={builderModel}
 			effort={builderEffort}
 			{saveChoice}
+			{reviewer}
+			{saveReviewer}
 			{builders}
 			update={(fresh) => (builders = fresh)}
 			choose={chooseBuilder}

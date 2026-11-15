@@ -98,6 +98,9 @@ export type Project = {
 	model: string;
 	builderModel: string | null;
 	builderEffort: string | null;
+	reviewerHarness: string | null;
+	reviewerModel: string | null;
+	reviewerEffort: string | null;
 	createdAt: string;
 	updatedAt: string;
 };
@@ -153,6 +156,10 @@ export const updateProject = (
 		/** Empty string = the default. */
 		builderModel?: string;
 		builderEffort?: string;
+		/** Empty reviewerHarness = no separate reviewer; the others: empty string = the default. */
+		reviewerHarness?: string;
+		reviewerModel?: string;
+		reviewerEffort?: string;
 	}
 ) => json<Project>(`/api/projects/${projectId}`, 'PATCH', change);
 export async function deleteProject(projectId: string): Promise<void> {
@@ -264,6 +271,11 @@ export type RunStep = {
 	seconds: number;
 	attempts: number;
 	commit?: string | null;
+	/** An independent review step, and the builder that ran its last attempt. */
+	review?: boolean;
+	builderHarness?: string | null;
+	builderModel?: string | null;
+	builderEffort?: string | null;
 };
 export type RunTask = {
 	id: string;
@@ -280,6 +292,9 @@ export type Run = {
 	harness: string;
 	builderModel?: string | null;
 	builderEffort?: string | null;
+	reviewerHarness?: string | null;
+	reviewerModel?: string | null;
+	reviewerEffort?: string | null;
 	status: RunStatus;
 	failureReason?: string | null;
 	waitKind?: RunWaitKind | null;
@@ -375,6 +390,8 @@ export type StepDef = {
 	key: string;
 	title: string;
 	gated: boolean;
+	/** An independent review step: a separate reviewer builder runs it. */
+	review: boolean;
 	capUsd: number;
 	prompt: string;
 };

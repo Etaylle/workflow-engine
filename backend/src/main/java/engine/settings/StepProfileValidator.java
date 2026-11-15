@@ -46,7 +46,7 @@ final class StepProfileValidator {
             checkText(where, step);
         }
         return raw.stream().map(s -> new Step(s.key(), s.title().strip(), s.gated(), s.capUsd(),
-                s.prompt().strip())).toList();
+                s.prompt().strip(), s.review())).toList();
     }
 
     private static void checkText(String where, Step step) {

@@ -15,6 +15,9 @@ public record RunReport(
         String harness,
         String builderModel,
         String builderEffort,
+        String reviewerHarness,
+        String reviewerModel,
+        String reviewerEffort,
         Instant startedAt,
         Instant finishedAt,
         long seconds,
@@ -36,7 +39,8 @@ public record RunReport(
 
     /** One step: attempts are the Builder invocations, commit the checkpoint if any. */
     public record Step(String title, String status, int attempts, BigDecimal costUsd, int seconds,
-            String commit) {
+            String commit, boolean review, String builderHarness, String builderModel,
+            String builderEffort) {
     }
 
     /** One question the run asked the client; choice and hint are null until answered. */
@@ -49,13 +53,15 @@ public record RunReport(
         List<Task> tasks = run.tasks().stream()
                 .map(t -> new Task(t.title(), t.status(), t.steps().stream()
                         .map(s -> new Step(s.title(), s.status(), s.attempts(), s.costUsd(),
-                                s.seconds(), s.commit()))
+                                s.seconds(), s.commit(), s.review(), s.builderHarness(),
+                                s.builderModel(), s.builderEffort()))
                         .toList()))
                 .toList();
         List<Step> steps = tasks.stream().flatMap(t -> t.steps().stream()).toList();
         Instant end = run.finishedAt() == null ? now : run.finishedAt();
         return new RunReport(run.id(), run.status(), run.harness(), run.builderModel(),
-                run.builderEffort(), run.startedAt(), run.finishedAt(),
+                run.builderEffort(), run.reviewerHarness(), run.reviewerModel(),
+                run.reviewerEffort(), run.startedAt(), run.finishedAt(),
                 Duration.between(run.startedAt(), end).toSeconds(), run.costUsd(),
                 run.costLimitUsd(), run.resumeCount(),
                 (int) tasks.stream().filter(t -> "done".equals(t.status())).count(), tasks.size(),
@@ -64,14 +70,26 @@ public record RunReport(
                 (int) steps.stream().filter(s -> s.commit() != null).count(), tasks, questions);
     }
 
-    private String builtWith() {
+    private static String describe(String harness, String model, String effort) {
         String name = switch (harness) {
             case "gemini_cli" -> "Gemini CLI";
             case "codex_cli" -> "Codex CLI";
             default -> "Claude Code";
         };
-        return name + (builderModel == null ? "" : ", model " + builderModel)
-                + (builderEffort == null ? "" : ", effort " + builderEffort);
+        return name + (model == null ? "" : ", model " + model)
+                + (effort == null ? "" : ", effort " + effort);
+    }
+
+    private String builtWith() {
+        return describe(harness, builderModel, builderEffort);
+    }
+
+    private static String ranBy(Step step) {
+        if (step.builderHarness() == null) {
+            return "-";
+        }
+        String who = describe(step.builderHarness(), step.builderModel(), step.builderEffort());
+        return step.review() ? "Independent check: " + who : who;
     }
 
     /** The report as Markdown, for the ZIP. */
@@ -79,6 +97,8 @@ public record RunReport(
         StringBuilder md = new StringBuilder("# Run report\n\n");
         md.append("- Status: ").append(status).append('\n')
                 .append("- Built with: ").append(builtWith()).append('\n')
+                .append(reviewerHarness == null ? ""
+                        : "- Independent review by: " + describe(reviewerHarness, reviewerModel, reviewerEffort) + "\n")
                 .append("- Started: ").append(startedAt).append('\n')
                 .append("- Finished: ").append(finishedAt == null ? "not yet" : finishedAt.toString())
                 .append('\n')
@@ -93,14 +113,14 @@ public record RunReport(
                 .append("- Resumed after an engine restart: ").append(resumeCount).append(" times\n");
         for (Task task : tasks) {
             md.append("\n## ").append(task.title()).append(" (").append(task.status()).append(")\n\n")
-                    .append("| Step | Status | Attempts | Cost (USD) | Seconds | Checkpoint |\n")
-                    .append("|---|---|---|---|---|---|\n");
+                    .append("| Step | Status | Attempts | Cost (USD) | Seconds | Checkpoint | Run by |\n")
+                    .append("|---|---|---|---|---|---|---|\n");
             for (Step step : task.steps()) {
                 md.append("| ").append(step.title()).append(" | ").append(step.status())
                         .append(" | ").append(step.attempts()).append(" | ").append(step.costUsd())
                         .append(" | ").append(step.seconds()).append(" | ")
                         .append(step.commit() == null ? "-" : step.commit().substring(0, Math.min(8, step.commit().length())))
-                        .append(" |\n");
+                        .append(" | ").append(ranBy(step)).append(" |\n");
             }
         }
         md.append("\n## Questions asked of the client\n\n");

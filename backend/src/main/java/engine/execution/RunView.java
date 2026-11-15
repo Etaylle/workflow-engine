@@ -13,6 +13,9 @@ public record RunView(
         String harness,
         String builderModel,
         String builderEffort,
+        String reviewerHarness,
+        String reviewerModel,
+        String reviewerEffort,
         String status,
         String failureReason,
         String waitKind,
@@ -33,9 +36,10 @@ public record RunView(
     public record Task(UUID id, int seq, String title, String lane, String status, List<Step> steps) {
     }
 
-    /** One development step of a task. */
+    /** One development step of a task; the builder fields say who ran its last attempt. */
     public record Step(UUID id, int seq, String key, String title, String status, String result,
             BigDecimal costUsd, int turns, int seconds, int attempts, String commit,
-            long tokens) {
+            long tokens, boolean review, String builderHarness, String builderModel,
+            String builderEffort) {
     }
 }

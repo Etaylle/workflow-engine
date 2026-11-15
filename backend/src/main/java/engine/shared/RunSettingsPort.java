@@ -16,8 +16,16 @@ public interface RunSettingsPort {
      * @param gated the orchestrator runs the check after the step and it must pass
      * @param capUsd most the step may cost in one invocation
      * @param prompt what Claude is told; {task} stands for the task title
+     * @param review an independent review step: a separate reviewer builder runs it when the project
+     *     has one; absent in the JSON of older runs and requests, which means false
      */
-    record Step(String key, String title, boolean gated, BigDecimal capUsd, String prompt) {
+    record Step(String key, String title, boolean gated, BigDecimal capUsd, String prompt,
+            Boolean review) {
+
+        /** A missing flag is false. */
+        public Step {
+            review = review != null && review;
+        }
     }
 
     /**

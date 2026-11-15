@@ -15,6 +15,9 @@ public record Project(
         String model,
         String builderModel,
         String builderEffort,
+        String reviewerHarness,
+        String reviewerModel,
+        String reviewerEffort,
         Instant createdAt,
         Instant updatedAt) {
 }
