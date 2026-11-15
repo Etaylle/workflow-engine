@@ -207,8 +207,22 @@ paths:
           application/json:
             schema:
               type: object
-              description: At least one of name, wish, agentHarness, templateId and buildMode
+              description: At least one of name, wish, agentHarness, templateId, buildMode, builderModel and builderEffort
               properties:
+                builderModel:
+                  type: string
+                  maxLength: 80
+                  description: >
+                    The model of the builder; an empty string = the engine's default. Claude Code takes
+                    haiku, sonnet, opus or fable; Gemini CLI any id of letters, digits, dot, underscore
+                    and dash (`GET /api/builders` suggests some). 400 otherwise. A run snapshots it.
+                builderEffort:
+                  type: string
+                  enum: ["", low, medium, high, xhigh, max]
+                  description: >
+                    The effort of Claude Code; an empty string = the CLI's own default. 400 for Gemini CLI.
+                    Changing agentHarness clears both builderModel and builderEffort (values sent in the
+                    same request apply to the new builder).
                 buildMode:
                   type: string
                   enum: [whole, tasks, auto]
@@ -1532,7 +1546,7 @@ components:
         description: {type: string}
     Project:
       type: object
-      required: [id, name, wish, status, agentHarness, templateId, buildMode, model, createdAt, updatedAt]
+      required: [id, name, wish, status, agentHarness, templateId, buildMode, model, builderModel, builderEffort, createdAt, updatedAt]
       properties:
         id: {type: string, format: uuid}
         name: {type: string, description: The start of the wish}
@@ -1552,7 +1566,9 @@ components:
           nullable: true
           enum: [whole, tasks]
           description: The build mode the client chose; null = automatic (whole up to 8 software tasks, otherwise tasks)
-        model: {type: string}
+        model: {type: string, description: The model of the planning AI}
+        builderModel: {type: string, nullable: true, description: The model chosen for the builder; null = the engine's default}
+        builderEffort: {type: string, nullable: true, enum: [low, medium, high, xhigh, max], description: The effort chosen for Claude Code; null = the CLI's own default}
         createdAt: {type: string, format: date-time}
         updatedAt: {type: string, format: date-time}
     Brief:
@@ -1767,10 +1783,13 @@ components:
         message: {type: [string, "null"], description: What it is doing, or why it stopped or failed}
     RunReport:
       type: object
-      required: [runId, status, startedAt, seconds, costUsd, costLimitUsd, resumeCount, tasksDone, tasksTotal, stepsDone, stepsTotal, attempts, checkpoints, tasks, questions]
+      required: [runId, status, harness, builderModel, builderEffort, startedAt, seconds, costUsd, costLimitUsd, resumeCount, tasksDone, tasksTotal, stepsDone, stepsTotal, attempts, checkpoints, tasks, questions]
       properties:
         runId: {type: string, format: uuid}
         status: {type: string, enum: [preparing, executing, waiting, done, interrupted, failed]}
+        harness: {type: string, enum: [claude_code, gemini_cli]}
+        builderModel: {type: string, nullable: true}
+        builderEffort: {type: string, nullable: true, enum: [low, medium, high, xhigh, max]}
         startedAt: {type: string, format: date-time}
         finishedAt: {type: string, format: date-time, nullable: true}
         seconds: {type: integer, description: From start to finish (to now while the run is under way)}
@@ -1817,7 +1836,7 @@ components:
               askedAt: {type: string, format: date-time}
     Run:
       type: object
-      required: [id, projectId, contractVersion, harness, status, costUsd, costLimitUsd, lastSeq, startedAt, tasks]
+      required: [id, projectId, contractVersion, harness, builderModel, builderEffort, status, costUsd, costLimitUsd, lastSeq, startedAt, tasks]
       properties:
         id: {type: string, format: uuid}
         projectId: {type: string, format: uuid}
@@ -1826,6 +1845,8 @@ components:
           type: string
           enum: [claude_code, gemini_cli]
           description: The builder the run started with (snapshot; a resume uses the same one)
+        builderModel: {type: string, nullable: true, description: "The model the run builds with (snapshot, the default resolved at start; null only for runs made before the choice existed)"}
+        builderEffort: {type: string, nullable: true, enum: [low, medium, high, xhigh, max], description: "The effort the run builds with (snapshot); null = the CLI's own default"}
         status:
           type: string
           enum: [preparing, executing, waiting, done, interrupted, failed]
@@ -1906,7 +1927,7 @@ components:
           type: array
           items:
             type: object
-            required: [id, name, ready, installed, version, keySet, model, missing]
+            required: [id, name, ready, installed, version, keySet, model, models, customModel, efforts, missing]
             properties:
               id: {type: string, enum: [claude_code, gemini_cli]}
               name: {type: string}
@@ -1924,7 +1945,22 @@ components:
                 nullable: true
                 enum: [anthropic_key, machine_sign_in]
                 description: Claude Code only
-              model: {type: string}
+              model: {type: string, description: The default model (a project that chose none uses it)}
+              models:
+                type: array
+                description: The models to suggest, cheapest first
+                items:
+                  type: object
+                  required: [id, hint]
+                  properties:
+                    id: {type: string}
+                    hint: {type: string}
+              customModel: {type: boolean, description: Any model id may be typed (Gemini CLI), not only the suggestions}
+              efforts:
+                type: array
+                items: {type: string, enum: [low, medium, high, xhigh, max]}
+                description: The effort levels; empty when the builder has none (Gemini CLI)
+              defaultEffort: {type: string, nullable: true, description: The effort used when none is chosen; null = the CLI's own default}
               missing:
                 type: array
                 items:

@@ -4,6 +4,7 @@ import static engine.execution.BuilderSupport.failed;
 import static engine.execution.BuilderSupport.oneLine;
 import static engine.execution.BuilderSupport.read;
 
+import engine.shared.BuilderChoice;
 import engine.shared.Harness;
 import engine.shared.SessionKey;
 import java.math.BigDecimal;
@@ -25,6 +26,13 @@ class ClaudeCodeBuilder implements RealBuilder {
             + "Bash(./start.sh:*),Bash(./gradlew:*),Bash(npm:*),Bash(npx:*),Bash(node:*),Bash(cd:*),Bash(git status:*),"
             + "Bash(git diff:*),"
             + "Bash(curl:*),Bash(ls:*),Bash(cat:*),Bash(mkdir:*),Bash(sleep:*),Bash(kill:*)";
+
+    /** The models to offer, cheapest first (the aliases of the CLI). */
+    static final List<BuilderState.ModelOption> MODELS = List.of(
+            new BuilderState.ModelOption("haiku", "Fastest and cheapest"),
+            new BuilderState.ModelOption("sonnet", "Fast and balanced"),
+            new BuilderState.ModelOption("opus", "Strong, slower and dearer"),
+            new BuilderState.ModelOption("fable", "Most capable and most expensive"));
 
     private static final JsonMapper JSON = JsonMapper.builder().build();
 
@@ -72,7 +80,8 @@ class ClaudeCodeBuilder implements RealBuilder {
                     + " engine keeps it in memory only." + other, null));
         }
         return new BuilderState(harness().id(), harness().label(), missing.isEmpty(), tool.installed(),
-                tool.version(), signedIn, keySet, auth.mode().id(), settings.model(), List.copyOf(missing));
+                tool.version(), signedIn, keySet, auth.mode().id(), settings.model(), MODELS, false,
+                BuilderChoice.EFFORTS, null, List.copyOf(missing));
     }
 
     @Override
@@ -80,13 +89,17 @@ class ClaudeCodeBuilder implements RealBuilder {
         Path out = request.logDir().resolve(request.stepKey() + ".jsonl");
         Path err = request.logDir().resolve(request.stepKey() + ".err");
         long start = System.nanoTime();
-        List<String> command = List.of(settings.claudeBin(), "-p",
+        List<String> command = new ArrayList<>(List.of(settings.claudeBin(), "-p",
                 BuilderSupport.prompt("CLAUDE.md", request.prompt()),
-                "--model", settings.model(), "--output-format", "stream-json", "--verbose", "--permission-mode",
+                "--model", request.model() != null ? request.model() : settings.model()));
+        if (request.effort() != null) {
+            command.addAll(List.of("--effort", request.effort()));
+        }
+        command.addAll(List.of("--output-format", "stream-json", "--verbose", "--permission-mode",
                 "acceptEdits", "--max-budget-usd", request.capUsd().toPlainString(),
                 "--no-session-persistence", "--setting-sources", "project,local",
                 "--strict-mcp-config", "--disable-slash-commands", "--tools",
-                "Read,Edit,Write,Glob,Grep,Bash", "--allowedTools", ALLOWED);
+                "Read,Edit,Write,Glob,Grep,Bash", "--allowedTools", ALLOWED));
         ProcessRunner.Result result = ProcessRunner.run(command, request.workspace(), childEnv(request),
                 out, err, settings.stepTimeout(), request.cancelled(),
                 line -> BuilderStream.claude(line, request.workspace().toString())

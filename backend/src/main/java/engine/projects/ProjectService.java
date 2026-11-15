@@ -1,6 +1,7 @@
 package engine.projects;
 
 import engine.shared.ApiProblem;
+import engine.shared.BuilderChoice;
 import engine.shared.Harness;
 import engine.shared.TemplateCatalog;
 import engine.shared.ProjectCleanup;
@@ -24,7 +25,7 @@ public class ProjectService implements ProjectPort {
     static final int MAX_WISH_LENGTH = 20_000;
     static final int MAX_NAME_LENGTH = 120;
     private static final int NAME_LENGTH = 60;
-    private static final String COLUMNS = "id, name, wish, status, agent_harness, template_id, build_mode, model, created_at, updated_at,"
+    private static final String COLUMNS = "id, name, wish, status, agent_harness, template_id, build_mode, model, builder_model, builder_effort, created_at, updated_at,"
             + " (select b.software_kind from projects.project_briefs b where b.project_id = projects.projects.id)"
             + " as brief_kind";
 
@@ -67,24 +68,27 @@ public class ProjectService implements ProjectPort {
      */
     @Transactional
     public Project update(UUID id, String name, String wish, String agentHarness, String templateId,
-            String buildMode) {
+            String buildMode, String builderModel, String builderEffort) {
         if (name == null && wish == null && agentHarness == null && templateId == null
-                && buildMode == null) {
+                && buildMode == null && builderModel == null && builderEffort == null) {
             throw new ApiProblem(400, "Nothing to change",
-                    "Send a name, a wish, a builder (agentHarness), a template (templateId), a build mode (buildMode), or several.");
+                    "Send a name, a wish, a builder (agentHarness), a template (templateId), a build mode (buildMode), a builder model (builderModel), a builder effort (builderEffort), or several.");
         }
         Project current = get(id).orElseThrow(() -> notFound(id));
         String newName = name == null ? current.name() : checkedName(name);
         String newWish = wish == null ? current.wish() : checkedWish(wish);
         boolean wishChanged = !newWish.equals(current.wish());
         String harness = agentHarness == null ? current.agentHarness() : Harness.ofId(agentHarness).id();
+        BuilderChoice choice = nextChoice(current, harness, builderModel, builderEffort);
         String template = templateId == null ? storedTemplateOf(id) : templates.require(templateId).id();
         String mode = buildMode == null ? current.buildMode() : checkedBuildMode(buildMode);
-        jdbc.sql("update projects.projects set name = :name, template_id = :template, build_mode = :mode, wish = :wish, status = :status,"
+        jdbc.sql("update projects.projects set name = :name, template_id = :template, build_mode = :mode, builder_model = :bmodel, builder_effort = :beffort, wish = :wish, status = :status,"
                         + " agent_harness = :harness, updated_at = :now, version = version + 1 where id = :id")
                 .param("harness", harness)
                 .param("template", template)
                 .param("mode", mode)
+                .param("bmodel", choice.model())
+                .param("beffort", choice.effort())
                 .param("name", newName)
                 .param("wish", newWish)
                 .param("status", wishChanged ? "draft" : current.status())
@@ -92,6 +96,18 @@ public class ProjectService implements ProjectPort {
                 .param("id", id)
                 .update();
         return get(id).orElseThrow();
+    }
+
+    /**
+     * The builder's model and effort after a change: a new builder clears both, a sent value (blank =
+     * the default) replaces the old one, and the result is checked for the builder.
+     */
+    private static BuilderChoice nextChoice(Project current, String harness, String model, String effort) {
+        boolean sameBuilder = harness.equals(current.agentHarness());
+        String keptModel = sameBuilder ? current.builderModel() : null;
+        String keptEffort = sameBuilder ? current.builderEffort() : null;
+        return BuilderChoice.checked(Harness.ofId(harness), model == null ? keptModel : model,
+                effort == null ? keptEffort : effort);
     }
 
     /** The build mode of the project: whole, tasks, or auto (stored as null: the contract decides). */
@@ -192,6 +208,11 @@ public class ProjectService implements ProjectPort {
     }
 
     @Override
+    public Optional<BuilderChoice> builderChoiceOf(UUID projectId) {
+        return get(projectId).map(p -> new BuilderChoice(p.builderModel(), p.builderEffort()));
+    }
+
+    @Override
     public Optional<String> templateIdOf(UUID projectId) {
         return get(projectId).map(Project::templateId);
     }
@@ -259,6 +280,8 @@ public class ProjectService implements ProjectPort {
                 template,
                 rs.getString("build_mode"),
                 rs.getString("model"),
+                rs.getString("builder_model"),
+                rs.getString("builder_effort"),
                 rs.getTimestamp("created_at").toInstant(),
                 rs.getTimestamp("updated_at").toInstant());
     }

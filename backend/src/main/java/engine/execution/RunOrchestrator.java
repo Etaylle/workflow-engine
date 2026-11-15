@@ -386,7 +386,7 @@ class RunOrchestrator {
                 + " CHECK PASSED.";
         Builder builder = builders.forHarness(ctx.run().harness());
         StepOutcome outcome = builder.run(new StepRequest(ctx.workspace().dir(), def.key(), prompt,
-                capOf(ctx.run(), def).min(remaining), ctx.appEnv(), ctx.logDir(), () -> stopped(runId),
+                capOf(ctx.run(), def).min(remaining), ctx.run().builderModel(), ctx.run().builderEffort(), ctx.appEnv(), ctx.logDir(), () -> stopped(runId),
                 line -> events.publish(runId, "console", line)));
         UUID call = store.addAgentCall(row.id(), outcome);
         events.publish(runId, "console", def.title() + ": " + outcome.summary() + " (USD "

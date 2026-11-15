@@ -1,6 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { normaliseBuilders } from '#lib/api/execution.js';
-import { actionFor, builderOf, missingCodes, otherAuthMode, startBlock } from './builders.js';
+import {
+	actionFor,
+	builderOf,
+	choiceAfterBuilderChange,
+	isModelId,
+	missingCodes,
+	modelEffortText,
+	modelToSave,
+	otherAuthMode,
+	startBlock
+} from './builders.js';
 
 const report = normaliseBuilders({
 	demo: false,
@@ -45,5 +55,49 @@ describe('builder report', () => {
 		const claude = builderOf(report, 'claude_code')!;
 		expect(otherAuthMode(claude)).toBe('anthropic_key');
 		expect(otherAuthMode({ ...claude, authMode: 'anthropic_key' })).toBe('machine_sign_in');
+	});
+});
+
+describe('builder model and effort', () => {
+	it('reads the models and efforts of the report, tolerating absent lists', () => {
+		const state = normaliseBuilders({
+			builders: [
+				{
+					id: 'claude_code',
+					models: [{ id: 'haiku', hint: 'cheap' }, { hint: 'no id' }],
+					efforts: ['low', 'max']
+				},
+				{ id: 'gemini_cli', customModel: true }
+			]
+		});
+		expect(builderOf(state, 'claude_code')?.models).toEqual([{ id: 'haiku', hint: 'cheap' }]);
+		expect(builderOf(state, 'claude_code')?.efforts).toEqual(['low', 'max']);
+		expect(builderOf(state, 'gemini_cli')?.customModel).toBe(true);
+		expect(builderOf(state, 'gemini_cli')?.efforts).toEqual([]);
+	});
+
+	it('accepts only model ids the API accepts', () => {
+		expect(isModelId('gemini-3.1-flash-lite')).toBe(true);
+		expect(isModelId('my_model.v2')).toBe(true);
+		expect(isModelId('has space')).toBe(false);
+		expect(isModelId('x'.repeat(81))).toBe(false);
+		expect(modelToSave('  gemini-pro-latest ')).toBe('gemini-pro-latest');
+		expect(modelToSave('  ')).toBe('');
+		expect(modelToSave('bad id!')).toBeNull();
+	});
+
+	it('writes the choice as one line and leaves out what is not chosen', () => {
+		expect(modelEffortText('fable', 'high')).toBe('fable · high');
+		expect(modelEffortText('haiku', null)).toBe('haiku');
+		expect(modelEffortText(null, undefined)).toBe('');
+	});
+
+	it('starts a new builder with the defaults and keeps the choice for the same builder', () => {
+		const choice = { model: 'opus', effort: 'high' };
+		expect(choiceAfterBuilderChange('claude_code', 'claude_code', choice)).toEqual(choice);
+		expect(choiceAfterBuilderChange('claude_code', 'gemini_cli', choice)).toEqual({
+			model: '',
+			effort: ''
+		});
 	});
 });

@@ -25,7 +25,8 @@
 	import BuildWith from '#lib/components/BuildWith.svelte';
 	import StepShell from '#lib/components/StepShell.svelte';
 	import { getBuilders, type Builders } from '#lib/api/execution.js';
-	import { missingCodes, startBlock } from '#lib/execution/builders.js';
+	import { toasts } from '#lib/shell/toast.svelte.js';
+	import { missingCodes, modelEffortText, startBlock } from '#lib/execution/builders.js';
 	import { createAction } from '#lib/api/action.svelte.js';
 	import type { MessageKey } from '#lib/i18n/i18n.js';
 	import { locale } from '#lib/i18n/state.svelte.js';
@@ -83,6 +84,12 @@
 	async function chooseBuilder(id: string) {
 		await updateProject(project.id, { agentHarness: id });
 		await changed();
+	}
+
+	async function saveChoice(builderModel: string, builderEffort: string) {
+		await updateProject(project.id, { builderModel, builderEffort });
+		await changed();
+		toasts.show(locale.t('build.choiceSaved'));
 	}
 
 	async function loadBuilders() {
@@ -243,6 +250,9 @@
 	{#if builders && canStart(project.status, run) && !run}
 		<BuildWith
 			harness={project.agentHarness}
+			model={project.builderModel ?? ''}
+			effort={project.builderEffort ?? ''}
+			{saveChoice}
 			{builders}
 			update={(fresh) => (builders = fresh)}
 			choose={chooseBuilder}
@@ -266,7 +276,14 @@
 					{locale.t('run.progress', { done: String(steps.done), total: String(steps.total) })}
 				</span>
 				<span data-testid="run-builder">
-					{locale.t('run.builtWith', { builder: locale.t(`build.${run.harness}` as MessageKey) })}
+					{locale.t('run.builtWith', {
+						builder: [
+							locale.t(`build.${run.harness}` as MessageKey),
+							modelEffortText(run.builderModel, run.builderEffort)
+						]
+							.filter(Boolean)
+							.join(' · ')
+					})}
 				</span>
 				<span data-testid="run-cost">
 					{locale.t('run.cost', {
@@ -421,6 +438,9 @@
 	{#if builders && run && canStart(project.status, run)}
 		<BuildWith
 			harness={project.agentHarness}
+			model={project.builderModel ?? ''}
+			effort={project.builderEffort ?? ''}
+			{saveChoice}
 			{builders}
 			update={(fresh) => (builders = fresh)}
 			choose={chooseBuilder}

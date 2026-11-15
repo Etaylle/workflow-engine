@@ -2,6 +2,7 @@ package engine.execution;
 
 import engine.shared.ApiProblem;
 import engine.shared.ContractPort;
+import engine.shared.BuilderChoice;
 import engine.shared.Harness;
 import engine.shared.ProjectPort;
 import engine.shared.RunSettingsPort;
@@ -92,13 +93,16 @@ class RunService {
         UUID runId = UUID.randomUUID();
         String buildMode = projects.buildModeOf(projectId)
                 .orElse(defaultBuildMode(contract.softwareTasks().size()));
+        BuilderChoice choice = projects.builderChoiceOf(projectId).orElseThrow();
+        String model = choice.model() != null ? choice.model()
+                : harness == Harness.GEMINI_CLI ? settings.geminiModel() : settings.model();
         Path workspace = settings.workspaceRoot().resolve("run-" + runId);
         RunSettingsPort.RunSettings chosen = runSettings.forProject(projectId);
         store.create(runId, projectId, contract.version(), harness,
                 chosen.costLimitUsd().orElse(contract.costLimitUsd().orElse(settings.costLimitUsd())),
                 workspace.toString(), template.id(),
                 settings.createDatabase() && template.needsDatabase() ? RunOrchestrator.databaseName(runId) : null,
-                buildMode, "whole".equals(buildMode) ? List.of(wholeUnit(contract)) : contract.softwareTasks(),
+                buildMode, model, choice.effort(), "whole".equals(buildMode) ? List.of(wholeUnit(contract)) : contract.softwareTasks(),
                 chosen.steps());
         projects.markStatus(projectId, "executing");
         orchestrator.submit(runId, contract.markdown());

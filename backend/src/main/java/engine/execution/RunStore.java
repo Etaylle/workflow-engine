@@ -31,7 +31,8 @@ class RunStore {
     /** A run row without tasks. */
     record RunRow(UUID id, UUID projectId, String workspacePath, String databaseName,
             BigDecimal costLimitUsd, int contractVersion, String status, List<Step> steps,
-            Harness harness, String templateId, String buildMode) {
+            Harness harness, String templateId, String buildMode, String builderModel,
+            String builderEffort) {
     }
 
     /** One question to the client; choice is null until it is answered. */
@@ -56,11 +57,13 @@ class RunStore {
     @Transactional
     void create(UUID runId, UUID projectId, int contractVersion, Harness harness, BigDecimal limit,
             String workspacePath,
-            String templateId, String databaseName, String buildMode,
+            String templateId, String databaseName, String buildMode, String builderModel,
+            String builderEffort,
             List<engine.shared.ContractPort.TaskLine> tasks, List<Step> steps) {
         jdbc.sql("insert into execution.runs (id, project_id, contract_version, status, cost_limit_usd,"
-                        + " workspace_path, template_id, database_name, started_at, steps_json, harness, build_mode) values (:id, :p, :v,"
-                        + " 'preparing', :limit, :ws, :tpl, :db, :now, :steps, :harness, :mode)")
+                        + " workspace_path, template_id, database_name, started_at, steps_json, harness, build_mode, builder_model, builder_effort) values (:id, :p, :v,"
+                        + " 'preparing', :limit, :ws, :tpl, :db, :now, :steps, :harness, :mode, :bmodel, :beffort)")
+                .param("bmodel", builderModel).param("beffort", builderEffort)
                 .param("mode", buildMode)
                 .param("harness", harness.id()).param("id", runId).param("p", projectId).param("v", contractVersion)
                 .param("limit", limit).param("ws", workspacePath).param("tpl", templateId).param("db", databaseName)
@@ -84,14 +87,15 @@ class RunStore {
 
     Optional<RunRow> row(UUID runId) {
         return jdbc.sql("select id, project_id, workspace_path, database_name, cost_limit_usd,"
-                        + " contract_version, status, steps_json, harness, template_id, build_mode from execution.runs where id = :id")
+                        + " contract_version, status, steps_json, harness, template_id, build_mode, builder_model, builder_effort from execution.runs where id = :id")
                 .param("id", runId)
                 .query((rs, n) -> new RunRow(rs.getObject("id", UUID.class),
                         rs.getObject("project_id", UUID.class), rs.getString("workspace_path"),
                         rs.getString("database_name"), rs.getBigDecimal("cost_limit_usd"),
                         rs.getInt("contract_version"), rs.getString("status"),
                         json.readValue(rs.getString("steps_json"), new TypeReference<List<Step>>() { }),
-                        Harness.ofId(rs.getString("harness")), rs.getString("template_id"), rs.getString("build_mode")))
+                        Harness.ofId(rs.getString("harness")), rs.getString("template_id"), rs.getString("build_mode"),
+                        rs.getString("builder_model"), rs.getString("builder_effort")))
                 .optional();
     }
 
@@ -305,11 +309,12 @@ class RunStore {
     }
 
     Optional<RunView> view(UUID runId) {
-        Optional<RunView> head = jdbc.sql("select id, project_id, contract_version, harness, status, failure_reason,"
+        Optional<RunView> head = jdbc.sql("select id, project_id, contract_version, harness, builder_model, builder_effort, status, failure_reason,"
                         + " wait_kind, resume_count, cost_limit_usd, last_seq, started_at, finished_at from execution.runs"
                         + " where id = :id").param("id", runId)
                 .query((rs, n) -> new RunView(runId, rs.getObject("project_id", UUID.class),
-                        rs.getInt("contract_version"), rs.getString("harness"), rs.getString("status"),
+                        rs.getInt("contract_version"), rs.getString("harness"), rs.getString("builder_model"),
+                        rs.getString("builder_effort"), rs.getString("status"),
                         rs.getString("failure_reason"), rs.getString("wait_kind"), null, rs.getInt("resume_count"),
                         BigDecimal.ZERO,
                         rs.getBigDecimal("cost_limit_usd"), rs.getLong("last_seq"),
@@ -318,7 +323,7 @@ class RunStore {
                                 : rs.getTimestamp("finished_at").toInstant(),
                         List.of()))
                 .optional();
-        return head.map(run -> new RunView(run.id(), run.projectId(), run.contractVersion(), run.harness(), run.status(),
+        return head.map(run -> new RunView(run.id(), run.projectId(), run.contractVersion(), run.harness(), run.builderModel(), run.builderEffort(), run.status(),
                 run.failureReason(), run.waitKind(), questionOf(runId, run.waitKind()), run.resumeCount(), costOf(runId), run.costLimitUsd(), run.lastSeq(), run.startedAt(),
                 run.finishedAt(), tasksOf(runId)));
     }

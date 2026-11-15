@@ -96,6 +96,8 @@ export type Project = {
 	templateId: string;
 	buildMode: 'whole' | 'tasks' | null;
 	model: string;
+	builderModel: string | null;
+	builderEffort: string | null;
 	createdAt: string;
 	updatedAt: string;
 };
@@ -148,6 +150,9 @@ export const updateProject = (
 		agentHarness?: string;
 		templateId?: string;
 		buildMode?: 'whole' | 'tasks' | 'auto';
+		/** Empty string = the default. */
+		builderModel?: string;
+		builderEffort?: string;
 	}
 ) => json<Project>(`/api/projects/${projectId}`, 'PATCH', change);
 export async function deleteProject(projectId: string): Promise<void> {
@@ -273,6 +278,8 @@ export type Run = {
 	projectId: string;
 	contractVersion: number;
 	harness: string;
+	builderModel?: string | null;
+	builderEffort?: string | null;
 	status: RunStatus;
 	failureReason?: string | null;
 	waitKind?: RunWaitKind | null;

@@ -27,6 +27,9 @@ public interface ProjectPort {
     /** The build mode the client chose (whole or tasks), or empty when the contract decides. */
     Optional<String> buildModeOf(UUID projectId);
 
+    /** The model and effort the project chose for its builder (the default when none was chosen). */
+    Optional<BuilderChoice> builderChoiceOf(UUID projectId);
+
     /** Records which provider and model the planning of the project really uses. */
     void recordAi(UUID projectId, AiTarget target);
 

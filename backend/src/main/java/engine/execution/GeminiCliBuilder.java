@@ -34,6 +34,12 @@ class GeminiCliBuilder implements RealBuilder {
     /** Exit code of the CLI when the session ended because the turn limit was reached. */
     private static final int EXIT_TURN_LIMIT = 53;
 
+    /** Suggested model ids; any other id may be typed. */
+    static final List<BuilderState.ModelOption> MODELS = List.of(
+            new BuilderState.ModelOption("gemini-3.1-flash-lite", "Fastest and cheapest"),
+            new BuilderState.ModelOption("gemini-flash-latest", "Fast and balanced"),
+            new BuilderState.ModelOption("gemini-pro-latest", "Most capable"));
+
     private static final JsonMapper JSON = JsonMapper.builder().build();
 
     private final SessionKey sessionKey;
@@ -67,7 +73,8 @@ class GeminiCliBuilder implements RealBuilder {
                     + " aistudio.google.com/apikey); the engine keeps it in memory only.", null));
         }
         return new BuilderState(harness().id(), harness().label(), missing.isEmpty(), tool.installed(),
-                tool.version(), null, keySet, null, settings.geminiModel(), List.copyOf(missing));
+                tool.version(), null, keySet, null, settings.geminiModel(), MODELS, true,
+                List.of(), null, List.copyOf(missing));
     }
 
     @Override
@@ -77,7 +84,7 @@ class GeminiCliBuilder implements RealBuilder {
         long start = System.nanoTime();
         Path home = settings.workspaceRoot().resolve(".gemini-home");
         List<String> command = List.of(settings.geminiCmd(), "-p",
-                BuilderSupport.prompt("GEMINI.md", request.prompt()), "-m", settings.geminiModel(),
+                BuilderSupport.prompt("GEMINI.md", request.prompt()), "-m", request.model() != null ? request.model() : settings.geminiModel(),
                 "-o", "stream-json", "--approval-mode", "auto_edit", "--policy", writePolicy(home).toString(),
                 "--skip-trust");
         ProcessRunner.Result result = ProcessRunner.run(command, request.workspace(),

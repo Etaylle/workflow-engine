@@ -50,7 +50,7 @@ class GeminiCliBuilderTest {
     private StepOutcome run(GeminiCliBuilder builder, String... queue) throws IOException {
         Path state = Files.createDirectories(root.resolve("ws/fake-gemini"));
         Files.writeString(state.resolve("queue"), String.join("\n", queue) + "\n");
-        return builder.run(new StepRequest(workspace, "build", "Do the work", BigDecimal.ONE, Map.of(),
+        return builder.run(new StepRequest(workspace, "build", "Do the work", BigDecimal.ONE, null, null, Map.of(),
                 logs, () -> false, line -> { }));
     }
 

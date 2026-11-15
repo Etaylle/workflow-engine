@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# A fake Claude Code for the tests of the builder prerequisites: --version and "auth status".
+# A fake Claude Code for the tests: --version, "auth status" and a headless build (-p).
 # It is signed in when the file "logged-in" exists next to this script.
 set -euo pipefail
 
@@ -15,6 +15,13 @@ auth)
 		echo '{"loggedIn": false}'
 		exit 1
 	fi
+	;;
+-p)
+	# headless build: records its arguments next to this script, leaves a passing check, answers success
+	printf '%s\n' "${*//$'\n'/ }" >>"$here/claude-args.log"
+	printf '#!/bin/sh\necho CHECK PASSED\n' >check.sh && chmod +x check.sh
+	echo "work of the step" >"fake-work-$(date +%s%N).txt"
+	echo '{"type":"result","subtype":"success","is_error":false,"num_turns":2,"result":"Did the step.","total_cost_usd":0.01}'
 	;;
 *)
 	echo "fake claude: not supported: $*" >&2

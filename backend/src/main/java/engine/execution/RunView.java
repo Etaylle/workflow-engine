@@ -5,12 +5,14 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
-/** A run as the API shows it: builder, state, tasks with their steps, cost and the last event number. */
+/** A run as the API shows it: builder with model and effort, state, tasks with their steps, cost and the last event number. */
 public record RunView(
         UUID id,
         UUID projectId,
         int contractVersion,
         String harness,
+        String builderModel,
+        String builderEffort,
         String status,
         String failureReason,
         String waitKind,

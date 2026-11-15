@@ -13,6 +13,8 @@ public record Project(
         String templateId,
         String buildMode,
         String model,
+        String builderModel,
+        String builderEffort,
         Instant createdAt,
         Instant updatedAt) {
 }

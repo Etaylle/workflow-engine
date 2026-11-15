@@ -32,3 +32,37 @@ export function missingCodes(builder: Builder): string[] {
 }
 
 export const builderIds: readonly BuilderId[] = ['claude_code', 'gemini_cli'];
+
+const MODEL_ID = /^[A-Za-z0-9._-]{1,80}$/;
+
+/** A model id the engine accepts for Gemini CLI (the same rule as the API). */
+export const isModelId = (text: string): boolean => MODEL_ID.test(text);
+
+/**
+ * The model and effort of a builder choice for a short line, "fable · high": the chosen model or the
+ * default one, then the effort when one was chosen. Empty parts are left out.
+ */
+export function modelEffortText(
+	model: string | null | undefined,
+	effort: string | null | undefined
+): string {
+	return [model, effort].filter(Boolean).join(' · ');
+}
+
+/**
+ * What a change of the builder does to the choice made so far: a new builder starts with the
+ * defaults (the engine clears both on the project in the same way).
+ */
+export function choiceAfterBuilderChange(
+	oldId: string,
+	newId: string,
+	choice: { model: string; effort: string }
+): { model: string; effort: string } {
+	return oldId === newId ? choice : { model: '', effort: '' };
+}
+
+/** The value to send for the model typed or picked: trimmed; null when it is not a valid id. */
+export function modelToSave(text: string): string | null {
+	const trimmed = text.trim();
+	return trimmed === '' || isModelId(trimmed) ? trimmed : null;
+}

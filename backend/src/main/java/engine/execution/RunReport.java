@@ -12,6 +12,9 @@ import java.util.List;
 public record RunReport(
         java.util.UUID runId,
         String status,
+        String harness,
+        String builderModel,
+        String builderEffort,
         Instant startedAt,
         Instant finishedAt,
         long seconds,
@@ -51,7 +54,8 @@ public record RunReport(
                 .toList();
         List<Step> steps = tasks.stream().flatMap(t -> t.steps().stream()).toList();
         Instant end = run.finishedAt() == null ? now : run.finishedAt();
-        return new RunReport(run.id(), run.status(), run.startedAt(), run.finishedAt(),
+        return new RunReport(run.id(), run.status(), run.harness(), run.builderModel(),
+                run.builderEffort(), run.startedAt(), run.finishedAt(),
                 Duration.between(run.startedAt(), end).toSeconds(), run.costUsd(),
                 run.costLimitUsd(), run.resumeCount(),
                 (int) tasks.stream().filter(t -> "done".equals(t.status())).count(), tasks.size(),
@@ -60,10 +64,17 @@ public record RunReport(
                 (int) steps.stream().filter(s -> s.commit() != null).count(), tasks, questions);
     }
 
+    private String builtWith() {
+        String name = "gemini_cli".equals(harness) ? "Gemini CLI" : "Claude Code";
+        return name + (builderModel == null ? "" : ", model " + builderModel)
+                + (builderEffort == null ? "" : ", effort " + builderEffort);
+    }
+
     /** The report as Markdown, for the ZIP. */
     String toMarkdown() {
         StringBuilder md = new StringBuilder("# Run report\n\n");
         md.append("- Status: ").append(status).append('\n')
+                .append("- Built with: ").append(builtWith()).append('\n')
                 .append("- Started: ").append(startedAt).append('\n')
                 .append("- Finished: ").append(finishedAt == null ? "not yet" : finishedAt.toString())
                 .append('\n')

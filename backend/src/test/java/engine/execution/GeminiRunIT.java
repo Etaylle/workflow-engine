@@ -65,6 +65,7 @@ class GeminiRunIT {
         auth.choose("anthropic_key");
         probe.forget();
         Files.deleteIfExists(BIN.resolve("logged-in"));
+        Files.deleteIfExists(BIN.resolve("claude-args.log"));
         Path state = WORK.resolve("fake-gemini");
         for (String file : List.of("queue", "args.log", "env.log")) {
             Files.deleteIfExists(state.resolve(file));
@@ -252,6 +253,112 @@ class GeminiRunIT {
         assertThat(run.get("status").asString()).isEqualTo("done");
         assertThat(run.get("harness").asString()).isEqualTo("gemini_cli");
         assertThat(Files.readAllLines(WORK.resolve("fake-gemini/args.log")).size()).isGreaterThan(before);
+    }
+
+    @Test
+    void aRunSnapshotsTheModelAndEffortAndClaudeCodeGetsBothAsArguments() throws Exception {
+        sessionKey.setAnthropic("sk-test-fake");
+        UUID project = confirmedProject("claude_code");
+        http.json("PATCH", "/api/projects/" + project, "{\"builderModel\":\"haiku\",\"builderEffort\":\"low\"}");
+
+        JsonNode run = awaitEnd(http.json("POST", "/api/projects/" + project + "/runs", null)
+                .get("id").asString());
+
+        assertThat(run.get("status").asString()).isEqualTo("done");
+        assertThat(run.get("builderModel").asString()).isEqualTo("haiku");
+        assertThat(run.get("builderEffort").asString()).isEqualTo("low");
+        assertThat(Files.readString(BIN.resolve("claude-args.log"))).contains("--model haiku")
+                .contains("--effort low");
+        JsonNode report = http.json("GET", "/api/runs/" + run.get("id").asString() + "/report", null);
+        assertThat(report.get("builderModel").asString()).isEqualTo("haiku");
+        assertThat(report.get("builderEffort").asString()).isEqualTo("low");
+    }
+
+    @Test
+    void withoutAChoiceTheRunSnapshotsTheDefaultModelAndPassesNoEffort() throws Exception {
+        sessionKey.setAnthropic("sk-test-fake");
+        UUID project = confirmedProject("claude_code");
+
+        JsonNode run = awaitEnd(http.json("POST", "/api/projects/" + project + "/runs", null)
+                .get("id").asString());
+
+        assertThat(run.get("builderModel").asString()).isEqualTo("sonnet");
+        assertThat(run.get("builderEffort").isNull()).isTrue();
+        assertThat(Files.readString(BIN.resolve("claude-args.log"))).contains("--model sonnet")
+                .doesNotContain("--effort");
+    }
+
+    @Test
+    void geminiGetsTheChosenModelAndAResumeKeepsTheSnapshotWhateverTheProjectChoosesLater() throws Exception {
+        setGeminiKey();
+        queue("fail", "fail", "fail");
+        UUID project = confirmedProject("gemini_cli");
+        http.json("PATCH", "/api/projects/" + project, "{\"builderModel\":\"gemini-pro-latest\"}");
+        String runId = http.json("POST", "/api/projects/" + project + "/runs", null).get("id").asString();
+        JsonNode waiting = awaitEnd(runId);
+        assertThat(waiting.get("status").asString()).isEqualTo("waiting");
+        assertThat(waiting.get("builderModel").asString()).isEqualTo("gemini-pro-latest");
+
+        http.json("PATCH", "/api/projects/" + project, "{\"builderModel\":\"gemini-flash-latest\"}");
+        http.call("POST", "/api/runs/" + runId + "/answer", "{\"questionId\":\""
+                + waiting.get("question").get("id").asString() + "\",\"choice\":\"retry\"}");
+        JsonNode run = awaitEnd(runId);
+
+        assertThat(run.get("status").asString()).isEqualTo("done");
+        assertThat(run.get("builderModel").asString()).isEqualTo("gemini-pro-latest");
+        List<String> calls = Files.readAllLines(WORK.resolve("fake-gemini/args.log"));
+        assertThat(calls).isNotEmpty().allSatisfy(call -> assertThat(call).contains("-m gemini-pro-latest")
+                .doesNotContain("gemini-flash-latest").doesNotContain("--effort"));
+    }
+
+    @Test
+    void theBuildersListTheirModelsAndEfforts() throws Exception {
+        JsonNode state = http.json("GET", "/api/builders", null);
+
+        JsonNode claude = builder(state, "claude_code");
+        assertThat(claude.get("models").valueStream().map(m -> m.get("id").asString()).toList())
+                .containsExactly("haiku", "sonnet", "opus", "fable");
+        assertThat(claude.get("models").get(0).get("hint").asString()).isNotBlank();
+        assertThat(claude.get("efforts").valueStream().map(JsonNode::asString).toList())
+                .containsExactly("low", "medium", "high", "xhigh", "max");
+        assertThat(claude.get("customModel").asBoolean()).isFalse();
+        assertThat(claude.get("model").asString()).isEqualTo("sonnet");
+        JsonNode gemini = builder(state, "gemini_cli");
+        assertThat(gemini.get("models").valueStream().map(m -> m.get("id").asString()).toList())
+                .containsExactly("gemini-3.1-flash-lite", "gemini-flash-latest", "gemini-pro-latest");
+        assertThat(gemini.get("customModel").asBoolean()).isTrue();
+        assertThat(gemini.get("efforts")).isEmpty();
+    }
+
+    @Test
+    void theModelAndEffortAreCheckedPerBuilderAndClearedWhenTheBuilderChanges() throws Exception {
+        UUID project = http.answeredProject("A canteen app");
+        String url = "/api/projects/" + project;
+
+        assertThat(http.call("PATCH", url, "{\"builderModel\":\"gpt\"}").statusCode()).isEqualTo(400);
+        assertThat(http.call("PATCH", url, "{\"builderEffort\":\"extreme\"}").statusCode()).isEqualTo(400);
+        JsonNode set = http.json("PATCH", url, "{\"builderModel\":\"opus\",\"builderEffort\":\"xhigh\"}");
+        assertThat(set.get("builderModel").asString()).isEqualTo("opus");
+        assertThat(set.get("builderEffort").asString()).isEqualTo("xhigh");
+        assertThat(http.json("PATCH", url, "{\"name\":\"Kept\"}").get("builderEffort").asString())
+                .isEqualTo("xhigh");
+
+        JsonNode gemini = http.json("PATCH", url, "{\"agentHarness\":\"gemini_cli\"}");
+        assertThat(gemini.get("builderModel").isNull()).isTrue();
+        assertThat(gemini.get("builderEffort").isNull()).isTrue();
+        HttpResponse<String> effort = http.call("PATCH", url, "{\"builderEffort\":\"low\"}");
+        assertThat(effort.statusCode()).isEqualTo(400);
+        assertThat(effort.body()).contains("no effort");
+        assertThat(http.call("PATCH", url, "{\"builderModel\":\"bad model!\"}").statusCode()).isEqualTo(400);
+        assertThat(http.call("PATCH", url, "{\"builderModel\":\"" + "m".repeat(81) + "\"}").statusCode())
+                .isEqualTo(400);
+        assertThat(http.json("PATCH", url, "{\"builderModel\":\"my-model_1.5\"}").get("builderModel")
+                .asString()).isEqualTo("my-model_1.5");
+        assertThat(http.json("PATCH", url, "{\"builderModel\":\"\"}").get("builderModel").isNull()).isTrue();
+
+        http.json("PATCH", url, "{\"agentHarness\":\"claude_code\",\"builderModel\":\"haiku\"}");
+        JsonNode back = http.json("PATCH", url, "{\"agentHarness\":\"gemini_cli\"}");
+        assertThat(back.get("builderModel").isNull()).isTrue();
     }
 
     private void setGeminiKey() throws Exception {

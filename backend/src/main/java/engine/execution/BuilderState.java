@@ -13,11 +13,25 @@ import java.util.List;
  * @param signedIn "yes", "no" or "unknown" for Claude Code in machine sign-in mode; null otherwise
  * @param keySet the key this builder needs is set in the session (Anthropic key, Gemini key)
  * @param authMode how Claude Code authenticates ("anthropic_key", "machine_sign_in"); null for Gemini CLI
- * @param model the model the builder uses
+ * @param model the default model of the builder (a project that chose none uses it)
+ * @param models the models to suggest, cheapest first
+ * @param customModel any model id may be typed, not only the suggestions
+ * @param efforts the effort levels the builder knows, empty when it has none
+ * @param defaultEffort the effort used when none is chosen, null = the CLI's own default
  * @param missing what is missing, empty when ready
  */
 record BuilderState(String id, String name, boolean ready, boolean installed, String version,
-        String signedIn, boolean keySet, String authMode, String model, List<Missing> missing) {
+        String signedIn, boolean keySet, String authMode, String model, List<ModelOption> models, boolean customModel,
+        List<String> efforts, String defaultEffort, List<Missing> missing) {
+
+    /**
+     * One model to suggest.
+     *
+     * @param id what the CLI takes after its model option
+     * @param hint a short description for people
+     */
+    record ModelOption(String id, String hint) {
+    }
 
     /**
      * One missing prerequisite.

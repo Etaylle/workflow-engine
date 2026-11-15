@@ -15,12 +15,19 @@ export type Builder = {
 	keySet: boolean;
 	authMode: ClaudeAuthMode | null;
 	model: string;
+	models: ModelOption[];
+	customModel: boolean;
+	efforts: string[];
+	defaultEffort: string | null;
 	missing: MissingItem[];
 };
 
+export type ModelOption = { id: string; hint: string };
+
 export type Builders = { demo: boolean; builders: Builder[] };
 
-type RawBuilder = Partial<Omit<Builder, 'missing'>> & {
+type RawBuilder = Partial<Omit<Builder, 'missing' | 'models'>> & {
+	models?: Partial<ModelOption>[];
 	missing?: (Partial<MissingItem> & { code: string })[];
 };
 
@@ -38,6 +45,10 @@ export function normaliseBuilders(raw: { demo?: boolean; builders?: RawBuilder[]
 			keySet: entry.keySet === true,
 			authMode: entry.authMode ?? null,
 			model: entry.model ?? '',
+			models: (entry.models ?? []).flatMap((m) => (m.id ? [{ id: m.id, hint: m.hint ?? '' }] : [])),
+			customModel: entry.customModel === true,
+			efforts: entry.efforts ?? [],
+			defaultEffort: entry.defaultEffort ?? null,
 			missing: (entry.missing ?? []).map((item) => ({
 				code: item.code,
 				message: item.message ?? item.code,

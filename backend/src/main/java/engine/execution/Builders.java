@@ -1,5 +1,6 @@
 package engine.execution;
 
+import engine.shared.BuilderChoice;
 import engine.shared.Harness;
 import java.util.List;
 import java.util.Map;
@@ -40,8 +41,13 @@ final class Builders {
     /** What each builder needs, in the order Claude Code, Gemini CLI; everything ready in demo mode. */
     List<BuilderState> states() {
         return List.of(Harness.values()).stream().map(harness -> demo != null
-                ? new BuilderState(harness.id(), harness.label(), true, true, "demo", null, true, null,
-                        "stub", List.of())
-                : real.get(harness).state()).toList();
+                ? demoState(harness) : real.get(harness).state()).toList();
+    }
+
+    private static BuilderState demoState(Harness harness) {
+        boolean claude = harness == Harness.CLAUDE_CODE;
+        return new BuilderState(harness.id(), harness.label(), true, true, "demo", null, true, null, "stub",
+                claude ? ClaudeCodeBuilder.MODELS : GeminiCliBuilder.MODELS, !claude,
+                claude ? BuilderChoice.EFFORTS : List.of(), null, List.of());
     }
 }

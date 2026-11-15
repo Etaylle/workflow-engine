@@ -8,6 +8,7 @@
 	} from '#lib/api/client.js';
 	import { getBuilders, type Builders } from '#lib/api/execution.js';
 	import { engineKey } from '#lib/ai/key.svelte.js';
+	import { modelEffortText } from '#lib/execution/builders.js';
 	import { effectiveBuildMode } from '#lib/planning/buildMode.js';
 	import type { MessageKey } from '#lib/i18n/i18n.js';
 	import TemplatePicker from './TemplatePicker.svelte';
@@ -40,7 +41,7 @@
 	const builderLine = $derived(
 		[
 			builderName,
-			builder?.model,
+			modelEffortText(project.builderModel ?? builder?.model, project.builderEffort),
 			builder?.authMode ? locale.t(`build.auth.${builder.authMode}` as MessageKey) : null
 		]
 			.filter(Boolean)

@@ -13,12 +13,14 @@ import java.util.function.Consumer;
  * @param stepKey key of the step (plan, build, ci, check)
  * @param prompt what the step must do
  * @param capUsd the most this invocation may cost
+ * @param model the model of the run's snapshot, or null for the default of the builder
+ * @param effort the effort level of the run's snapshot, or null for the default of the CLI
  * @param appEnv database settings of the generated project (never a secret of the user)
  * @param logDir where the raw output of the invocation is kept
  * @param console receives short human lines about what the builder is doing, while it works
  * @param cancelled turns true when the client stops the run; the builder then ends the invocation
  */
 record StepRequest(Path workspace, String stepKey, String prompt, BigDecimal capUsd,
-        Map<String, String> appEnv, Path logDir, BooleanSupplier cancelled,
+        String model, String effort, Map<String, String> appEnv, Path logDir, BooleanSupplier cancelled,
         Consumer<String> console) {
 }

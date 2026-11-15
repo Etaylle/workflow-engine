@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { getBuilders, setClaudeAuth, type Builder, type Builders } from '#lib/api/execution.js';
 	import { createAction } from '#lib/api/action.svelte.js';
+	import BuilderChoice from '#lib/components/BuilderChoice.svelte';
 	import { engineKey } from '#lib/ai/key.svelte.js';
 	import { actionFor, builderIds, otherAuthMode } from '#lib/execution/builders.js';
 	import type { MessageKey } from '#lib/i18n/i18n.js';
@@ -11,9 +12,16 @@
 		harness,
 		builders,
 		update,
+		model,
+		effort,
+		saveChoice,
 		choose: pick
 	}: {
 		harness: string;
+		/** The chosen model and effort of the project; an empty string is the default. */
+		model: string;
+		effort: string;
+		saveChoice: (model: string, effort: string) => Promise<void>;
 		builders: Builders;
 		update: (fresh: Builders | null) => void;
 		choose: (id: Builder['id']) => Promise<void>;
@@ -24,6 +32,10 @@
 	async function choose(id: Builder['id']) {
 		if (harness === id) return;
 		await acting.run(() => pick(id));
+	}
+
+	async function savingChoice(newModel: string, newEffort: string) {
+		await acting.run(() => saveChoice(newModel, newEffort));
 	}
 
 	async function auth(builder: Builder) {
@@ -64,6 +76,9 @@
 							<span class="hint">{locale.t('build.model', { model: builder.model })}</span>
 						{/if}
 					</button>
+					{#if chosen}
+						<BuilderChoice {builder} {model} {effort} save={savingChoice} />
+					{/if}
 					{#each builder.missing as item (item.code)}
 						<div class="missing" data-testid={`missing-${item.code}`}>
 							<p>

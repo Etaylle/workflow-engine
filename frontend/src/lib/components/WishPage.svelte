@@ -2,6 +2,7 @@
 	import { createProject, updateProject, type Project } from '#lib/api/client.js';
 	import { describeError } from '#lib/api/problem.js';
 	import { getBuilders, type Builders } from '#lib/api/execution.js';
+	import { choiceAfterBuilderChange } from '#lib/execution/builders.js';
 	import { engineKey } from '#lib/ai/key.svelte.js';
 	import BuildWith from '#lib/components/BuildWith.svelte';
 	import { locale } from '#lib/i18n/state.svelte.js';
@@ -13,6 +14,8 @@
 	let name = $state('');
 	let wish = $state('');
 	let harness = $state('claude_code');
+	let builderModel = $state('');
+	let builderEffort = $state('');
 	let builders = $state<Builders | null>(null);
 	let busy = $state(false);
 	let error = $state<string | null>(null);
@@ -26,7 +29,16 @@
 	});
 
 	async function chooseBuilder(id: string) {
+		({ model: builderModel, effort: builderEffort } = choiceAfterBuilderChange(harness, id, {
+			model: builderModel,
+			effort: builderEffort
+		}));
 		harness = id;
+	}
+
+	async function saveChoice(model: string, effort: string) {
+		builderModel = model;
+		builderEffort = effort;
 	}
 
 	async function submit(event: SubmitEvent) {
@@ -41,8 +53,12 @@
 		wishError = null;
 		try {
 			let project = await createProject(wish, '', name);
-			if (harness !== project.agentHarness) {
-				project = await updateProject(project.id, { agentHarness: harness });
+			if (harness !== project.agentHarness || builderModel || builderEffort) {
+				project = await updateProject(project.id, {
+					agentHarness: harness,
+					builderModel,
+					builderEffort
+				});
 			}
 			created(project);
 		} catch (e) {
@@ -110,7 +126,15 @@
 	</div>
 
 	{#if builders}
-		<BuildWith {harness} {builders} update={(fresh) => (builders = fresh)} choose={chooseBuilder} />
+		<BuildWith
+			{harness}
+			model={builderModel}
+			effort={builderEffort}
+			{saveChoice}
+			{builders}
+			update={(fresh) => (builders = fresh)}
+			choose={chooseBuilder}
+		/>
 	{/if}
 
 	{#if error}<p role="alert">{error}</p>{/if}

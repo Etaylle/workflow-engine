@@ -28,7 +28,7 @@ public class ProjectController {
 
     /** Request body of the update: a name, a wish, the builder ("claude_code" or "gemini_cli"), or several. */
     public record UpdateRequest(String name, String wish, String agentHarness, String templateId,
-            String buildMode) { }
+            String buildMode, String builderModel, String builderEffort) { }
 
     private final ProjectService projects;
     private final SessionKey sessionKey;
@@ -63,7 +63,7 @@ public class ProjectController {
     @PatchMapping("/api/projects/{id}")
     public Project update(@PathVariable UUID id, @RequestBody UpdateRequest request) {
         return projects.update(id, request.name(), request.wish(), request.agentHarness(),
-                request.templateId(), request.buildMode());
+                request.templateId(), request.buildMode(), request.builderModel(), request.builderEffort());
     }
 
     @DeleteMapping("/api/projects/{id}")
