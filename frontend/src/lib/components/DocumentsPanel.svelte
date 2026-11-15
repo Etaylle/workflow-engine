@@ -15,6 +15,7 @@
 
 	const kinds = $derived<DocumentKind[]>(rank(project.status) >= 3 ? ['requirements', 'plan'] : []);
 	let shown = $state<{ kind: DocumentKind; doc: ProjectDocument } | null>(null);
+	let open = $state(false);
 	const loading = createAction();
 
 	async function view(kind: DocumentKind) {
@@ -28,44 +29,83 @@
 		void project.status;
 		shown = null;
 	});
+
+	/** Opens the dialog modally on mount and closes it on removal so focus returns to the button. */
+	function modal(node: HTMLDialogElement) {
+		node.showModal();
+		return { destroy: () => node.close() };
+	}
 </script>
 
 {#if kinds.length > 0}
-	<section class="card" data-testid="documents">
-		<h2>
-			{locale.t('documents.heading')} <span class="badge muted">{locale.t('step.optional')}</span>
-		</h2>
-		<ul class="docs">
-			{#each kinds as kind (kind)}
-				<li class="card">
-					<strong>{locale.t(`documents.${kind}` as MessageKey)}</strong>
-					<button onclick={() => view(kind)} data-testid={`view-${kind}`}>
-						{locale.t('documents.view')}
-					</button>
-					<a href={documentUrl(project.id, kind, 'docx')} data-testid={`docx-${kind}`}>DOCX</a>
-					<a href={documentUrl(project.id, kind, 'md')}>Markdown</a>
-				</li>
-			{/each}
-		</ul>
-		{#if loading.error}<p role="alert">{loading.error}</p>{/if}
-		{#if shown}
-			<article class="card" data-testid="document-view">
-				<h3>{shown.doc.title}</h3>
-				{#each shown.doc.sections as section (section.heading)}
-					<h4>{section.heading}</h4>
-					{#each section.paragraphs as paragraph (paragraph)}<p>{paragraph}</p>{/each}
-					{#if section.bullets.length > 0}
-						<ul>
-							{#each section.bullets as bullet (bullet)}<li>{bullet}</li>{/each}
-						</ul>
-					{/if}
+	<button type="button" class="quiet" onclick={() => (open = true)} data-testid="open-documents">
+		{locale.t('documents.heading')}
+	</button>
+	{#if open}
+		<dialog
+			use:modal
+			class="sheet"
+			aria-labelledby="documents-title"
+			data-testid="documents"
+			oncancel={(e) => {
+				e.preventDefault();
+				open = false;
+			}}
+		>
+			<div class="head">
+				<h2 id="documents-title">{locale.t('documents.heading')}</h2>
+				<!-- svelte-ignore a11y_autofocus -->
+				<button
+					type="button"
+					autofocus
+					onclick={() => (open = false)}
+					data-testid="close-documents"
+				>
+					{locale.t('dialog.close')}
+				</button>
+			</div>
+			<ul class="docs">
+				{#each kinds as kind (kind)}
+					<li class="card">
+						<strong>{locale.t(`documents.${kind}` as MessageKey)}</strong>
+						<button onclick={() => view(kind)} data-testid={`view-${kind}`}>
+							{locale.t('documents.view')}
+						</button>
+						<a href={documentUrl(project.id, kind, 'docx')} data-testid={`docx-${kind}`}>DOCX</a>
+						<a href={documentUrl(project.id, kind, 'md')}>Markdown</a>
+					</li>
 				{/each}
-			</article>
-		{/if}
-	</section>
+			</ul>
+			{#if loading.error}<p role="alert">{loading.error}</p>{/if}
+			{#if shown}
+				<article class="card" data-testid="document-view">
+					<h3>{shown.doc.title}</h3>
+					{#each shown.doc.sections as section (section.heading)}
+						<h4>{section.heading}</h4>
+						{#each section.paragraphs as paragraph (paragraph)}<p>{paragraph}</p>{/each}
+						{#if section.bullets.length > 0}
+							<ul>
+								{#each section.bullets as bullet (bullet)}<li>{bullet}</li>{/each}
+							</ul>
+						{/if}
+					{/each}
+				</article>
+			{/if}
+		</dialog>
+	{/if}
 {/if}
 
 <style>
+	.head {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: var(--space-4);
+		margin-bottom: var(--space-4);
+	}
+	.head h2 {
+		margin: 0;
+	}
 	.docs {
 		list-style: none;
 		padding: 0;

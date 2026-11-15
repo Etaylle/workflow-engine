@@ -51,6 +51,13 @@ test('confirmed contract to a finished run and its ZIP, surviving a reload', asy
 	await expect(page.getByTestId('file-content')).toContainText('Notify the student');
 	await page.getByTestId('tab-activity').click();
 
+	// Documents take no room: one quiet button opens them in a dialog
+	await expect(page.getByTestId('document-view')).toHaveCount(0);
+	await page.getByTestId('open-documents').click();
+	await page.getByTestId('view-requirements').click();
+	await expect(page.getByTestId('document-view')).toContainText('FR-001');
+	await page.getByTestId('close-documents').click();
+
 	// US-06.12: the final report, then the ZIP of the workspace
 	await expect(page.getByTestId('report-tasks')).toHaveText('2 of 2 tasks done');
 	await expect(page.getByTestId('report-steps')).toHaveText('8 of 8 steps done');

@@ -390,5 +390,6 @@
 	"files.more": "und {count} weitere Dateien",
 	"files.choose": "Wähle eine Datei, um sie zu lesen.",
 	"files.binaryNote": "Das ist eine Binärdatei und wird nicht angezeigt.",
-	"files.tooLarge": "Diese Datei ist {size} groß und zu groß zum Anzeigen."
+	"files.tooLarge": "Diese Datei ist {size} groß und zu groß zum Anzeigen.",
+	"dialog.close": "Schließen"
 }

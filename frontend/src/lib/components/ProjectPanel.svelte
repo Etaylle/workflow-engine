@@ -27,7 +27,12 @@
 
 <article class="page" class:wide={step === 'run'} aria-labelledby="project-heading">
 	<a href="#projects">{locale.t('nav.back')}</a>
-	<h1 id="project-heading">{project.name}</h1>
+	<div class="title">
+		<h1 id="project-heading">{project.name}</h1>
+		{#if step === 'review' || step === 'run'}
+			<DocumentsPanel {project} />
+		{/if}
+	</div>
 	{#if engineKey.keys?.planning && rank(project.status) <= 4}
 		<p class="ai-chip" data-testid="planning-ai">
 			{locale.t('planning.with', {
@@ -64,12 +69,20 @@
 	{:else}
 		<RunPanel {project} {changed} back={backOf('run')} />
 	{/if}
-	{#if step === 'review' || step === 'run'}
-		<DocumentsPanel {project} />
-	{/if}
 </article>
 
 <style>
+	.title {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: space-between;
+		gap: var(--space-3);
+		margin-bottom: var(--space-2);
+	}
+	.title h1 {
+		margin: 0;
+	}
 	.wide {
 		max-width: 112rem;
 	}

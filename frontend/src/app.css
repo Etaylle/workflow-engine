@@ -427,7 +427,18 @@ dialog.confirm {
 	padding: var(--space-5);
 	width: min(28rem, calc(100vw - 2 * var(--gutter)));
 }
-dialog.confirm::backdrop {
+dialog.sheet {
+	border: 1px solid var(--line);
+	border-radius: var(--radius);
+	background: var(--bg);
+	color: var(--ink);
+	box-shadow: var(--shadow-pop);
+	padding: var(--space-5);
+	width: min(60rem, calc(100vw - 2 * var(--gutter)));
+	max-height: calc(100vh - 2 * var(--gutter));
+}
+dialog.confirm::backdrop,
+dialog.sheet::backdrop {
 	background: var(--scrim);
 }
 dialog.confirm h2 {

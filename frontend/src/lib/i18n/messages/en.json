@@ -390,5 +390,6 @@
 	"files.more": "and {count} more files",
 	"files.choose": "Choose a file to read it.",
 	"files.binaryNote": "This is a binary file and is not shown.",
-	"files.tooLarge": "This file is {size} and too large to show."
+	"files.tooLarge": "This file is {size} and too large to show.",
+	"dialog.close": "Close"
 }
