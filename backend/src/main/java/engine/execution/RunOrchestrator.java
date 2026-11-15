@@ -102,9 +102,10 @@ class RunOrchestrator {
         store.setRun(runId, "executing", null);
         events.publish(runId, "run", "executing");
 
+        Ctx ctx = new Ctx(run, workspace, logDir, appEnv);
         List<RunStore.TaskRow> tasks = store.tasksToBuild(runId);
         for (int i = 0; i < tasks.size(); i++) {
-            if (!buildTask(run, workspace, logDir, appEnv, contract, tasks, i)) {
+            if (!buildTask(ctx, contract, tasks, i)) {
                 return;
             }
         }
@@ -131,58 +132,93 @@ class RunOrchestrator {
         return env;
     }
 
-    private boolean buildTask(RunStore.RunRow run, Workspace workspace, Path logDir,
-            Map<String, String> appEnv, String contract, List<RunStore.TaskRow> tasks, int index) {
+    /** What one run needs while it builds: the row, the workspace, the log folder, the app settings. */
+    private record Ctx(RunStore.RunRow run, Workspace workspace, Path logDir, Map<String, String> appEnv) {
+    }
+
+    /** The result of one attempt at a step: passed with a summary, or failed with what went wrong. */
+    private record Attempt(boolean passed, String text) {
+    }
+
+    private boolean buildTask(Ctx ctx, String contract, List<RunStore.TaskRow> tasks, int index) {
         RunStore.TaskRow task = tasks.get(index);
         store.setTask(task.id(), "running");
-        events.publish(run.id(), "task", "Task " + (index + 1) + " of " + tasks.size() + ": " + task.title());
+        events.publish(ctx.run().id(), "task", "Task " + (index + 1) + " of " + tasks.size() + ": " + task.title());
         List<String> done = tasks.subList(0, index).stream().map(RunStore.TaskRow::title).toList();
         List<String> later = tasks.subList(index + 1, tasks.size()).stream().map(RunStore.TaskRow::title).toList();
-        workspace.writeTask(contract, task.title(), task.description(), done, later);
+        ctx.workspace().writeTask(contract, task.title(), task.description(), done, later);
         for (int s = 0; s < task.steps().size(); s++) {
-            if (!buildStep(run, workspace, logDir, appEnv, task, s, index + 1)) {
+            if (!buildStep(ctx, task, s, index + 1)) {
                 return false;
             }
         }
-        archiveDocs(workspace.dir(), index + 1);
-        workspace.commit("Task " + (index + 1) + " done: " + task.title());
+        archiveDocs(ctx.workspace().dir(), index + 1);
+        ctx.workspace().commit("Task " + (index + 1) + " done: " + task.title());
         store.setTask(task.id(), "done");
-        events.publish(run.id(), "task", "Task " + (index + 1) + " done: " + task.title());
+        events.publish(ctx.run().id(), "task", "Task " + (index + 1) + " done: " + task.title());
         return true;
     }
 
-    private boolean buildStep(RunStore.RunRow run, Workspace workspace, Path logDir,
-            Map<String, String> appEnv, RunStore.TaskRow task, int stepIndex, int taskNo) {
+    /** Runs a step; a failed attempt goes back to the builder with the failure, a bounded number of times. */
+    private boolean buildStep(Ctx ctx, RunStore.TaskRow task, int stepIndex, int taskNo) {
+        UUID runId = ctx.run().id();
         RunStore.StepRow row = task.steps().get(stepIndex);
         StepDef def = profile.get(stepIndex);
-        BigDecimal remaining = run.costLimitUsd().subtract(store.costOf(run.id()));
-        if (remaining.compareTo(MIN_BUDGET) < 0) {
-            return failStep(run, task, row, "The cost limit of USD " + run.costLimitUsd()
-                    + " is reached; the run waits for the client");
-        }
         store.setStep(row.id(), "running", null);
-        events.publish(run.id(), "step", "Step " + def.title() + " started");
-        StepOutcome outcome = builder.run(new StepRequest(workspace.dir(), def.key(), def.prompt(),
-                def.capUsd().min(remaining), appEnv, logDir));
-        store.addAgentCall(row.id(), 1, outcome);
-        events.publish(run.id(), "console", def.title() + ": " + outcome.summary() + " (USD "
+        events.publish(runId, "step", "Step " + def.title() + " started");
+        int attempts = 1 + settings.fixAttempts();
+        String failure = null;
+        for (int attempt = 1; attempt <= attempts; attempt++) {
+            BigDecimal remaining = ctx.run().costLimitUsd().subtract(store.costOf(runId));
+            if (remaining.compareTo(MIN_BUDGET) < 0) {
+                return failStep(ctx.run(), task, row, "The cost limit of USD " + ctx.run().costLimitUsd()
+                        + " is reached; the run waits for the client");
+            }
+            if (attempt > 1) {
+                events.publish(runId, "console", "Fix attempt " + (attempt - 1) + " of "
+                        + settings.fixAttempts() + " for " + def.title());
+            }
+            Attempt result = attempt(ctx, row, def, remaining, failure);
+            if (result.passed()) {
+                String sha = ctx.workspace().commit("Task " + taskNo + " step " + def.key() + " green");
+                store.addCheckpoint(row.id(), sha);
+                store.setStep(row.id(), "done", result.text());
+                events.publish(runId, "step", "Step " + def.title() + " done");
+                return true;
+            }
+            failure = result.text();
+            events.publish(runId, "console", "Attempt " + attempt + " failed: " + failure);
+        }
+        return failStep(ctx.run(), task, row, failure);
+    }
+
+    private Attempt attempt(Ctx ctx, RunStore.StepRow row, StepDef def, BigDecimal remaining,
+            String previousFailure) {
+        UUID runId = ctx.run().id();
+        String prompt = previousFailure == null ? def.prompt() : def.prompt()
+                + "\n\nYour previous attempt at this step failed. What went wrong:\n" + previousFailure
+                + "\n\nFix this. Change only what is needed, then run ./check.sh until it prints"
+                + " CHECK PASSED.";
+        StepOutcome outcome = builder.run(new StepRequest(ctx.workspace().dir(), def.key(), prompt,
+                def.capUsd().min(remaining), ctx.appEnv(), ctx.logDir()));
+        UUID call = store.addAgentCall(row.id(), outcome);
+        events.publish(runId, "console", def.title() + ": " + outcome.summary() + " (USD "
                 + outcome.costUsd().setScale(2, java.math.RoundingMode.HALF_UP) + ", "
                 + outcome.turns() + " turns)");
         if (!outcome.ok()) {
-            return failStep(run, task, row, def.title() + " failed: " + outcome.summary());
+            return new Attempt(false, def.title() + " failed: " + outcome.summary());
         }
         if (def.gated()) {
-            GateResult gate = builder.gate(workspace.dir(), appEnv, logDir);
-            gate.tail().forEach(line -> events.publish(run.id(), "console", "check: " + line));
+            GateResult gate = builder.gate(ctx.workspace().dir(), ctx.appEnv(), ctx.logDir());
+            gate.tail().forEach(line -> events.publish(runId, "console", "check: " + line));
             if (!gate.passed()) {
-                return failStep(run, task, row, "The check after " + def.title() + " did not pass");
+                String text = "The check after " + def.title() + " did not pass:\n"
+                        + String.join("\n", gate.tail());
+                store.markCheckFailed(call, text);
+                return new Attempt(false, text);
             }
         }
-        String sha = workspace.commit("Task " + taskNo + " step " + def.key() + " green");
-        store.addCheckpoint(row.id(), sha);
-        store.setStep(row.id(), "done", outcome.summary());
-        events.publish(run.id(), "step", "Step " + def.title() + " done");
-        return true;
+        return new Attempt(true, outcome.summary());
     }
 
     private boolean failStep(RunStore.RunRow run, RunStore.TaskRow task, RunStore.StepRow step,

@@ -17,12 +17,14 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.zip.ZipEntry;
@@ -53,12 +55,19 @@ class RunIT {
     static class ScriptedBuilder implements Builder {
         final Set<String> failSteps = new HashSet<>();
         final Set<String> failGates = new HashSet<>();
+        /** Step key to the number of invocations that still fail before it succeeds. */
+        final Map<String, Integer> failStepTimes = new HashMap<>();
+        volatile int failGateTimes;
+        final List<StepRequest> requests = new CopyOnWriteArrayList<>();
         volatile CountDownLatch hold;
         volatile boolean ready = true;
 
         void reset() {
             failSteps.clear();
             failGates.clear();
+            failStepTimes.clear();
+            failGateTimes = 0;
+            requests.clear();
             hold = null;
             ready = true;
         }
@@ -73,7 +82,9 @@ class RunIT {
         @Override
         public StepOutcome run(StepRequest request) {
             await();
-            if (failSteps.contains(request.stepKey())) {
+            requests.add(request);
+            if (failSteps.contains(request.stepKey())
+                    || failStepTimes.merge(request.stepKey(), -1, Integer::sum) >= 0) {
                 return new StepOutcome(false, new BigDecimal("0.25"), 2, 1, "error_max_turns",
                         "ran out of turns");
             }
@@ -83,6 +94,10 @@ class RunIT {
         @Override
         public GateResult gate(Path workspace, Map<String, String> appEnv, Path logDir) {
             await();
+            if (failGateTimes > 0) {
+                failGateTimes--;
+                return new GateResult(false, List.of("tests failed: 1"));
+            }
             return failGates.isEmpty() ? new GateResult(true, List.of("CHECK PASSED"))
                     : new GateResult(false, List.of("tests failed: 1"));
         }
@@ -169,11 +184,48 @@ class RunIT {
         assertThat(first.get("steps").get(1).get("status").asString()).isEqualTo("failed");
         assertThat(first.get("steps").get(2).get("status").asString()).isEqualTo("waiting");
         assertThat(run.get("tasks").get(1).get("status").asString()).isEqualTo("pending");
-        assertThat(run.get("costUsd").asDouble()).isEqualTo(0.26);
+        assertThat(run.get("costUsd").asDouble()).isEqualTo(0.76);
+        assertThat(first.get("steps").get(1).get("attempts").asInt()).isEqualTo(3);
         assertThat(http.statusOf(project)).isEqualTo("executing");
         assertThat(events(run.get("id").asString(), 0).get(
                 events(run.get("id").asString(), 0).size() - 1).get("text").asString())
                 .startsWith("paused: ");
+    }
+
+    @Test
+    void aFailedCheckSendsTheStepBackWithTheFailureAndTheSecondAttemptPasses() throws Exception {
+        UUID project = confirmedProject();
+        builder.failGateTimes = 1;
+
+        JsonNode run = awaitEnd(http.json("POST", "/api/projects/" + project + "/runs", null)
+                .get("id").asString());
+
+        assertThat(run.get("status").asString()).isEqualTo("done");
+        JsonNode build = run.get("tasks").get(0).get("steps").get(1);
+        assertThat(build.get("attempts").asInt()).isEqualTo(2);
+        List<StepRequest> buildCalls = builder.requests.stream()
+                .filter(r -> r.stepKey().equals("build")).toList();
+        assertThat(buildCalls.get(0).prompt()).doesNotContain("previous attempt");
+        assertThat(buildCalls.get(1).prompt()).contains("previous attempt").contains("tests failed: 1");
+        List<String> calls = jdbc.sql("select outcome || ':' || coalesce(check_output, '')"
+                        + " from execution.agent_calls where step_run_id = :s order by attempt")
+                .param("s", UUID.fromString(build.get("id").asString())).query(String.class).list();
+        assertThat(calls).hasSize(2);
+        assertThat(calls.get(0)).startsWith("check_failed:").contains("tests failed: 1");
+        assertThat(calls.get(1)).startsWith("success:");
+        assertThat(events(run.get("id").asString(), 0).toString()).contains("Fix attempt 1 of 2");
+    }
+
+    @Test
+    void aFailingBuilderIsRetriedAndTheStepSucceedsOnTheLastAttempt() throws Exception {
+        UUID project = confirmedProject();
+        builder.failStepTimes.put("build", 2);
+
+        JsonNode run = awaitEnd(http.json("POST", "/api/projects/" + project + "/runs", null)
+                .get("id").asString());
+
+        assertThat(run.get("status").asString()).isEqualTo("done");
+        assertThat(run.get("tasks").get(0).get("steps").get(1).get("attempts").asInt()).isEqualTo(3);
     }
 
     @Test

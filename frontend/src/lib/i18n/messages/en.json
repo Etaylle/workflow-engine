@@ -164,6 +164,7 @@
 	"run.status.interrupted": "Interrupted",
 	"run.progress": "{done} of {total} steps done",
 	"run.cost": "Cost so far: USD {cost} of USD {limit}",
+	"run.attempts": "{count} attempts",
 	"run.stepCost": "USD {cost}",
 	"run.task.pending": "waiting",
 	"run.task.running": "building",

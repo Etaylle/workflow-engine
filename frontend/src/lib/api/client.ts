@@ -181,6 +181,7 @@ export type RunStep = {
 	costUsd: number;
 	turns: number;
 	seconds: number;
+	attempts: number;
 	commit?: string | null;
 };
 export type RunTask = {

@@ -1093,6 +1093,11 @@ components:
                     costUsd: {type: number}
                     turns: {type: integer}
                     seconds: {type: integer}
+                    attempts:
+                      type: integer
+                      description: >
+                        Builder invocations so far (the first try and the fix attempts); every one
+                        is recorded as an agent call
                     commit: {type: string, nullable: true}
     RunEvent:
       type: object

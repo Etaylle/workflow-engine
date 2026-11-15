@@ -25,6 +25,6 @@ public record RunView(
 
     /** One development step of a task. */
     public record Step(UUID id, int seq, String key, String title, String status, String result,
-            BigDecimal costUsd, int turns, int seconds, String commit) {
+            BigDecimal costUsd, int turns, int seconds, int attempts, String commit) {
     }
 }

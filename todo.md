@@ -77,6 +77,7 @@ Not measured: the container half (Docker not running), a second task, rate-limit
 
 | ID | Decision | Date |
 |---|---|---|
+| D-62 | M5 fix loops (US-06.05): a step whose builder run or check fails goes back to the builder with the failure output (prompt gets what went wrong), at most 2 fix attempts after the first try (FR-AGT-11, `ENGINE_EXECUTION_FIX_ATTEMPTS`, default 2); every attempt is an `agent_calls` row, a call whose check failed is marked `check_failed` and keeps the output (V8). Left out: best model once, recovery advisor (FR-AGT-10) | 2026-11-15 |
 | D-61 | M4 left out (thin): trying the result after each task (D-23), fix loops, asking the client, stop and resume (M5), GitHub push, Render link, final report. After a failed step the run is `paused` with the reason; after an engine restart a running run is `interrupted`; both can be downloaded as ZIP and a new run can be started | 2026-11-15 |
 | D-60 | `POST .../workflow` and `PUT .../workflow` are allowed from project status `done` too (a new contract version for another run). A run sets the project to `executing`, and to `done` when all tasks are built | 2026-11-15 |
 | D-59 | Live status: events `run`, `task`, `step`, `console` with a number per run (`GET /api/runs/{id}/events?after=`, SSE `/stream?after=` or `Last-Event-ID`, replay then live). The screen loads the snapshot (`GET /api/runs/{id}`), follows the stream and reloads the snapshot on every non-console event, so a reload loses nothing | 2026-11-15 |

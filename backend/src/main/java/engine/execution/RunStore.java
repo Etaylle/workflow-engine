@@ -116,13 +116,24 @@ class RunStore {
                 .param("s", status).param("r", result).param("id", stepId).update();
     }
 
-    void addAgentCall(UUID stepId, int attempt, StepOutcome outcome) {
+    /** Records one attempt of a step and returns its id. */
+    UUID addAgentCall(UUID stepId, StepOutcome outcome) {
+        UUID id = UUID.randomUUID();
+        int attempt = jdbc.sql("select count(*) + 1 from execution.agent_calls where step_run_id = :s")
+                .param("s", stepId).query(Integer.class).single();
         jdbc.sql("insert into execution.agent_calls (id, step_run_id, attempt, seconds, cost_usd, turns,"
                         + " outcome, created_at) values (:id, :s, :a, :sec, :cost, :turns, :o, :now)")
-                .param("id", UUID.randomUUID()).param("s", stepId).param("a", attempt)
+                .param("id", id).param("s", stepId).param("a", attempt)
                 .param("sec", outcome.seconds()).param("cost", outcome.costUsd())
                 .param("turns", outcome.turns()).param("o", outcome.subtype()).param("now", now())
                 .update();
+        return id;
+    }
+
+    /** The builder finished but the check after it failed: keeps what the check printed. */
+    void markCheckFailed(UUID callId, String output) {
+        jdbc.sql("update execution.agent_calls set outcome = 'check_failed', check_output = :o"
+                        + " where id = :id").param("o", output).param("id", callId).update();
     }
 
     void addCheckpoint(UUID stepId, String sha) {
@@ -198,6 +209,7 @@ class RunStore {
                         + " coalesce((select sum(cost_usd) from execution.agent_calls where step_run_id = s.id), 0) cost,"
                         + " coalesce((select sum(turns) from execution.agent_calls where step_run_id = s.id), 0) turns,"
                         + " coalesce((select sum(seconds) from execution.agent_calls where step_run_id = s.id), 0) seconds,"
+                        + " (select count(*) from execution.agent_calls where step_run_id = s.id) attempts,"
                         + " (select commit_sha from execution.checkpoints where step_run_id = s.id"
                         + "  order by created_at desc limit 1) sha"
                         + " from execution.step_runs s where s.task_run_id = :t order by s.seq")
@@ -205,7 +217,7 @@ class RunStore {
                 .query((rs, n) -> new RunView.Step(rs.getObject("id", UUID.class), rs.getInt("seq"),
                         rs.getString("step_key"), rs.getString("title"), rs.getString("status"),
                         rs.getString("result"), rs.getBigDecimal("cost"), rs.getInt("turns"),
-                        rs.getInt("seconds"), rs.getString("sha")))
+                        rs.getInt("seconds"), rs.getInt("attempts"), rs.getString("sha")))
                 .list();
     }
 

@@ -19,7 +19,8 @@ const step = (status: 'waiting' | 'running' | 'done' | 'failed') => ({
 	status,
 	costUsd: 0,
 	turns: 0,
-	seconds: 0
+	seconds: 0,
+	attempts: 0
 });
 
 const run = (status: Run['status']): Run => ({

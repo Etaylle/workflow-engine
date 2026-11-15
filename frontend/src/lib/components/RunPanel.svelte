@@ -131,6 +131,11 @@
 									{step.title} · {locale.t(stepKey(step.status))}
 									{#if step.costUsd > 0}
 										({locale.t('run.stepCost', { cost: formatUsd(step.costUsd) })}){/if}
+									{#if step.attempts > 1}
+										<span data-testid={`attempts-${step.key}`}>
+											{locale.t('run.attempts', { count: String(step.attempts) })}
+										</span>
+									{/if}
 								</li>
 							{/each}
 						</ul>

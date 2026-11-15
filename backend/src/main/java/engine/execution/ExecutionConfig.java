@@ -26,13 +26,14 @@ class ExecutionConfig {
             @Value("${engine.execution.create-database:true}") boolean createDatabase,
             @Value("${engine.execution.cost-limit-usd:10}") BigDecimal costLimit,
             @Value("${engine.execution.step-timeout-minutes:20}") long stepMinutes,
-            @Value("${engine.execution.check-timeout-minutes:10}") long checkMinutes) {
+            @Value("${engine.execution.check-timeout-minutes:10}") long checkMinutes,
+            @Value("${engine.execution.fix-attempts:2}") int fixAttempts) {
         Path root = workspaceDir.isBlank()
                 ? Path.of(System.getProperty("user.home"), ".workflow-engine", "workspaces")
                 : Path.of(workspaceDir);
         return new ExecutionSettings(root.toAbsolutePath(), Path.of(templateDir).toAbsolutePath(),
                 claudeBin, model, useSignIn, createDatabase, costLimit, Duration.ofMinutes(stepMinutes),
-                Duration.ofMinutes(checkMinutes));
+                Duration.ofMinutes(checkMinutes), fixAttempts);
     }
 
     @Bean
