@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import AllProjects from '#lib/components/AllProjects.svelte';
 	import AppHeader from '#lib/components/AppHeader.svelte';
+	import StepsPage from '#lib/components/StepsPage.svelte';
 	import ProjectPanel from '#lib/components/ProjectPanel.svelte';
 	import WishPage from '#lib/components/WishPage.svelte';
 	import { getStatus, listProjects, type EngineStatus, type Project } from '#lib/api/client.js';
@@ -16,7 +17,9 @@
 	const selected = $derived(selectedOf(route, projects));
 
 	function selectedOf(current: Route, all: Project[]): Project | null {
-		return current.name === 'project' ? (all.find((p) => p.id === current.id) ?? null) : null;
+		return current.name === 'project' || current.name === 'steps'
+			? (all.find((p) => p.id === current.id) ?? null)
+			: null;
 	}
 
 	async function reloadProjects() {
@@ -61,6 +64,10 @@
 
 {#if route.name === 'new'}
 	<WishPage {created} />
+{:else if route.name === 'steps'}
+	{#if selected}
+		<StepsPage project={selected} />
+	{/if}
 {:else if route.name === 'project'}
 	{#if selected}
 		<ProjectPanel project={selected} changed={reloadProjects} />

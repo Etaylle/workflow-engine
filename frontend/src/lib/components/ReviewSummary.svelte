@@ -1,9 +1,29 @@
 <script lang="ts">
-	import type { Project } from '#lib/api/client.js';
+	import {
+		getProjectSettings,
+		listStepProfiles,
+		type Project,
+		type StepProfile,
+		type ProjectSettings
+	} from '#lib/api/client.js';
 	import { locale } from '#lib/i18n/state.svelte.js';
+	import { profileSummary } from '#lib/settings/steps.js';
 	import type { ReviewFacts } from '#lib/planning/review.js';
 
 	let { project, facts }: { project: Project; facts: ReviewFacts } = $props();
+
+	let settings = $state<ProjectSettings | null>(null);
+	let profiles = $state<StepProfile[]>([]);
+
+	$effect(() => {
+		void Promise.all([getProjectSettings(project.id), listStepProfiles()]).then(
+			([chosen, all]) => {
+				settings = chosen;
+				profiles = all;
+			},
+			() => (settings = null)
+		);
+	});
 
 	const harness = $derived(
 		project.agentHarness === 'claude_code' ? 'Claude Code' : project.agentHarness
@@ -42,6 +62,19 @@
 				manual: String(facts.manual)
 			})}
 		</dd>
+		{#if settings}
+			<dt>{locale.t('review.steps')}</dt>
+			<dd data-testid="review-steps">
+				{locale.t('review.stepsValue', {
+					profile: settings.stepProfileName,
+					count: String(profileSummary(profiles, settings.stepProfileId))
+				})}
+				·
+				<a href={`#${project.id}/steps`} data-testid="review-steps-link"
+					>{locale.t('review.stepsEdit')}</a
+				>
+			</dd>
+		{/if}
 	</dl>
 	<p class="notice">{locale.t('review.noLogin')}</p>
 </div>

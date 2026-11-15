@@ -10,6 +10,9 @@ describe('parseRoute', () => {
 	it('maps #new to the new-project form', () => {
 		expect(parseRoute('#new')).toEqual({ name: 'new' });
 	});
+	it('maps #<id>/steps to the team and steps page', () => {
+		expect(parseRoute('#abc-123/steps')).toEqual({ name: 'steps', id: 'abc-123' });
+	});
 	it('maps any other hash to a project id', () => {
 		expect(parseRoute('#abc-123')).toEqual({ name: 'project', id: 'abc-123' });
 	});

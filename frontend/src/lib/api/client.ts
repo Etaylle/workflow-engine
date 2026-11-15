@@ -250,3 +250,43 @@ export async function getLatestRun(projectId: string): Promise<Run | null> {
 	if (!response.ok) throw await failure(response);
 	return (await response.json()) as Run;
 }
+
+export type StepDef = {
+	key: string;
+	title: string;
+	gated: boolean;
+	capUsd: number;
+	prompt: string;
+};
+export type StepProfile = {
+	id: string;
+	name: string;
+	description: string;
+	isDefault: boolean;
+	seeded: boolean;
+	steps: StepDef[];
+};
+export type ProjectSettings = {
+	stepProfileId: string;
+	stepProfileName: string;
+	usesDefaultProfile: boolean;
+	costLimitUsd: number;
+	defaultCostLimitUsd: number;
+	usesDefaultLimit: boolean;
+};
+
+export const listStepProfiles = () => json<StepProfile[]>('/api/settings/step-profiles');
+export const copyStepProfile = (fromId: string, name: string) =>
+	json<StepProfile>('/api/settings/step-profiles', 'POST', { fromId, name });
+export const updateStepProfile = (id: string, name: string, steps: StepDef[]) =>
+	json<StepProfile>(`/api/settings/step-profiles/${id}`, 'PUT', { name, steps });
+export async function deleteStepProfile(id: string): Promise<void> {
+	const response = await fetch(`/api/settings/step-profiles/${id}`, { method: 'DELETE' });
+	if (!response.ok) throw await failure(response);
+}
+export const getProjectSettings = (projectId: string) =>
+	json<ProjectSettings>(`/api/projects/${projectId}/settings`);
+export const updateProjectSettings = (
+	projectId: string,
+	change: { stepProfileId: string | null; costLimitUsd: number | null }
+) => json<ProjectSettings>(`/api/projects/${projectId}/settings`, 'PUT', change);
