@@ -3,8 +3,9 @@ package engine.ai;
 import com.anthropic.client.AnthropicClient;
 import com.anthropic.client.okhttp.AnthropicOkHttpClient;
 import com.anthropic.errors.AnthropicException;
-import com.anthropic.errors.UnauthorizedException;
 import com.anthropic.models.messages.MessageCreateParams;
+import engine.shared.ApiProblem;
+import engine.shared.ClaudeCall;
 import java.time.Duration;
 
 /** Real check: one tiny message to Claude Haiku with a client made from the session key. */
@@ -29,12 +30,9 @@ public class AnthropicAiConnection implements AiConnection {
                                     .addUserMessage("Reply with the single word: ok")
                                     .build());
             return CHECK_MODEL;
-        } catch (UnauthorizedException e) {
-            throw new AiCheckException(
-                    401, "Anthropic rejected the key. Check it and enter it again.", e);
         } catch (AnthropicException e) {
-            throw new AiCheckException(
-                    502, "Anthropic could not complete the check: " + e.getClass().getSimpleName(), e);
+            ApiProblem problem = ClaudeCall.problem(e, apiKey);
+            throw new AiCheckException(problem.status(), problem.getMessage(), e);
         }
     }
 }
