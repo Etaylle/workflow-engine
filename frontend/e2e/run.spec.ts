@@ -192,3 +192,16 @@ test('a console program: chosen on the review, built, its output shown, no link 
 	await expect(page.getByTestId('app-console')).toContainText('<(o )___');
 	await expect(page.getByTestId('open-app')).toHaveCount(0);
 });
+
+test('a small contract is built all at once as one unit with its steps', async ({ page }) => {
+	await planToReview(page, 'A canteen app where students order a meal and pick it up', 'whole');
+	await page.getByTestId('confirm').click();
+	await expect(page.getByTestId('confirmed')).toContainText('contract version 1');
+	await page.getByTestId('review-continue').click();
+
+	await page.getByTestId('start-run').click();
+	await expect(page.getByTestId('run-status')).toHaveText('Finished', { timeout: 60_000 });
+	await expect(page.getByTestId('run-progress')).toContainText('4 of 4 steps done');
+	await expect(page.getByTestId('run-task-1')).toContainText('Build the whole software');
+	await expect(page.getByTestId('run-task-2')).toHaveCount(0);
+});

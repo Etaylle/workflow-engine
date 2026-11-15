@@ -20,11 +20,12 @@ import java.math.BigDecimal;
  * @param fixAttempts how many times a failed step is sent back to the builder with the failure
  * @param previewLifetime how long a preview of the generated app runs once it answers
  * @param previewStartTimeout how long building and starting a preview may take before it fails
+ * @param wholeCapMultiple factor on the per-step cap when the whole software is built as one unit
  */
 record ExecutionSettings(Path workspaceRoot, String claudeBin, String model,
         String geminiCmd, String geminiModel,
         boolean useSignIn, boolean createDatabase, BigDecimal costLimitUsd, Duration stepTimeout,
         Duration checkTimeout, int fixAttempts, int maxResumes,
         Duration limitWaitBase, Duration limitWaitMax, int limitMaxRetries, Duration previewLifetime,
-        Duration previewStartTimeout) {
+        Duration previewStartTimeout, BigDecimal wholeCapMultiple) {
 }

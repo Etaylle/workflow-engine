@@ -43,7 +43,7 @@ class GeminiCliBuilderTest {
         ExecutionSettings settings = new ExecutionSettings(root.resolve("ws"), "claude", "sonnet",
                 command, "gemini-3.1-flash-lite", false, false, BigDecimal.TEN, Duration.ofSeconds(30),
                 Duration.ofSeconds(30), 2, 3, Duration.ofMillis(10), Duration.ofMillis(10), 1, Duration.ofSeconds(30),
-                Duration.ofSeconds(30));
+                Duration.ofSeconds(30), new BigDecimal("4"));
         return new GeminiCliBuilder(keys, settings, new ToolProbe());
     }
 

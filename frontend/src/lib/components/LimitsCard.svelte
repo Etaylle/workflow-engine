@@ -3,9 +3,10 @@
 	import { createAction } from '#lib/api/action.svelte.js';
 	import { toasts } from '#lib/shell/toast.svelte.js';
 	import { locale } from '#lib/i18n/state.svelte.js';
+	import BuildModeChoice from './BuildModeChoice.svelte';
 	import { MAX_LIMIT, MIN_LIMIT, parseLimit } from '#lib/settings/limit.js';
 
-	let { project }: { project: Project } = $props();
+	let { project, software }: { project: Project; software: number } = $props();
 
 	let text = $state('');
 	let defaultLimit = $state(10);
@@ -76,6 +77,7 @@
 			</span>
 		{/if}
 	</label>
+	<BuildModeChoice {project} {software} />
 	{#if saved}<p class="hint" role="status" data-testid="limit-saved">
 			{locale.t('limits.saved')}
 		</p>{/if}

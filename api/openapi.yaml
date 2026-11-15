@@ -207,8 +207,15 @@ paths:
           application/json:
             schema:
               type: object
-              description: At least one of name, wish, agentHarness and templateId
+              description: At least one of name, wish, agentHarness, templateId and buildMode
               properties:
+                buildMode:
+                  type: string
+                  enum: [whole, tasks, auto]
+                  description: >
+                    How a run builds: whole = the whole software at once as one unit, tasks = one task
+                    after the other, auto = back to the default (whole when the contract has at most 8
+                    software tasks, otherwise tasks). A run snapshots the mode it starts with.
                 templateId:
                   type: string
                   description: >
@@ -1525,7 +1532,7 @@ components:
         description: {type: string}
     Project:
       type: object
-      required: [id, name, wish, status, agentHarness, templateId, model, createdAt, updatedAt]
+      required: [id, name, wish, status, agentHarness, templateId, buildMode, model, createdAt, updatedAt]
       properties:
         id: {type: string, format: uuid}
         name: {type: string, description: The start of the wish}
@@ -1540,6 +1547,11 @@ components:
         templateId:
           type: string
           description: The template of the software of this project (default sveltekit-sqlite; proposed from the wish by the brief)
+        buildMode:
+          type: string
+          nullable: true
+          enum: [whole, tasks]
+          description: The build mode the client chose; null = automatic (whole up to 8 software tasks, otherwise tasks)
         model: {type: string}
         createdAt: {type: string, format: date-time}
         updatedAt: {type: string, format: date-time}

@@ -186,6 +186,79 @@ class RunIT {
     }
 
     @Test
+    void aSmallContractIsBuiltAsOneUnitWithItsStepsAndNoStorageOrder() throws Exception {
+        UUID project = confirmedProject(null);
+
+        JsonNode run = awaitEnd(http.json("POST", "/api/projects/" + project + "/runs", null)
+                .get("id").asString());
+
+        assertThat(run.get("status").asString()).isEqualTo("done");
+        JsonNode tasks = run.get("tasks");
+        assertThat(tasks).hasSize(1);
+        assertThat(tasks.get(0).get("title").asString()).isEqualTo("Build the whole software of the contract");
+        assertThat(tasks.get(0).get("steps")).extracting(s -> s.get("key").asString())
+                .containsExactly("plan", "build", "ci", "check");
+        tasks.get(0).get("steps").forEach(step -> assertThat(step.get("commit").asString()).hasSize(40));
+        Path workspace = workspaceOf(run);
+        assertThat(gitLog(workspace)).contains("Task 1 step check green");
+        String contract = Files.readString(workspace.resolve("CONTRACT.md"));
+        assertThat(contract).contains("A canteen app").contains("Build the complete, working software")
+                .contains("Steps done by a person: user actions the software must offer")
+                .contains("Prepare the meal").contains("started with ./start.sh")
+                .contains("keep state in memory").doesNotContain("data kept in")
+                .doesNotContain("SQLite database of the template");
+        assertThat(builder.requests.get(0).capUsd().signum()).isPositive();
+    }
+
+    @Test
+    void theClientChoiceOfTheBuildModeOverridesTheDefaultAndIsSnapshottedOnTheRun() throws Exception {
+        UUID project = confirmedProject("tasks");
+        assertThat(http.json("GET", "/api/projects/" + project, null).get("buildMode").asString())
+                .isEqualTo("tasks");
+
+        JsonNode run = awaitEnd(http.json("POST", "/api/projects/" + project + "/runs", null)
+                .get("id").asString());
+        http.json("PATCH", "/api/projects/" + project, "{\"buildMode\":\"whole\"}");
+
+        assertThat(run.get("tasks")).hasSize(2);
+        assertThat(jdbc.sql("select build_mode from execution.runs where id = :id")
+                .param("id", UUID.fromString(run.get("id").asString())).query(String.class).single())
+                .isEqualTo("tasks");
+        assertThat(http.call("PATCH", "/api/projects/" + project, "{\"buildMode\":\"x\"}").statusCode())
+                .isEqualTo(400);
+        assertThat(http.json("PATCH", "/api/projects/" + project, "{\"buildMode\":\"auto\"}")
+                .get("buildMode").isNull()).isTrue();
+    }
+
+    @Test
+    void aWholeRunResumesFromTheLastCheckpointOfItsOneUnit() throws Exception {
+        UUID project = confirmedProject("whole");
+        builder.failSteps.add("build");
+        JsonNode waiting = awaitEnd(http.json("POST", "/api/projects/" + project + "/runs", null)
+                .get("id").asString());
+        String id = waiting.get("id").asString();
+        simulateRestart(id);
+        builder.failSteps.clear();
+        builder.requests.clear();
+
+        http.json("POST", "/api/runs/" + id + "/resume", null);
+        JsonNode run = awaitEnd(id);
+
+        assertThat(run.get("status").asString()).isEqualTo("done");
+        assertThat(run.get("tasks")).hasSize(1);
+        assertThat(builder.requests.get(0).stepKey()).isEqualTo("build");
+        assertThat(Files.readString(workspaceOf(run).resolve("CONTRACT.md")))
+                .contains("Build the complete, working software");
+    }
+
+    @Test
+    void defaultBuildModeIsWholeUpToEightSoftwareTasks() {
+        assertThat(RunService.defaultBuildMode(1)).isEqualTo("whole");
+        assertThat(RunService.defaultBuildMode(8)).isEqualTo("whole");
+        assertThat(RunService.defaultBuildMode(9)).isEqualTo("tasks");
+    }
+
+    @Test
     void olderConsoleLinesComeInPagesBeforeANumberAndOnlyOfTheAskedKind() throws Exception {
         UUID project = confirmedProject();
         JsonNode run = awaitEnd(http.json("POST", "/api/projects/" + project + "/runs", null)
@@ -808,7 +881,15 @@ class RunIT {
     }
 
     private UUID confirmedProject() throws Exception {
+        return confirmedProject("tasks");
+    }
+
+    private UUID confirmedProject(String buildMode) throws Exception {
         UUID id = http.answeredProject("A canteen app");
+        if (buildMode != null) {
+            assertThat(http.call("PATCH", "/api/projects/" + id, "{\"buildMode\":\"" + buildMode + "\"}")
+                    .statusCode()).isEqualTo(200);
+        }
         assertThat(http.call("POST", "/api/projects/" + id + "/requirements", null).statusCode())
                 .isEqualTo(200);
         assertThat(http.call("POST", "/api/projects/" + id + "/workflow", null).statusCode())

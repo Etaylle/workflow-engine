@@ -131,7 +131,11 @@
 			/>
 		{/if}
 		{#if reviewing}
-			<LimitsCard {project} />
+			<LimitsCard
+				{project}
+				software={workflow.nodes.filter((n) => n.kind === 'task' && n.taskType === 'software')
+					.length}
+			/>
 			{#if workflow.status === 'valid' && workflow.confirmedContractVersion}
 				<p class="notice">
 					{locale.t('workflow.changedSince', {

@@ -94,6 +94,7 @@ export type Project = {
 	status: string;
 	agentHarness: string;
 	templateId: string;
+	buildMode: 'whole' | 'tasks' | null;
 	model: string;
 	createdAt: string;
 	updatedAt: string;
@@ -141,7 +142,13 @@ export const createProject = (wish: string, apiKey: string, name: string) =>
 	json<Project>('/api/projects', 'POST', { wish, apiKey, name });
 export const updateProject = (
 	projectId: string,
-	change: { name?: string; wish?: string; agentHarness?: string; templateId?: string }
+	change: {
+		name?: string;
+		wish?: string;
+		agentHarness?: string;
+		templateId?: string;
+		buildMode?: 'whole' | 'tasks' | 'auto';
+	}
 ) => json<Project>(`/api/projects/${projectId}`, 'PATCH', change);
 export async function deleteProject(projectId: string): Promise<void> {
 	const response = await fetch(`/api/projects/${projectId}`, { method: 'DELETE' });

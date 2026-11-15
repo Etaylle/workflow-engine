@@ -24,6 +24,9 @@ public interface ProjectPort {
     /** The id of the template the project chose, or empty when the project does not exist. */
     Optional<String> templateIdOf(UUID projectId);
 
+    /** The build mode the client chose (whole or tasks), or empty when the contract decides. */
+    Optional<String> buildModeOf(UUID projectId);
+
     /** Records which provider and model the planning of the project really uses. */
     void recordAi(UUID projectId, AiTarget target);
 

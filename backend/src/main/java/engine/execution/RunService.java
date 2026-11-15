@@ -47,6 +47,29 @@ class RunService {
         this.settings = settings;
     }
 
+    /** Software with at most this many software tasks is built as one unit unless the client chose. */
+    static final int WHOLE_MAX_TASKS = 8;
+    static final String WHOLE_TITLE = "Build the whole software of the contract";
+
+    static String defaultBuildMode(int softwareTasks) {
+        return softwareTasks <= WHOLE_MAX_TASKS ? "whole" : "tasks";
+    }
+
+    /** The one unit of work of the whole mode: every software and manual task is its scope. */
+    private static ContractPort.TaskLine wholeUnit(ContractPort.ContractInfo contract) {
+        StringBuilder scope = new StringBuilder("The whole software of the contract. Software tasks: ");
+        scope.append(titles(contract.softwareTasks()));
+        if (!contract.manualTasks().isEmpty()) {
+            scope.append(". Steps done by a person, which the software must offer as user actions: ")
+                    .append(titles(contract.manualTasks()));
+        }
+        return new ContractPort.TaskLine(WHOLE_TITLE, "all", scope.toString());
+    }
+
+    private static String titles(List<ContractPort.TaskLine> tasks) {
+        return String.join("; ", tasks.stream().map(ContractPort.TaskLine::title).toList());
+    }
+
     RunView start(UUID projectId) {
         String status = projects.statusOf(projectId).orElseThrow(
                 () -> new ApiProblem(404, "Project not found", "No project " + projectId));
@@ -67,13 +90,16 @@ class RunService {
         builders.forHarness(harness).checkReady();
         Template template = templates.require(projects.templateIdOf(projectId).orElseThrow());
         UUID runId = UUID.randomUUID();
+        String buildMode = projects.buildModeOf(projectId)
+                .orElse(defaultBuildMode(contract.softwareTasks().size()));
         Path workspace = settings.workspaceRoot().resolve("run-" + runId);
         RunSettingsPort.RunSettings chosen = runSettings.forProject(projectId);
         store.create(runId, projectId, contract.version(), harness,
                 chosen.costLimitUsd().orElse(contract.costLimitUsd().orElse(settings.costLimitUsd())),
                 workspace.toString(), template.id(),
                 settings.createDatabase() && template.needsDatabase() ? RunOrchestrator.databaseName(runId) : null,
-                contract.softwareTasks(), chosen.steps());
+                buildMode, "whole".equals(buildMode) ? List.of(wholeUnit(contract)) : contract.softwareTasks(),
+                chosen.steps());
         projects.markStatus(projectId, "executing");
         orchestrator.submit(runId, contract.markdown());
         return view(runId);

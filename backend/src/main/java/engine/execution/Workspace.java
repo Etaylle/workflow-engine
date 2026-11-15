@@ -56,15 +56,35 @@ final class Workspace {
         commit("Template and contract");
     }
 
-    private static String resultRule(Template template) {
+    static final String MANUAL_RULE = " Steps of the workflow done by a person (manual tasks, for example a"
+            + " player controlling a character) are user actions that the software must offer"
+            + " (controls, inputs, screens); they are part of what is built.";
+
+    static String resultRule(Template template) {
         if (template.isConsole()) {
-            return "This is a console program: the result must be visible in the output of ./start.sh."
-                    + " No server, no database, no web page.";
+            return "This is a console program: the result must be what the wish asks for as a whole,"
+                    + " visible in the output of ./start.sh. No server, no database, no web page."
+                    + MANUAL_RULE;
         }
-        return template.needsDatabase()
-                ? "The result must be visible in the running application and its data kept in PostgreSQL."
-                : "The result must be visible in the running application and its data kept in the SQLite"
-                        + " database of the template.";
+        return "The result must be what the wish asks for as a whole, visible in the running application"
+                + " and started with ./start.sh. Store data only where the wish or a requirement needs it"
+                + " to outlive the session; otherwise keep state in memory, and do not add server routes,"
+                + " tables or network calls that the wish does not need." + MANUAL_RULE;
+    }
+
+    /** Writes the contract with the one unit of the whole mode: the complete software in one go. */
+    void writeWhole(String contract, Template template, String scope) {
+        String text = contract + "\n## What to build in this run\n\nBuild the complete, working software"
+                + " of this contract in one go. Read the wish first (section Wish), then the requirements,"
+                + " then the workflow as the description of the behaviour (section Workflow). Scope: "
+                + scope + "\n\nWhen the wish names a kind of software with a well-known design (for example"
+                + " a classic game), build that known design fully: start, play, win and lose.\n\n"
+                + resultRule(template) + "\n";
+        try {
+            Files.writeString(dir.resolve("CONTRACT.md"), text, StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            throw new UncheckedIOException("Could not write the task into CONTRACT.md", e);
+        }
     }
 
     /** Adds the task to build to the contract text the builder reads. */

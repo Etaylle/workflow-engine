@@ -11,6 +11,7 @@ public record Project(
         String status,
         String agentHarness,
         String templateId,
+        String buildMode,
         String model,
         Instant createdAt,
         Instant updatedAt) {

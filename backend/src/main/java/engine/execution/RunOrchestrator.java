@@ -210,7 +210,12 @@ class RunOrchestrator {
         events.publish(ctx.run().id(), "task", "Task " + (index + 1) + " of " + tasks.size() + ": " + task.title());
         List<String> done = tasks.subList(0, index).stream().map(RunStore.TaskRow::title).toList();
         List<String> later = tasks.subList(index + 1, tasks.size()).stream().map(RunStore.TaskRow::title).toList();
-        ctx.workspace().writeTask(contract, ctx.template(), task.title(), task.description(), done, later);
+        if ("whole".equals(ctx.run().buildMode())) {
+            ctx.workspace().writeWhole(contract, ctx.template(), task.description());
+        } else {
+            ctx.workspace().writeTask(contract, ctx.template(), task.title(), task.description(), done,
+                    later);
+        }
         for (int s = 0; s < task.steps().size(); s++) {
             if (!"done".equals(task.steps().get(s).status()) && !buildStep(ctx, task, s, index + 1)) {
                 return false;
@@ -343,6 +348,12 @@ class RunOrchestrator {
                 + String.join(" ", hints);
     }
 
+    /** The cap of one invocation; the whole software in one unit gets a multiple of the per-task cap. */
+    private BigDecimal capOf(RunStore.RunRow run, Step def) {
+        return "whole".equals(run.buildMode()) ? def.capUsd().multiply(settings.wholeCapMultiple())
+                : def.capUsd();
+    }
+
     private Attempt attempt(Ctx ctx, RunStore.StepRow row, Step def, BigDecimal remaining,
             String previousFailure) {
         UUID runId = ctx.run().id();
@@ -353,7 +364,7 @@ class RunOrchestrator {
                 + " CHECK PASSED.";
         Builder builder = builders.forHarness(ctx.run().harness());
         StepOutcome outcome = builder.run(new StepRequest(ctx.workspace().dir(), def.key(), prompt,
-                def.capUsd().min(remaining), ctx.appEnv(), ctx.logDir(), () -> stopped(runId),
+                capOf(ctx.run(), def).min(remaining), ctx.appEnv(), ctx.logDir(), () -> stopped(runId),
                 line -> events.publish(runId, "console", line)));
         UUID call = store.addAgentCall(row.id(), outcome);
         events.publish(runId, "console", def.title() + ": " + outcome.summary() + " (USD "

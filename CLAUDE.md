@@ -4,7 +4,7 @@ Loaded in every session. Keep it short. Where the work stands: [`todo.md`](todo.
 
 ## 1. What this is
 
-A web application that turns a client's wish into AI research and questions, requirements, a confirmed BPMN-like business workflow (the contract) and, on Run, a generated software project built by Claude in a sandbox on the engine machine, task by task, delivered as a ZIP (optional push to the client's public GitHub repository, optional "Deploy to Render" link). Course: Hochschule Campus Wien, SDE, Advanced Software Development; assignment #1 is due 20 November 2026.
+A web application that turns a client's wish into AI research and questions, requirements, a confirmed BPMN-like business workflow (the contract) and, on Run, a generated software project built by Claude in a sandbox on the engine machine, task by task or, for small software, the whole at once (build mode `whole`, D-94), delivered as a ZIP (optional push to the client's public GitHub repository, optional "Deploy to Render" link). Course: Hochschule Campus Wien, SDE, Advanced Software Development; assignment #1 is due 20 November 2026.
 
 ## 2. How we work (decisions D-17 to D-25 in `todo.md`)
 
