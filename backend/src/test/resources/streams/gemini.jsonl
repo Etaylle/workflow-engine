@@ -1,0 +1,9 @@
+{"type":"init","session_id":"s","model":"gemini-3.1-flash-lite"}
+{"type":"message","role":"user","content":"prompt"}
+{"type":"tool_use","tool_name":"write_file","tool_id":"a","parameters":{"file_path":"/w/run-1/src/Duck.java","content":"x"}}
+{"type":"tool_result","tool_id":"a","status":"success","output":"done"}
+{"type":"tool_use","tool_name":"run_shell_command","tool_id":"b","parameters":{"command":"./check.sh"}}
+{"type":"tool_result","tool_id":"b","status":"error","error":{"type":"X","message":"exit 1"}}
+{"type":"message","role":"assistant","content":"Built ","delta":true}
+{"type":"message","role":"assistant","content":"the duck.","delta":true}
+{"type":"result","status":"success","stats":{"total_tokens":900,"tool_calls":2,"models":{}}}

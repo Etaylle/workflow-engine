@@ -37,6 +37,12 @@ test('confirmed contract to a finished run and its ZIP, surviving a reload', asy
 	);
 	await expect(page.getByTestId('start-run')).toHaveText('Run again');
 
+	// Activity: what the builder did shows as short lines; scrolling can be paused
+	await expect(page.getByTestId('run-console')).toContainText('writes docs/STUB-plan.md');
+	await expect(page.getByTestId('run-console')).toContainText('check: CHECK PASSED (stub)');
+	await page.getByTestId('run-console-pause').click();
+	await expect(page.getByTestId('run-console-pause')).toHaveText('Follow output');
+
 	// US-06.12: the final report, then the ZIP of the workspace
 	await expect(page.getByTestId('report-tasks')).toHaveText('2 of 2 tasks done');
 	await expect(page.getByTestId('report-steps')).toHaveText('8 of 8 steps done');

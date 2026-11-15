@@ -209,7 +209,6 @@
 	"run.step.running": "running",
 	"run.step.done": "done",
 	"run.step.failed": "failed",
-	"run.console": "Console",
 	"run.zip": "Download ZIP",
 	"run.interruptedHint": "The engine restarted while the run was under way, and the key is gone. Enter the key again and continue from the last checkpoint, or download what was built so far.",
 	"run.report.heading": "Final report",
@@ -371,5 +370,15 @@
 	"build.blocked": "Not ready: {what}",
 	"build.errorChoose": "Starting failed. Fix what is missing above, then start again.",
 	"run.builtWith": "Built with {builder}",
-	"run.stepTokens": "{tokens} tokens"
+	"run.stepTokens": "{tokens} tokens",
+	"run.tasks": "Tasks",
+	"run.tabs": "Views of the run",
+	"run.tab.activity": "Activity",
+	"run.tab.files": "Files",
+	"run.tab.app": "App output",
+	"run.activityEmpty": "Nothing yet. What the builder does appears here while it works.",
+	"console.pause": "Pause scrolling",
+	"console.follow": "Follow output",
+	"console.older": "Show older lines",
+	"console.lines": "{count} lines"
 }

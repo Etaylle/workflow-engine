@@ -5,9 +5,12 @@
 	import { locale } from '#lib/i18n/state.svelte.js';
 	import { atCostLimit, canResume, canStop, limitHasRoom, suggestedLimit } from '#lib/run/run.js';
 
-	let { run, updated }: { run: Run; updated: (run: Run) => void } = $props();
+	let {
+		run,
+		updated,
+		confirming = $bindable(false)
+	}: { run: Run; updated: (run: Run) => void; confirming?: boolean } = $props();
 
-	let confirming = $state(false);
 	let key = $state('');
 	let typedLimit = $state<number | null>(null);
 	const limit = $derived(typedLimit ?? suggestedLimit(run));
@@ -68,14 +71,6 @@
 {/if}
 
 {#if canStop(run)}
-	<div class="controls">
-		<button class="danger" onclick={() => (confirming = true)} data-testid="stop-run">
-			{locale.t('run.stop')}
-		</button>
-		{#if stopping.error && !confirming}<p role="alert" data-testid="stop-error">
-				{stopping.error}
-			</p>{/if}
-	</div>
 	<ConfirmDialog
 		open={confirming}
 		title={locale.t('run.stop.title')}

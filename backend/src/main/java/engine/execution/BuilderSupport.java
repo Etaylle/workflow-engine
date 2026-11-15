@@ -48,10 +48,11 @@ final class BuilderSupport {
 
     /** Runs ./check.sh in the workspace: passed only with exit code 0 and the line CHECK PASSED. */
     static GateResult gate(ExecutionSettings settings, Path workspace, Map<String, String> appEnv,
-            Path logDir) {
+            Path logDir, java.util.function.Consumer<String> console) {
         Path out = logDir.resolve("check.log");
         ProcessRunner.Result result = ProcessRunner.run(List.of("./check.sh"), workspace, appEnv, out,
-                logDir.resolve("check.err"), settings.checkTimeout());
+                logDir.resolve("check.err"), settings.checkTimeout(), () -> false,
+                line -> console.accept("check: " + BuilderStream.redact(line, List.of())));
         List<String> lines = new ArrayList<>(
                 List.of((read(out) + read(logDir.resolve("check.err"))).split("\n")));
         boolean passed = result.exitCode() == 0 && lines.stream().anyMatch("CHECK PASSED"::equals);

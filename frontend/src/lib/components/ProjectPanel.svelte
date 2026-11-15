@@ -25,7 +25,7 @@
 	};
 </script>
 
-<article class="page" aria-labelledby="project-heading">
+<article class="page" class:wide={step === 'run'} aria-labelledby="project-heading">
 	<a href="#projects">{locale.t('nav.back')}</a>
 	<h1 id="project-heading">{project.name}</h1>
 	{#if engineKey.keys?.planning && rank(project.status) <= 4}
@@ -70,6 +70,9 @@
 </article>
 
 <style>
+	.wide {
+		max-width: 112rem;
+	}
 	.ai-chip {
 		display: inline-block;
 		margin: 0 0 var(--space-4);

@@ -91,6 +91,12 @@ class RunService {
         return store.events(runId, after, 1000);
     }
 
+    /** The latest events below a number, for scrolling back in the console. */
+    List<RunEvent> eventsBefore(UUID runId, long before, String kind, int limit) {
+        view(runId);
+        return store.eventsBefore(runId, before, kind, Math.max(1, Math.min(limit, 1000)));
+    }
+
     SseEmitter stream(UUID runId, long after) {
         view(runId);
         return events.subscribe(runId, after);

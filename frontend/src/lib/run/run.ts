@@ -1,7 +1,10 @@
 import type { Run, RunEvent } from '#lib/api/client.js';
 
-/** Console lines kept on the screen. */
-export const MAX_CONSOLE_LINES = 200;
+/** Console lines kept in the browser; older ones are fetched on demand. */
+export const MAX_CONSOLE_LINES = 1000;
+
+/** Lines fetched per page when scrolling back. */
+export const OLDER_PAGE = 300;
 
 /** A run that is still being built: the screen follows it live. */
 export const isActive = (run: Run | null): boolean =>
@@ -56,12 +59,30 @@ export function progress(run: Run): { done: number; total: number } {
 	return { done: steps.filter((step) => step.status === 'done').length, total: steps.length };
 }
 
-/** Adds the console events not yet shown (by number), oldest first, keeping the last lines. */
-export function mergeConsole(lines: RunEvent[], incoming: RunEvent[]): RunEvent[] {
+/**
+ * Adds the events of one kind not yet shown (by number), oldest first, keeping the last lines.
+ * Console lines and the output of the generated app are both lines of the event stream.
+ */
+export function mergeConsole(
+	lines: RunEvent[],
+	incoming: RunEvent[],
+	kind: RunEvent['kind'] = 'console'
+): RunEvent[] {
 	const known = new Set(lines.map((line) => line.seq));
-	const added = incoming.filter((event) => event.kind === 'console' && !known.has(event.seq));
+	const added = incoming.filter((event) => event.kind === kind && !known.has(event.seq));
 	return [...lines, ...added].sort((a, b) => a.seq - b.seq).slice(-MAX_CONSOLE_LINES);
 }
+
+/** Puts a page of older lines in front of the lines shown (no doubles, oldest first). */
+export function prependOlder(lines: RunEvent[], older: RunEvent[]): RunEvent[] {
+	const known = new Set(lines.map((line) => line.seq));
+	return [...older.filter((event) => !known.has(event.seq)), ...lines].sort(
+		(a, b) => a.seq - b.seq
+	);
+}
+
+/** The number of the oldest line shown, or null when there is none. */
+export const oldestSeq = (lines: RunEvent[]): number | null => lines[0]?.seq ?? null;
 
 /** The highest event number seen, so a reconnect continues after it. */
 export const lastSeen = (events: RunEvent[], from: number): number =>

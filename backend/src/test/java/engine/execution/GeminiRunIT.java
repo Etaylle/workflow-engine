@@ -86,7 +86,7 @@ class GeminiRunIT {
         assertThat(step.get("tokens").asLong()).isEqualTo(1234);
         assertThat(step.get("turns").asInt()).isEqualTo(3);
         String args = Files.readString(WORK.resolve("fake-gemini/args.log"));
-        assertThat(args).contains("-m gemini-3.1-flash-lite").contains("-o json")
+        assertThat(args).contains("-m gemini-3.1-flash-lite").contains("-o stream-json")
                 .contains("--approval-mode auto_edit").contains("--policy").contains("GEMINI.md")
                 .doesNotContain(GEMINI_KEY);
         assertThat(Files.readString(WORK.resolve("fake-gemini/env.log"))).contains("key=" + GEMINI_KEY)

@@ -348,7 +348,8 @@ class RunOrchestrator {
                 + " CHECK PASSED.";
         Builder builder = builders.forHarness(ctx.run().harness());
         StepOutcome outcome = builder.run(new StepRequest(ctx.workspace().dir(), def.key(), prompt,
-                def.capUsd().min(remaining), ctx.appEnv(), ctx.logDir(), () -> stopped(runId)));
+                def.capUsd().min(remaining), ctx.appEnv(), ctx.logDir(), () -> stopped(runId),
+                line -> events.publish(runId, "console", line)));
         UUID call = store.addAgentCall(row.id(), outcome);
         events.publish(runId, "console", def.title() + ": " + outcome.summary() + " (USD "
                 + outcome.costUsd().setScale(2, java.math.RoundingMode.HALF_UP) + ", "
@@ -357,8 +358,8 @@ class RunOrchestrator {
             return new Attempt(false, outcome.limited(), def.title() + " failed: " + outcome.summary());
         }
         if (def.gated()) {
-            GateResult gate = builder.gate(ctx.workspace().dir(), ctx.appEnv(), ctx.logDir());
-            gate.tail().forEach(line -> events.publish(runId, "console", "check: " + line));
+            GateResult gate = builder.gate(ctx.workspace().dir(), ctx.appEnv(), ctx.logDir(),
+                    line -> events.publish(runId, "console", line));
             if (!gate.passed()) {
                 String text = "The check after " + def.title() + " did not pass:\n"
                         + String.join("\n", gate.tail());

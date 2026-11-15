@@ -50,7 +50,7 @@ class GeminiCliBuilderTest {
         Path state = Files.createDirectories(root.resolve("ws/fake-gemini"));
         Files.writeString(state.resolve("queue"), String.join("\n", queue) + "\n");
         return builder.run(new StepRequest(workspace, "build", "Do the work", BigDecimal.ONE, Map.of(),
-                logs, () -> false));
+                logs, () -> false, line -> { }));
     }
 
     @Test

@@ -1,9 +1,10 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import {
 		answerRunQuestion,
 		getLatestRun,
 		getRun,
-		listRunEvents,
+		listOlderEvents,
 		runStreamUrl,
 		runZipUrl,
 		startRun,
@@ -11,6 +12,7 @@
 		type Run,
 		type RunEvent
 	} from '#lib/api/client.js';
+	import ConsolePane from '#lib/components/ConsolePane.svelte';
 	import RunControls from '#lib/components/RunControls.svelte';
 	import RunReportCard from '#lib/components/RunReportCard.svelte';
 	import BuildWith from '#lib/components/BuildWith.svelte';
@@ -26,16 +28,27 @@
 		formatUsd,
 		hasQuestion,
 		isActive,
+		canStop,
 		lastSeen,
 		mergeConsole,
+		OLDER_PAGE,
+		oldestSeq,
+		prependOlder,
 		progress
 	} from '#lib/run/run.js';
+	import { availableTabs, effectiveTab, type RunTab } from '#lib/run/tabs.js';
 
 	let { project, changed, back }: { project: Project; changed: () => Promise<void>; back: string } =
 		$props();
 
 	let run = $state<Run | null>(null);
 	let console_ = $state<RunEvent[]>([]);
+	let hasOlder = $state(false);
+	let chosenTab = $state<RunTab>('activity');
+	let confirmingStop = $state(false);
+	const older = createAction();
+	const tabs = $derived(availableTabs(run, false));
+	const tab = $derived(effectiveTab(chosenTab, tabs));
 	const loading = createAction();
 	const starting = createAction();
 	const answering = createAction();
@@ -63,7 +76,23 @@
 		await loading.run(async () => {
 			run = await getLatestRun(project.id);
 			console_ = [];
-			if (run) console_ = mergeConsole([], await listRunEvents(run.id, 0));
+			hasOlder = false;
+			if (run) {
+				const page = await listOlderEvents(run.id, Number.MAX_SAFE_INTEGER, 'console', OLDER_PAGE);
+				console_ = mergeConsole([], page);
+				hasOlder = page.length === OLDER_PAGE;
+			}
+		});
+	}
+
+	async function loadOlder() {
+		const before = oldestSeq(console_);
+		if (!run || before === null) return;
+		const runId = run.id;
+		await older.run(async () => {
+			const page = await listOlderEvents(runId, before, 'console', OLDER_PAGE);
+			console_ = prependOlder(console_, page);
+			hasOlder = page.length === OLDER_PAGE;
 		});
 	}
 
@@ -114,10 +143,16 @@
 		void loadBuilders();
 	});
 
+	/** The run to follow live; a stable value, so the stream is not reopened on every new line. */
+	const followId = $derived(run && isActive(run) ? run.id : null);
+
 	$effect(() => {
-		const current = run;
-		if (!current || !isActive(current)) return;
-		return follow(current.id, lastSeen(console_, 0) > 0 ? lastSeen(console_, 0) : 0);
+		const id = followId;
+		if (!id) return;
+		return follow(
+			id,
+			untrack(() => lastSeen(console_, 0))
+		);
 	});
 
 	const statusKey = (status: string) => `run.status.${status}` as MessageKey;
@@ -133,7 +168,7 @@
 	reason={blockReason}
 >
 	{#if loading.error}<p role="alert">{loading.error}</p>{/if}
-	{#if builders && canStart(project.status, run)}
+	{#if builders && canStart(project.status, run) && !run}
 		<BuildWith {project} {builders} update={(fresh) => (builders = fresh)} {changed} />
 	{/if}
 	{#if starting.error}
@@ -145,24 +180,24 @@
 
 	{#if run}
 		{@const steps = progress(run)}
-		<div class="card" data-testid="run-card">
-			<p>
+		<div class="run" data-testid="run-card">
+			<div class="facts">
 				<span class="pill" data-testid="run-status" data-status={run.status}>
 					{locale.t(statusKey(run.status))}
 				</span>
 				<span data-testid="run-progress">
 					{locale.t('run.progress', { done: String(steps.done), total: String(steps.total) })}
 				</span>
-			</p>
-			<p data-testid="run-builder">
-				{locale.t('run.builtWith', { builder: locale.t(`build.${run.harness}` as MessageKey) })}
-			</p>
-			<p data-testid="run-cost">
-				{locale.t('run.cost', {
-					cost: formatUsd(run.costUsd),
-					limit: formatUsd(run.costLimitUsd)
-				})}
-			</p>
+				<span data-testid="run-builder">
+					{locale.t('run.builtWith', { builder: locale.t(`build.${run.harness}` as MessageKey) })}
+				</span>
+				<span data-testid="run-cost">
+					{locale.t('run.cost', {
+						cost: formatUsd(run.costUsd),
+						limit: formatUsd(run.costLimitUsd)
+					})}
+				</span>
+			</div>
 			{#if run.status === 'interrupted'}
 				<p role="alert" data-testid="run-reason">
 					{locale.t('run.interruptedHint')}
@@ -213,45 +248,75 @@
 				</div>
 			{/if}
 
-			<ol class="tasks" data-testid="run-tasks">
-				{#each run.tasks as task (task.id)}
-					<li data-testid={`run-task-${task.seq}`} data-status={task.status}>
-						<strong>{task.title}</strong> · {locale.t(taskKey(task.status))}
-						<ul>
-							{#each task.steps as step (step.id)}
-								<li data-status={step.status}>
-									{step.title} · {locale.t(stepKey(step.status))}
-									{#if step.costUsd > 0}
-										({locale.t('run.stepCost', {
-											cost: formatUsd(step.costUsd)
-										})}){:else if step.tokens > 0}
-										({locale.t('run.stepTokens', {
-											tokens: step.tokens.toLocaleString(locale.current)
-										})}){/if}
-									{#if step.attempts > 1}
-										<span data-testid={`attempts-${step.key}`}>
-											{locale.t('run.attempts', { count: String(step.attempts) })}
-										</span>
-									{/if}
-								</li>
-							{/each}
-						</ul>
-					</li>
-				{/each}
-			</ol>
-
 			<RunControls
 				{run}
+				bind:confirming={confirmingStop}
 				updated={(fresh) => {
 					run = fresh;
 					if (!isActive(fresh)) changed();
 				}}
 			/>
 
-			<h3>{locale.t('run.console')}</h3>
-			<pre class="console" data-testid="run-console" aria-live="polite">{console_
-					.map((line) => line.text)
-					.join('\n')}</pre>
+			<div class="watch">
+				<div class="side">
+					<h3>{locale.t('run.tasks')}</h3>
+					<ol class="tasks" data-testid="run-tasks">
+						{#each run.tasks as task (task.id)}
+							<li data-testid={`run-task-${task.seq}`} data-status={task.status}>
+								<strong>{task.title}</strong> · {locale.t(taskKey(task.status))}
+								<ul>
+									{#each task.steps as step (step.id)}
+										<li data-status={step.status}>
+											{step.title} · {locale.t(stepKey(step.status))}
+											{#if step.costUsd > 0}
+												({locale.t('run.stepCost', {
+													cost: formatUsd(step.costUsd)
+												})}){:else if step.tokens > 0}
+												({locale.t('run.stepTokens', {
+													tokens: step.tokens.toLocaleString(locale.current)
+												})}){/if}
+											{#if step.attempts > 1}
+												<span data-testid={`attempts-${step.key}`}>
+													{locale.t('run.attempts', { count: String(step.attempts) })}
+												</span>
+											{/if}
+										</li>
+									{/each}
+								</ul>
+							</li>
+						{/each}
+					</ol>
+				</div>
+				<div class="main">
+					<div class="tabs" role="tablist" aria-label={locale.t('run.tabs')}>
+						{#each tabs as name (name)}
+							<button
+								type="button"
+								role="tab"
+								class:current={tab === name}
+								aria-selected={tab === name}
+								onclick={() => (chosenTab = name)}
+								data-testid={`tab-${name}`}
+							>
+								{locale.t(`run.tab.${name}` as MessageKey)}
+							</button>
+						{/each}
+					</div>
+					<div class="tabpanel" role="tabpanel">
+						{#if tab === 'activity'}
+							<ConsolePane
+								lines={console_}
+								testid="run-console"
+								label={locale.t('run.tab.activity')}
+								empty={locale.t('run.activityEmpty')}
+								{hasOlder}
+								loadingOlder={older.busy}
+								{loadOlder}
+							/>
+						{/if}
+					</div>
+				</div>
+			</div>
 
 			{#if !active}<RunReportCard {run} />{/if}
 
@@ -262,6 +327,10 @@
 			<h3>{locale.t('run.none')}</h3>
 			<p>{locale.t('run.noneNext')}</p>
 		</div>
+	{/if}
+
+	{#if builders && run && canStart(project.status, run)}
+		<BuildWith {project} {builders} update={(fresh) => (builders = fresh)} {changed} />
 	{/if}
 
 	{#if run && canDownload(run) && canStart(project.status, run)}
@@ -279,11 +348,7 @@
 	{/if}
 
 	{#snippet primary()}
-		{#if run && canDownload(run)}
-			<a class="button primary" href={runZipUrl(run.id)} data-testid="run-zip">
-				{locale.t('run.zip')}
-			</a>
-		{:else if canStart(project.status, run)}
+		{#if canStart(project.status, run) && !(run && canDownload(run))}
 			<button
 				class="primary"
 				onclick={start}
@@ -292,22 +357,79 @@
 			>
 				{starting.busy ? locale.t('run.starting') : locale.t(run ? 'run.startAgain' : 'run.start')}
 			</button>
+		{:else if run && canStop(run)}
+			<button class="danger solid" onclick={() => (confirmingStop = true)} data-testid="stop-run">
+				{locale.t('run.stop')}
+			</button>
+		{:else if run && canDownload(run)}
+			<a class="button primary" href={runZipUrl(run.id)} data-testid="run-zip">
+				{locale.t('run.zip')}
+			</a>
 		{/if}
 	{/snippet}
 </StepShell>
 
 <style>
+	.facts {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: var(--space-2) var(--space-5);
+		margin-bottom: var(--space-4);
+		color: var(--muted);
+	}
+	.watch {
+		display: grid;
+		grid-template-columns: minmax(15rem, 22rem) minmax(0, 1fr);
+		gap: var(--space-5);
+		height: clamp(24rem, calc(100vh - 27rem), 70rem);
+		margin-top: var(--space-4);
+	}
+	.side {
+		overflow: auto;
+		min-height: 0;
+	}
+	.main {
+		display: flex;
+		flex-direction: column;
+		min-height: 0;
+		min-width: 0;
+	}
+	.tabs {
+		display: flex;
+		gap: var(--space-1);
+		border-bottom: 1px solid var(--line);
+		margin-bottom: var(--space-3);
+	}
+	.tabs button {
+		border: 0;
+		border-bottom: 3px solid transparent;
+		border-radius: 0;
+		background: transparent;
+		font-weight: 500;
+	}
+	.tabs button.current {
+		border-bottom-color: var(--blue);
+		color: var(--blue-ink);
+	}
+	.tabpanel {
+		display: flex;
+		flex-direction: column;
+		flex: 1 1 auto;
+		min-height: 0;
+	}
+	@media (max-width: 56rem) {
+		.watch {
+			grid-template-columns: minmax(0, 1fr);
+			height: auto;
+		}
+		.tabpanel {
+			height: 28rem;
+		}
+	}
 	.tasks {
 		padding-left: 1.2rem;
-	}
-	.console {
-		max-height: 16rem;
-		overflow: auto;
-		background: var(--grey-soft);
-		border-radius: var(--radius-sm);
-		padding: var(--space-3);
-		font-size: var(--text-xs);
-		white-space: pre-wrap;
+		margin: 0;
 	}
 	[data-status='failed'] {
 		color: var(--red);

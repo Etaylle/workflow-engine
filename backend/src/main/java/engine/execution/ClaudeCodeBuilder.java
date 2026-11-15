@@ -76,20 +76,27 @@ class ClaudeCodeBuilder implements RealBuilder {
 
     @Override
     public StepOutcome run(StepRequest request) {
-        Path out = request.logDir().resolve(request.stepKey() + ".json");
+        Path out = request.logDir().resolve(request.stepKey() + ".jsonl");
         Path err = request.logDir().resolve(request.stepKey() + ".err");
         long start = System.nanoTime();
         List<String> command = List.of(settings.claudeBin(), "-p",
                 BuilderSupport.prompt("CLAUDE.md", request.prompt()),
-                "--model", settings.model(), "--output-format", "json", "--permission-mode",
+                "--model", settings.model(), "--output-format", "stream-json", "--verbose", "--permission-mode",
                 "acceptEdits", "--max-budget-usd", request.capUsd().toPlainString(),
                 "--no-session-persistence", "--setting-sources", "project,local",
                 "--strict-mcp-config", "--disable-slash-commands", "--tools",
                 "Read,Edit,Write,Glob,Grep,Bash", "--allowedTools", ALLOWED);
         ProcessRunner.Result result = ProcessRunner.run(command, request.workspace(), childEnv(request),
-                out, err, settings.stepTimeout(), request.cancelled());
+                out, err, settings.stepTimeout(), request.cancelled(),
+                line -> BuilderStream.claude(line, request.workspace().toString())
+                        .ifPresent(text -> request.console().accept(redact(text))));
         int seconds = (int) ((System.nanoTime() - start) / 1_000_000_000L);
         return outcome(result, out, err, seconds);
+    }
+
+    private String redact(String text) {
+        return BuilderStream.redact(text, java.util.stream.Stream.of(sessionKey.anthropicKey(),
+                sessionKey.compatible().map(c -> c.apiKey())).flatMap(java.util.Optional::stream).toList());
     }
 
     private Map<String, String> childEnv(StepRequest request) {
@@ -113,7 +120,10 @@ class ClaudeCodeBuilder implements RealBuilder {
                     .toMinutes() + " minutes and was stopped");
         }
         try {
-            JsonNode json = JSON.readTree(read(out));
+            JsonNode json = BuilderStream.lastResult(read(out));
+            if (json == null) {
+                throw new IllegalStateException("no result line in the stream");
+            }
             String subtype = json.path("subtype").asString("unknown");
             boolean ok = result.exitCode() == 0 && !json.path("is_error").asBoolean(false)
                     && "success".equals(subtype);
@@ -131,7 +141,8 @@ class ClaudeCodeBuilder implements RealBuilder {
     }
 
     @Override
-    public GateResult gate(Path workspace, Map<String, String> appEnv, Path logDir) {
-        return BuilderSupport.gate(settings, workspace, appEnv, logDir);
+    public GateResult gate(Path workspace, Map<String, String> appEnv, Path logDir,
+            java.util.function.Consumer<String> console) {
+        return BuilderSupport.gate(settings, workspace, appEnv, logDir, console);
     }
 }

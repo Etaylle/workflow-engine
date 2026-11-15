@@ -902,12 +902,26 @@ paths:
   /api/runs/{runId}/events:
     get:
       operationId: listRunEvents
-      summary: Events of a run after a sequence number (at most 1000, oldest first)
+      summary: Events of a run after a sequence number (at most 1000, oldest first), or a page of older ones
+      description: >
+        With `before`, the latest `limit` events with a smaller number are returned, oldest first
+        (scrolling back in the console; pass a very large number for the newest ones); `after` is
+        then ignored. `kind=console` keeps only console lines.
       parameters:
         - $ref: "#/components/parameters/RunId"
         - name: after
           in: query
           schema: {type: integer, format: int64, default: 0}
+        - name: before
+          in: query
+          schema: {type: integer, format: int64}
+        - name: kind
+          in: query
+          schema: {type: string, enum: [console, run, task, step]}
+        - name: limit
+          in: query
+          description: Page size with `before` (1 to 1000)
+          schema: {type: integer, default: 200, minimum: 1, maximum: 1000}
       responses:
         "200":
           description: The events

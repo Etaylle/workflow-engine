@@ -71,18 +71,24 @@ class GeminiCliBuilder implements RealBuilder {
 
     @Override
     public StepOutcome run(StepRequest request) {
-        Path out = request.logDir().resolve(request.stepKey() + ".json");
+        Path out = request.logDir().resolve(request.stepKey() + ".jsonl");
         Path err = request.logDir().resolve(request.stepKey() + ".err");
         long start = System.nanoTime();
         Path home = settings.workspaceRoot().resolve(".gemini-home");
         List<String> command = List.of(settings.geminiCmd(), "-p",
                 BuilderSupport.prompt("GEMINI.md", request.prompt()), "-m", settings.geminiModel(),
-                "-o", "json", "--approval-mode", "auto_edit", "--policy", writePolicy(home).toString(),
+                "-o", "stream-json", "--approval-mode", "auto_edit", "--policy", writePolicy(home).toString(),
                 "--skip-trust");
         ProcessRunner.Result result = ProcessRunner.run(command, request.workspace(),
-                childEnv(request, home), out, err, settings.stepTimeout(), request.cancelled());
+                childEnv(request, home), out, err, settings.stepTimeout(), request.cancelled(),
+                line -> BuilderStream.gemini(line, request.workspace().toString())
+                        .ifPresent(text -> request.console().accept(redact(text))));
         int seconds = (int) ((System.nanoTime() - start) / 1_000_000_000L);
         return outcome(result, out, err, seconds);
+    }
+
+    private String redact(String text) {
+        return BuilderStream.redact(text, sessionKey.geminiKey().stream().toList());
     }
 
     /** The CLI keeps its own files in a folder of the engine, not in the home of the owner. */
@@ -123,7 +129,11 @@ class GeminiCliBuilder implements RealBuilder {
                             + " minutes and was stopped");
         }
         try {
-            return parsed(JSON.readTree(raw), result.exitCode(), errors, seconds);
+            JsonNode last = BuilderStream.lastResult(raw);
+            if (last == null) {
+                throw new IllegalStateException("no result line in the stream");
+            }
+            return parsed(last, BuilderStream.assistantText(raw), result.exitCode(), errors, seconds);
         } catch (RuntimeException e) {
             String limit = LimitDetector.classify(errors + raw);
             return failed(seconds, limit != null ? limit : "no_json",
@@ -132,26 +142,21 @@ class GeminiCliBuilder implements RealBuilder {
         }
     }
 
-    private StepOutcome parsed(JsonNode json, int exitCode, String errors, int seconds) {
-        JsonNode error = json.path("error");
-        boolean ok = exitCode == 0 && error.isMissingNode();
-        int turns = 0;
-        long tokens = 0;
-        for (JsonNode model : json.path("stats").path("models")) {
-            turns += model.path("api").path("totalRequests").asInt(0);
-            tokens += model.path("tokens").path("total").asLong(0);
-        }
-        String message = error.path("message").asString("");
+    private StepOutcome parsed(JsonNode last, String response, int exitCode, String errors, int seconds) {
+        JsonNode stats = last.path("stats");
+        boolean ok = exitCode == 0 && "success".equals(last.path("status").asString(""));
+        String message = last.path("error").path("message").asString("");
         String limit = ok ? null : LimitDetector.classify(message + errors);
         String subtype = ok ? "success" : exitCode == EXIT_TURN_LIMIT ? "error_max_turns" : "error";
-        String summary = ok ? json.path("response").asString("")
-                : message.isBlank() ? "Gemini CLI failed with exit code " + exitCode : message;
-        return new StepOutcome(ok, BigDecimal.ZERO, turns, seconds, limit != null ? limit : subtype,
-                oneLine(summary), tokens);
+        String summary = ok ? response : message.isBlank() ? "Gemini CLI failed with exit code " + exitCode
+                : message;
+        return new StepOutcome(ok, BigDecimal.ZERO, stats.path("tool_calls").asInt(0), seconds,
+                limit != null ? limit : subtype, oneLine(summary), stats.path("total_tokens").asLong(0));
     }
 
     @Override
-    public GateResult gate(Path workspace, Map<String, String> appEnv, Path logDir) {
-        return BuilderSupport.gate(settings, workspace, appEnv, logDir);
+    public GateResult gate(Path workspace, Map<String, String> appEnv, Path logDir,
+            java.util.function.Consumer<String> console) {
+        return BuilderSupport.gate(settings, workspace, appEnv, logDir, console);
     }
 }

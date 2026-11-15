@@ -46,8 +46,11 @@ class RunController {
     }
 
     @GetMapping("/api/runs/{runId}/events")
-    List<RunEvent> events(@PathVariable UUID runId, @RequestParam(defaultValue = "0") long after) {
-        return service.events(runId, after);
+    List<RunEvent> events(@PathVariable UUID runId, @RequestParam(defaultValue = "0") long after,
+            @RequestParam(required = false) Long before, @RequestParam(required = false) String kind,
+            @RequestParam(defaultValue = "200") int limit) {
+        return before == null ? service.events(runId, after)
+                : service.eventsBefore(runId, before, kind, limit);
     }
 
     @GetMapping(value = "/api/runs/{runId}/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)

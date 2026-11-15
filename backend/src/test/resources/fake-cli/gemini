@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# A fake Gemini CLI for the tests: answers like the real one in headless mode (-o json), and does
+# A fake Gemini CLI for the tests: answers like the real one in headless mode (-o stream-json), and does
 # what the first line of the file "queue" in the state folder says (ok, fail, limit, badcheck).
 # The state folder is the folder of GEMINI_CLI_HOME's parent, or the folder of this script.
 set -euo pipefail
@@ -32,24 +32,28 @@ ok)
 	passing
 	echo "work of the step" >"fake-work-$(date +%s%N).txt"
 	cat <<'JSON'
-{"session_id":"fake","response":"Did the step.","stats":{"models":{"fake-model":{"api":{"totalRequests":3,"totalErrors":0},"tokens":{"total":1234}}}}}
+{"type":"init","model":"fake-model"}
+{"type":"tool_use","tool_name":"write_file","tool_id":"t1","parameters":{"file_path":"fake.txt"}}
+{"type":"message","role":"assistant","content":"Did the step.","delta":true}
+{"type":"result","status":"success","stats":{"total_tokens":1234,"tool_calls":3,"models":{"fake-model":{"total_tokens":1234}}}}
 JSON
 	;;
 badcheck)
 	printf '#!/bin/sh\necho tests failed: 1\nexit 1\n' >check.sh && chmod +x check.sh
 	cat <<'JSON'
-{"session_id":"fake","response":"Did the step.","stats":{"models":{"fake-model":{"api":{"totalRequests":1},"tokens":{"total":100}}}}}
+{"type":"message","role":"assistant","content":"Did the step.","delta":true}
+{"type":"result","status":"success","stats":{"total_tokens":100,"tool_calls":1,"models":{}}}
 JSON
 	;;
 fail)
 	cat <<'JSON'
-{"session_id":"fake","error":{"type":"Error","message":"The step went wrong: no luck","code":1}}
+{"type":"result","status":"error","error":{"type":"Error","message":"The step went wrong: no luck"},"stats":{}}
 JSON
 	exit 1
 	;;
 limit)
 	cat <<'JSON'
-{"session_id":"fake","error":{"type":"Error","message":"[429] RESOURCE_EXHAUSTED: You exceeded your current quota, please check your plan and billing details.","code":1}}
+{"type":"result","status":"error","error":{"type":"Error","message":"[429] RESOURCE_EXHAUSTED: You exceeded your current quota, please check your plan and billing details."},"stats":{}}
 JSON
 	exit 1
 	;;

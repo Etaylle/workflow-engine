@@ -276,7 +276,7 @@ export type Run = {
 };
 export type RunEvent = {
 	seq: number;
-	kind: 'run' | 'task' | 'step' | 'console';
+	kind: 'run' | 'task' | 'step' | 'console' | 'app' | 'preview';
 	text: string;
 	at: string;
 };
@@ -298,6 +298,13 @@ export const resumeRun = (runId: string, costLimitUsd?: number) =>
 export const getRun = (runId: string) => json<Run>(`/api/runs/${runId}`);
 export const listRunEvents = (runId: string, after = 0) =>
 	json<RunEvent[]>(`/api/runs/${runId}/events?after=${after}`);
+/** The latest lines of one kind below a number (a very large number gives the newest ones). */
+export const listOlderEvents = (
+	runId: string,
+	before: number,
+	kind: RunEvent['kind'],
+	limit: number
+) => json<RunEvent[]>(`/api/runs/${runId}/events?before=${before}&kind=${kind}&limit=${limit}`);
 export const runStreamUrl = (runId: string, after: number) =>
 	`/api/runs/${runId}/stream?after=${after}`;
 export type RunReport = {

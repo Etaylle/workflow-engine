@@ -49,10 +49,12 @@ class StubBuilder implements Builder {
             return new StepOutcome(false, new BigDecimal("0.01"), 1, 0, "error_stub",
                     "Stub: step " + request.stepKey() + " failed on purpose");
         }
+        request.console().accept("runs ./check.sh (stub)");
         try {
             Path docs = Files.createDirectories(request.workspace().resolve("docs"));
             Files.writeString(docs.resolve("STUB-" + request.stepKey() + ".md"),
                     "Step " + request.stepKey() + " written by the stub builder.\n");
+            request.console().accept("writes docs/STUB-" + request.stepKey() + ".md");
         } catch (IOException e) {
             throw new UncheckedIOException("The stub builder could not write its file", e);
         }
@@ -74,7 +76,9 @@ class StubBuilder implements Builder {
     }
 
     @Override
-    public GateResult gate(Path workspace, Map<String, String> appEnv, Path logDir) {
+    public GateResult gate(Path workspace, Map<String, String> appEnv, Path logDir,
+            java.util.function.Consumer<String> console) {
+        console.accept("check: CHECK PASSED (stub)");
         return new GateResult(true, List.of("CHECK PASSED (stub)"));
     }
 

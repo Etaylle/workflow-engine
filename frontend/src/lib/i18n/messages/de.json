@@ -209,7 +209,6 @@
 	"run.step.running": "läuft",
 	"run.step.done": "fertig",
 	"run.step.failed": "fehlgeschlagen",
-	"run.console": "Konsole",
 	"run.zip": "ZIP herunterladen",
 	"run.interruptedHint": "Die Engine wurde neu gestartet, während der Lauf aktiv war, und der Schlüssel ist weg. Geben Sie den Schlüssel erneut ein und setzen Sie ab dem letzten Kontrollpunkt fort, oder laden Sie das bisher Gebaute herunter.",
 	"run.report.heading": "Abschlussbericht",
@@ -371,5 +370,15 @@
 	"build.blocked": "Nicht bereit: {what}",
 	"build.errorChoose": "Der Start ist fehlgeschlagen. Beheben Sie oben, was fehlt, und starten Sie erneut.",
 	"run.builtWith": "Gebaut mit {builder}",
-	"run.stepTokens": "{tokens} Tokens"
+	"run.stepTokens": "{tokens} Tokens",
+	"run.tasks": "Aufgaben",
+	"run.tabs": "Ansichten des Laufs",
+	"run.tab.activity": "Aktivität",
+	"run.tab.files": "Dateien",
+	"run.tab.app": "App-Ausgabe",
+	"run.activityEmpty": "Noch nichts. Was der Builder tut, erscheint hier während der Arbeit.",
+	"console.pause": "Scrollen anhalten",
+	"console.follow": "Ausgabe verfolgen",
+	"console.older": "Ältere Zeilen anzeigen",
+	"console.lines": "{count} Zeilen"
 }

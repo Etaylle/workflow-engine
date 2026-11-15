@@ -14,6 +14,8 @@ import {
 	lastSeen,
 	limitHasRoom,
 	mergeConsole,
+	oldestSeq,
+	prependOlder,
 	progress,
 	suggestedLimit
 } from './run.js';
@@ -154,6 +156,20 @@ describe('console merge', () => {
 		const merged = mergeConsole([], many);
 		expect(merged).toHaveLength(MAX_CONSOLE_LINES);
 		expect(merged[0]?.seq).toBe(21);
+	});
+
+	it('keeps app output apart from console lines', () => {
+		const app = { ...event(5), kind: 'app' as const };
+		expect(mergeConsole([], [event(4), app], 'app')).toEqual([app]);
+		expect(mergeConsole([], [event(4), app])).toEqual([event(4)]);
+	});
+
+	it('puts older lines in front without doubles', () => {
+		const shown = [event(5), event(6)];
+		const merged = prependOlder(shown, [event(3), event(4), event(5)]);
+		expect(merged.map((line) => line.seq)).toEqual([3, 4, 5, 6]);
+		expect(oldestSeq(merged)).toBe(3);
+		expect(oldestSeq([])).toBeNull();
 	});
 
 	it('finds the number to continue after', () => {

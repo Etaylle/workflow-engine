@@ -103,7 +103,8 @@ class RunIT {
         }
 
         @Override
-        public GateResult gate(Path workspace, Map<String, String> appEnv, Path logDir) {
+        public GateResult gate(Path workspace, Map<String, String> appEnv, Path logDir,
+                java.util.function.Consumer<String> console) {
             await();
             if (failGateTimes > 0) {
                 failGateTimes--;
@@ -182,6 +183,25 @@ class RunIT {
         assertThat(Files.readString(workspace.resolve("CONTRACT.md")))
                 .contains("Task \"Notify the student\"").contains("Already built in earlier tasks")
                 .contains("Order a meal");
+    }
+
+    @Test
+    void olderConsoleLinesComeInPagesBeforeANumberAndOnlyOfTheAskedKind() throws Exception {
+        UUID project = confirmedProject();
+        JsonNode run = awaitEnd(http.json("POST", "/api/projects/" + project + "/runs", null)
+                .get("id").asString());
+        String id = run.get("id").asString();
+
+        JsonNode newest = http.json("GET", "/api/runs/" + id + "/events?before=" + Long.MAX_VALUE
+                + "&kind=console&limit=5", null);
+        JsonNode olderPage = http.json("GET", "/api/runs/" + id + "/events?before="
+                + newest.get(0).get("seq").asLong() + "&kind=console&limit=5", null);
+
+        assertThat(newest).hasSize(5);
+        assertThat(newest).allMatch(e -> e.get("kind").asString().equals("console"));
+        assertThat(olderPage).hasSize(5);
+        assertThat(olderPage.get(4).get("seq").asLong()).isLessThan(newest.get(0).get("seq").asLong());
+        assertThat(olderPage.get(0).get("seq").asLong()).isLessThan(olderPage.get(4).get("seq").asLong());
     }
 
     @Test

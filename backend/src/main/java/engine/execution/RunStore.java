@@ -281,6 +281,21 @@ class RunStore {
                 .list();
     }
 
+    /**
+     * The latest {@code limit} events of the kind (all kinds when null) with a number below
+     * {@code before}, oldest first: the page of older console lines.
+     */
+    List<RunEvent> eventsBefore(UUID runId, long before, String kind, int limit) {
+        return jdbc.sql("select seq, kind, text, created_at from (select seq, kind, text, created_at"
+                        + " from execution.run_events where run_id = :r and seq < :before"
+                        + " and (cast(:k as text) is null or kind = cast(:k as text))"
+                        + " order by seq desc limit :limit) latest order by seq")
+                .param("r", runId).param("before", before).param("k", kind).param("limit", limit)
+                .query((rs, n) -> new RunEvent(rs.getLong("seq"), rs.getString("kind"),
+                        rs.getString("text"), rs.getTimestamp("created_at").toInstant()))
+                .list();
+    }
+
     Optional<UUID> latestRunId(UUID projectId) {
         return jdbc.sql("select id from execution.runs where project_id = :p"
                         + " order by started_at desc limit 1")
