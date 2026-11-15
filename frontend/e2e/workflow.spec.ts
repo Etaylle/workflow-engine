@@ -1,17 +1,16 @@
 import { expect, test } from '@playwright/test';
-import { planToReview } from './helpers.js';
+import { planToReview, setPlanningKey } from './helpers.js';
 
 test('wish to questions, requirements, workflow and confirmed contract, surviving reloads', async ({
 	page
 }) => {
+	await setPlanningKey(page);
 	await page.goto('/#new');
 
 	await page.getByTestId('wish').fill('A canteen app where students order a meal and pick it up');
-	await page.getByTestId('project-key').fill('sk-any');
 	await page.getByTestId('create').click();
 
-	// Screen 1 and 2: brief and questions with the proposal preselected
-	await page.getByTestId('ask').click();
+	// Screen 1 and 2: brief and questions write themselves, the proposal is preselected
 	await expect(page.getByTestId('question-1')).toContainText('How do students pay?');
 	await expect(
 		page.getByTestId('question-1').getByRole('radio', { name: 'Online at the order' })
@@ -45,14 +44,12 @@ test('wish to questions, requirements, workflow and confirmed contract, survivin
 	await page.getByTestId('chip-requirements').click();
 
 	// Screen 3: requirements
-	await page.getByTestId('write-requirements').click();
 	await expect(page.getByTestId('step-requirements')).toContainText('FR-001');
 	await page.reload();
 	await expect(page.getByTestId('step-requirements')).toContainText('FR-001');
 
 	// Screen 4: workflow, then screen 8: review and confirm
 	await page.getByTestId('requirements-continue').click();
-	await page.getByTestId('generate').click();
 	const diagram = page.getByTestId('diagram');
 	await expect(diagram.getByText('Order a meal')).toBeVisible();
 	await expect(diagram.getByText('Prepare the meal')).toBeVisible();
@@ -123,7 +120,6 @@ test('wish to questions, requirements, workflow and confirmed contract, survivin
 	await page.reload();
 	await expect(page.getByTestId('wish-text')).toContainText('weekly menu');
 	await page.getByTestId('wish-continue').click();
-	await page.getByTestId('ask').click();
 	await expect(page.getByTestId('question-1')).toContainText('How do students pay?');
 });
 

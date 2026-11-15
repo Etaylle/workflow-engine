@@ -11,6 +11,7 @@
 		startRun,
 		startRunPreview,
 		stopRunPreview,
+		updateProject,
 		type Preview,
 		type Project,
 		type Run,
@@ -78,6 +79,11 @@
 				})
 			: null
 	);
+
+	async function chooseBuilder(id: string) {
+		await updateProject(project.id, { agentHarness: id });
+		await changed();
+	}
 
 	async function loadBuilders() {
 		builders = await getBuilders();
@@ -228,9 +234,19 @@
 	{back}
 	reason={blockReason}
 >
+	<p class="hint" data-testid="run-build-mode">
+		{locale.t('run.buildModeLine', {
+			mode: locale.t(`buildMode.${project.buildMode ?? 'auto'}Short`)
+		})}
+	</p>
 	{#if loading.error}<p role="alert">{loading.error}</p>{/if}
 	{#if builders && canStart(project.status, run) && !run}
-		<BuildWith {project} {builders} update={(fresh) => (builders = fresh)} {changed} />
+		<BuildWith
+			harness={project.agentHarness}
+			{builders}
+			update={(fresh) => (builders = fresh)}
+			choose={chooseBuilder}
+		/>
 	{/if}
 	{#if starting.error}
 		<p role="alert" data-testid="run-error">
@@ -403,7 +419,12 @@
 	{/if}
 
 	{#if builders && run && canStart(project.status, run)}
-		<BuildWith {project} {builders} update={(fresh) => (builders = fresh)} {changed} />
+		<BuildWith
+			harness={project.agentHarness}
+			{builders}
+			update={(fresh) => (builders = fresh)}
+			choose={chooseBuilder}
+		/>
 	{/if}
 
 	{#if run && canDownload(run) && canStart(project.status, run)}

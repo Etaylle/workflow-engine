@@ -6,6 +6,10 @@
 		type StepProfile,
 		type ProjectSettings
 	} from '#lib/api/client.js';
+	import { getBuilders, type Builders } from '#lib/api/execution.js';
+	import { engineKey } from '#lib/ai/key.svelte.js';
+	import { effectiveBuildMode } from '#lib/planning/buildMode.js';
+	import type { MessageKey } from '#lib/i18n/i18n.js';
 	import TemplatePicker from './TemplatePicker.svelte';
 	import { locale } from '#lib/i18n/state.svelte.js';
 	import { profileSummary } from '#lib/settings/steps.js';
@@ -26,9 +30,29 @@
 		);
 	});
 
-	const harness = $derived(
-		project.agentHarness === 'claude_code' ? 'Claude Code' : project.agentHarness
+	let builders = $state<Builders | null>(null);
+	$effect(() => {
+		void getBuilders().then((fresh) => (builders = fresh));
+	});
+
+	const builder = $derived(builders?.builders.find((b) => b.id === project.agentHarness) ?? null);
+	const builderName = $derived(locale.t(`build.${project.agentHarness}` as MessageKey));
+	const builderLine = $derived(
+		[
+			builderName,
+			builder?.model,
+			builder?.authMode ? locale.t(`build.auth.${builder.authMode}` as MessageKey) : null
+		]
+			.filter(Boolean)
+			.join(' · ')
 	);
+	const planningName = $derived(
+		engineKey.nameOf(
+			locale.t('key.nameAnthropic'),
+			engineKey.keys?.planning?.provider ?? 'anthropic'
+		)
+	);
+	const mode = $derived(effectiveBuildMode(project.buildMode, facts.software));
 </script>
 
 <div class="card" data-testid="review-summary">
@@ -45,8 +69,12 @@
 		</dd>
 		<dt>{locale.t('review.technology')}</dt>
 		<dd><TemplatePicker {project} /></dd>
-		<dt>{locale.t('review.ai')}</dt>
-		<dd>{harness} · {project.model}</dd>
+		<dt>{locale.t('review.planningAi')}</dt>
+		<dd data-testid="review-planning">{planningName} · {project.model}</dd>
+		<dt>{locale.t('review.builder')}</dt>
+		<dd data-testid="review-builder">{builderLine}</dd>
+		<dt>{locale.t('review.buildMode')}</dt>
+		<dd data-testid="review-build-mode">{locale.t(`buildMode.${mode}Short` as MessageKey)}</dd>
 		<dt>{locale.t('review.requirements')}</dt>
 		<dd>
 			{locale.t('review.requirementsValue', {

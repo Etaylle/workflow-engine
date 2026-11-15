@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { updateProject, type Project } from '#lib/api/client.js';
 	import { getBuilders, setClaudeAuth, type Builder, type Builders } from '#lib/api/execution.js';
 	import { createAction } from '#lib/api/action.svelte.js';
 	import { engineKey } from '#lib/ai/key.svelte.js';
@@ -9,22 +8,22 @@
 
 	/** The two builders as cards: readiness, model, and for each missing item an action. */
 	let {
-		project,
+		harness,
 		builders,
 		update,
-		changed
+		choose: pick
 	}: {
-		project: Project;
+		harness: string;
 		builders: Builders;
 		update: (fresh: Builders | null) => void;
-		changed: () => Promise<void>;
+		choose: (id: Builder['id']) => Promise<void>;
 	} = $props();
 
 	const acting = createAction();
 
 	async function choose(id: Builder['id']) {
-		if (project.agentHarness === id) return;
-		if (await acting.run(() => updateProject(project.id, { agentHarness: id }))) await changed();
+		if (harness === id) return;
+		await acting.run(() => pick(id));
 	}
 
 	async function auth(builder: Builder) {
@@ -46,7 +45,7 @@
 		{#each builderIds as id (id)}
 			{@const builder = builders.builders.find((b) => b.id === id)}
 			{#if builder}
-				{@const chosen = project.agentHarness === id}
+				{@const chosen = harness === id}
 				<div class="option" class:chosen data-testid={`builder-${id}`}>
 					<button
 						type="button"

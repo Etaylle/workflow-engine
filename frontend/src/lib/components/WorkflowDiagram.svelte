@@ -13,6 +13,18 @@
 				locale.t(type === 'software' ? 'workflow.taskSoftware' : 'workflow.taskManual')
 		})
 	);
+
+	/** Width to height of the drawing, so the frame hugs it instead of leaving a black area. */
+	const aspect = $derived.by(() => {
+		const extent = (axis: 'x' | 'y', style: 'width' | 'height', fallback: number) =>
+			Math.max(
+				...flow.nodes.map((n) => {
+					const given = new RegExp(`${style}:\\s*(\\d+)px`).exec(String(n.style ?? ''));
+					return n.position[axis] + (given ? Number(given[1]) : fallback);
+				})
+			);
+		return Math.max(1, extent('x', 'width', 170)) / Math.max(1, extent('y', 'height', 90));
+	});
 </script>
 
 <div
@@ -20,6 +32,7 @@
 	role="group"
 	aria-label={locale.t('workflow.diagramLabel')}
 	data-testid="diagram"
+	style={`aspect-ratio: ${aspect.toFixed(3)}`}
 >
 	{#key workflow.id + ':' + workflow.version}
 		<SvelteFlow
@@ -50,7 +63,8 @@
 
 <style>
 	.diagram {
-		height: clamp(18rem, calc(100vh - 20rem), 34rem);
+		min-height: 14rem;
+		max-height: min(34rem, calc(100vh - 12rem));
 		width: 100%;
 		border: 1px solid var(--line);
 		border-radius: var(--radius);

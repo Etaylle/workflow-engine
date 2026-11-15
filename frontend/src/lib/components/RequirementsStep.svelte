@@ -9,6 +9,9 @@
 	import type { MessageKey } from '#lib/i18n/i18n.js';
 	import { locale } from '#lib/i18n/state.svelte.js';
 	import Waiting from './Waiting.svelte';
+	import AutoStartNote from './AutoStartNote.svelte';
+	import { engineKey } from '#lib/ai/key.svelte.js';
+	import { claimAutoStart, releaseAutoStart, shouldAutoStart } from '#lib/planning/autoStart.js';
 	import ErrorNote from './ErrorNote.svelte';
 	import { rank } from '#lib/planning/steps.js';
 	import { stepHash } from '#lib/shell/route.js';
@@ -33,14 +36,33 @@
 	const editable = $derived(rank(project.status) <= 3);
 
 	async function load() {
-		await loading.run(async () => (requirements = await getRequirements(project.id)));
+		const ok = await loading.run(async () => (requirements = await getRequirements(project.id)));
+		if (ok) didLoad = true;
 	}
+
+	let didLoad = $state(false);
+	const keyMissing = $derived(engineKey.keys !== null && engineKey.keys.planning === null);
+
+	$effect(() => {
+		const go = shouldAutoStart({
+			loaded: didLoad,
+			missingContent: !written,
+			stateAllows: project.status === 'answered',
+			busy: writing.busy || loading.busy,
+			failed: writing.error !== null,
+			keyReady: engineKey.keys === null ? null : engineKey.keys.planning !== null
+		});
+		if (go && claimAutoStart(project.id, 'requirements')) void write();
+	});
 
 	async function write() {
 		const ok = await writing.run(
 			async () => (requirements = await generateRequirements(project.id))
 		);
-		if (ok) await changed();
+		if (ok) {
+			releaseAutoStart(project.id, 'requirements');
+			await changed();
+		}
 	}
 
 	$effect(() => {
@@ -67,7 +89,16 @@
 		</div>
 	{/if}
 	{#if writing.busy}<Waiting what={locale.t('requirements.writing')} />{/if}
-	{#if writing.error}
+	{#if !written}
+		<AutoStartNote
+			error={writing.error}
+			keyIssue={writing.keyIssue}
+			{keyMissing}
+			busy={writing.busy}
+			retry={() => void write()}
+			testid="requirements-error"
+		/>
+	{:else if writing.error}
 		<ErrorNote message={writing.error} keyIssue={writing.keyIssue} testid="requirements-error" />
 	{/if}
 
@@ -114,16 +145,11 @@
 				href={stepHash(project.id, 'workflow')}
 				data-testid="requirements-continue"
 			>
-				{locale.t('step.continueWorkflow')}
+				{locale.t('step.looksGood')}
 			</a>
 		{:else}
-			<button
-				class="primary"
-				onclick={write}
-				disabled={writing.busy || loading.busy}
-				data-testid="write-requirements"
-			>
-				{writing.busy ? locale.t('requirements.writing') : locale.t('requirements.write')}
+			<button class="primary" disabled data-testid="requirements-continue">
+				{locale.t('step.looksGood')}
 			</button>
 		{/if}
 	{/snippet}

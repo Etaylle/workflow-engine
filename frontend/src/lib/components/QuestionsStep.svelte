@@ -35,6 +35,9 @@
 	} from '#lib/planning/questionEditor.js';
 	import QuestionEditor from './QuestionEditor.svelte';
 	import Waiting from './Waiting.svelte';
+	import AutoStartNote from './AutoStartNote.svelte';
+	import { engineKey } from '#lib/ai/key.svelte.js';
+	import { claimAutoStart, releaseAutoStart, shouldAutoStart } from '#lib/planning/autoStart.js';
 	import ErrorNote from './ErrorNote.svelte';
 
 	let {
@@ -68,6 +71,7 @@
 		await loading.run(async () => {
 			[brief, questions] = await Promise.all([getBrief(project.id), getQuestions(project.id)]);
 			draft = initialDraft(questions);
+			didLoad = true;
 		});
 	}
 
@@ -77,8 +81,26 @@
 			questions = await generateQuestions(project.id);
 			draft = initialDraft(questions);
 		});
-		if (ok) await changed();
+		if (ok) {
+			releaseAutoStart(project.id, 'questions');
+			await changed();
+		}
 	}
+
+	const keyMissing = $derived(engineKey.keys !== null && engineKey.keys.planning === null);
+	let didLoad = $state(false);
+
+	$effect(() => {
+		const go = shouldAutoStart({
+			loaded: didLoad,
+			missingContent: none,
+			stateAllows: project.status === 'draft',
+			busy: asking.busy || loading.busy,
+			failed: asking.error !== null,
+			keyReady: engineKey.keys === null ? null : engineKey.keys.planning !== null
+		});
+		if (go && claimAutoStart(project.id, 'questions')) void ask();
+	});
 
 	/** Takes the list the server returned; answers typed for untouched questions are kept. */
 	function adopt(next: Question[], touched: string | null) {
@@ -175,9 +197,14 @@
 			<p>{locale.t(stale ? 'questions.stale' : 'questions.emptyStep')}</p>
 		</div>
 		{#if asking.busy}<Waiting what={locale.t('questions.asking')} />{/if}
-		{#if asking.error}
-			<ErrorNote message={asking.error} keyIssue={asking.keyIssue} testid="ask-error" />
-		{/if}
+		<AutoStartNote
+			error={asking.error}
+			keyIssue={asking.keyIssue}
+			{keyMissing}
+			busy={asking.busy}
+			retry={() => void ask()}
+			testid="ask-error"
+		/>
 	{:else}
 		<p class="sub">{locale.t(open ? 'questions.intro' : 'questions.done')}</p>
 		<form
@@ -288,6 +315,7 @@
 			{/if}
 			{#if asking.busy}<Waiting what={locale.t('questions.asking')} />{/if}
 			{#if asking.error}<ErrorNote message={asking.error} keyIssue={asking.keyIssue} />{/if}
+
 			{#if saving.error}<p role="alert" data-testid="save-error">{saving.error}</p>{/if}
 		</form>
 		{#if editing}
@@ -302,7 +330,11 @@
 	{/if}
 
 	{#snippet primary()}
-		{#if none}
+		{#if none && project.status === 'draft'}
+			<button class="primary" disabled data-testid="save-answers">
+				{locale.t('questions.save')}
+			</button>
+		{:else if none}
 			<button
 				class="primary"
 				onclick={ask}

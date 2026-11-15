@@ -1,8 +1,9 @@
 <script lang="ts">
-	import { ApiError, checkAiConnection, createProject, type Project } from '#lib/api/client.js';
+	import { createProject, updateProject, type Project } from '#lib/api/client.js';
 	import { describeError } from '#lib/api/problem.js';
+	import { getBuilders, type Builders } from '#lib/api/execution.js';
 	import { engineKey } from '#lib/ai/key.svelte.js';
-	import { describeKey } from '#lib/ai/keyState.js';
+	import BuildWith from '#lib/components/BuildWith.svelte';
 	import { locale } from '#lib/i18n/state.svelte.js';
 
 	const MAX_WISH = 4000;
@@ -11,29 +12,21 @@
 
 	let name = $state('');
 	let wish = $state('');
-	let apiKey = $state('');
+	let harness = $state('claude_code');
+	let builders = $state<Builders | null>(null);
 	let busy = $state(false);
 	let error = $state<string | null>(null);
 	let wishError = $state<string | null>(null);
 	let wishField = $state<HTMLTextAreaElement>();
-	const held = $derived(
-		describeKey(engineKey.keys, (p) => engineKey.nameOf(locale.t('key.nameAnthropic'), p))
-	);
-	let keyCheck = $state<{ state: 'idle' | 'busy' | 'ok' | 'failed'; detail: string }>({
-		state: 'idle',
-		detail: ''
+	const planning = $derived(engineKey.keys?.planning ?? null);
+
+	$effect(() => {
+		void engineKey.refresh();
+		void getBuilders().then((fresh) => (builders = fresh));
 	});
 
-	async function testKey() {
-		keyCheck = { state: 'busy', detail: '' };
-		try {
-			await checkAiConnection({ provider: 'anthropic', apiKey });
-			keyCheck = { state: 'ok', detail: '' };
-			void engineKey.refresh();
-		} catch (e) {
-			const detail = e instanceof ApiError ? e.message : locale.t('ai.unreachable');
-			keyCheck = { state: 'failed', detail };
-		}
+	async function chooseBuilder(id: string) {
+		harness = id;
 	}
 
 	async function submit(event: SubmitEvent) {
@@ -47,8 +40,10 @@
 		error = null;
 		wishError = null;
 		try {
-			const project = await createProject(wish, apiKey, name);
-			void engineKey.refresh();
+			let project = await createProject(wish, '', name);
+			if (harness !== project.agentHarness) {
+				project = await updateProject(project.id, { agentHarness: harness });
+			}
 			created(project);
 		} catch (e) {
 			const { key, params } = describeError(e);
@@ -98,40 +93,25 @@
 
 		<aside class="card">
 			<h2>{locale.t('wish.aiHeading')}</h2>
-			<p class="field-title">{locale.t('wish.agent')}</p>
-			<div class="agent selected">
-				<strong>{locale.t('wish.claudeCode')}</strong>
-				<div class="lead">{locale.t('wish.claudeCodeNote')}</div>
-			</div>
-			{#if engineKey.anySet}
-				<p class="ok" role="status" data-testid="key-held">
-					{locale.t('key.setHere', { state: locale.t(held.key, held.params) })}
-				</p>
-			{/if}
-			<label class="keylabel">
-				{locale.t('wish.keyLabel')}
-				<span class="keyrow">
-					<input type="password" autocomplete="off" bind:value={apiKey} data-testid="project-key" />
-					<button
-						type="button"
-						onclick={testKey}
-						disabled={apiKey === '' || keyCheck.state === 'busy'}
-						data-testid="test-key"
-					>
-						{locale.t('wish.test')}
-					</button>
-				</span>
-			</label>
-			{#if keyCheck.state === 'ok'}
-				<p class="ok" role="status" data-testid="key-result">{locale.t('wish.keyWorks')}</p>
-			{:else if keyCheck.state === 'failed'}
-				<p role="alert" data-testid="key-result">
-					{locale.t('ai.failed', { detail: keyCheck.detail })}
-				</p>
-			{/if}
-			<p class="hint">{locale.t('wish.keyNote')}</p>
+			<p class={planning ? 'planning' : 'planning warn'} data-testid="planning-line">
+				{#if planning}
+					{locale.t('wish.planningLine', {
+						name: engineKey.nameOf(locale.t('key.nameAnthropic'), planning.provider),
+						model: planning.model
+					})}
+				{:else}
+					{locale.t('wish.planningNone')}
+				{/if}
+			</p>
+			<button type="button" onclick={() => engineKey.openPanel()} data-testid="open-key-panel">
+				{locale.t('wish.openKeyPanel')}
+			</button>
 		</aside>
 	</div>
+
+	{#if builders}
+		<BuildWith {harness} {builders} update={(fresh) => (builders = fresh)} choose={chooseBuilder} />
+	{/if}
 
 	{#if error}<p role="alert">{error}</p>{/if}
 	<footer>
@@ -154,29 +134,11 @@
 			grid-template-columns: minmax(0, 1fr);
 		}
 	}
-	.field-title {
-		font-weight: 600;
-		margin: 0 0 var(--space-2);
+	.planning {
+		margin: 0 0 var(--space-3);
 	}
-	.agent {
-		border: 2px solid var(--line);
-		border-radius: var(--radius-sm);
-		padding: var(--space-3) var(--space-4);
-		margin-bottom: var(--space-4);
-	}
-	.agent.selected {
-		border-color: var(--blue);
-		background: var(--blue-soft);
-	}
-	.agent .lead {
-		margin: 0;
-	}
-	.keyrow {
-		display: flex;
-		gap: var(--space-2);
-	}
-	.ok {
-		color: var(--green-ink);
+	.warn {
+		color: var(--red-ink, inherit);
 	}
 	footer {
 		display: flex;

@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { setPlanningKey } from './helpers.js';
 
 test('status, language switch and key test with the stub', async ({ page }) => {
 	await page.goto('/');
@@ -11,13 +12,11 @@ test('status, language switch and key test with the stub', async ({ page }) => {
 
 	await page.getByTestId('new-project').click();
 	await expect(page.getByRole('heading', { name: 'Describe your idea' })).toBeVisible();
-	await page.getByTestId('project-key').fill('bad');
-	await page.getByTestId('test-key').click();
-	await expect(page.getByTestId('key-result')).toContainText('Check failed');
-
-	await page.getByTestId('project-key').fill('sk-any');
-	await page.getByTestId('test-key').click();
-	await expect(page.getByTestId('key-result')).toContainText('Key works');
+	await expect(page.getByTestId('planning-line')).toBeVisible();
+	await page.getByTestId('open-key-panel').click();
+	await expect(page.getByTestId('key-panel')).toBeVisible();
+	await page.keyboard.press('Escape');
+	await expect(page.getByTestId('key-panel')).toHaveCount(0);
 });
 
 test('rename and delete a project from the list', async ({ page }) => {
@@ -53,28 +52,27 @@ test('rename and delete a project from the list', async ({ page }) => {
 test('the key is changed from the header on a later step and the action is retried', async ({
 	page
 }) => {
+	await setPlanningKey(page, 'sk-first-key-0001');
 	await page.goto('/#new');
 	await expect(page.getByTestId('demo-badge')).toContainText('Demo mode');
-	await page.getByTestId('wish').fill('A key journey app');
-	await page.getByTestId('project-key').fill('sk-first-key-0001');
-	await page.getByTestId('create').click();
 	await expect(page.getByTestId('key-button')).toContainText('Claude (…0001)');
 
-	// the key is removed in the header: the next AI action says why it fails
+	// the key is removed in the header: the new project cannot write its questions and says why
 	await page.getByTestId('key-button').click();
 	await page.getByTestId('key-remove').click();
 	await expect(page.getByTestId('key-button')).toContainText('No key');
 	await page.getByTestId('key-close').click();
-	await page.getByTestId('ask').click();
-	await expect(page.getByTestId('ask-error')).toContainText('No AI key');
+	await page.getByTestId('wish').fill('A key journey app');
+	await page.getByTestId('create').click();
+	await expect(page.getByTestId('no-planning-key')).toBeVisible();
+	await expect(page.getByTestId('save-answers')).toBeDisabled();
 
-	// the error offers the key panel; saving a new key lets the same button work
+	// the note offers the key panel; saving a new key starts the step by itself
 	await page.getByTestId('open-key-panel').click();
 	await page.getByTestId('key-input').fill('sk-second-key-0002');
 	await page.getByTestId('key-save').click();
 	await expect(page.getByTestId('key-button')).toContainText('Claude (…0002)');
 	await page.getByTestId('key-close').click();
-	await page.getByTestId('ask').click();
 	await expect(page.getByTestId('question-1')).toBeVisible();
 
 	// Test checks a key with the AI; the stub rejects "bad"; a failed check keeps the saved key

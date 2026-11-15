@@ -17,6 +17,9 @@
 	import WorkflowEditor from './WorkflowEditor.svelte';
 	import Waiting from './Waiting.svelte';
 	import ErrorNote from './ErrorNote.svelte';
+	import AutoStartNote from './AutoStartNote.svelte';
+	import { engineKey } from '#lib/ai/key.svelte.js';
+	import { claimAutoStart, releaseAutoStart, shouldAutoStart } from '#lib/planning/autoStart.js';
 	import { isKeyProblem } from '#lib/ai/keyState.js';
 
 	import { stepHash } from '#lib/shell/route.js';
@@ -47,6 +50,22 @@
 	let error = $state<string | null>(null);
 	let keyIssue = $state(false);
 	let editing = $state(false);
+	let didLoad = $state(false);
+	const keyMissing = $derived(engineKey.keys !== null && engineKey.keys.planning === null);
+
+	$effect(() => {
+		const go = shouldAutoStart({
+			loaded: didLoad,
+			missingContent: workflow === null,
+			stateAllows: step === 'workflow' && project.status === 'requirements_ready',
+			busy: busy !== 'idle',
+			failed: error !== null,
+			keyReady: engineKey.keys === null ? null : engineKey.keys.planning !== null
+		});
+		if (go && claimAutoStart(project.id, 'workflow')) {
+			void run('generating', () => generateWorkflow(project.id));
+		}
+	});
 
 	async function load() {
 		busy = 'loading';
@@ -55,6 +74,7 @@
 				getWorkflow(project.id),
 				listContracts(project.id)
 			]);
+			didLoad = true;
 		} catch (e) {
 			fail(e);
 		} finally {
@@ -73,6 +93,7 @@
 		error = null;
 		try {
 			await action();
+			releaseAutoStart(project.id, 'workflow');
 			await load();
 			await changed();
 		} catch (e) {
@@ -115,7 +136,18 @@
 	{/if}
 	{#if busy === 'generating'}<Waiting what={locale.t('workflow.generating')} />{/if}
 	{#if busy === 'confirming'}<Waiting what={locale.t('workflow.confirming')} />{/if}
-	{#if error}<ErrorNote message={error} {keyIssue} testid="workflow-error" />{/if}
+	{#if !workflow}
+		<AutoStartNote
+			{error}
+			{keyIssue}
+			{keyMissing}
+			busy={busy !== 'idle'}
+			retry={() => void run('generating', () => generateWorkflow(project.id))}
+			testid="workflow-error"
+		/>
+	{:else if error}
+		<ErrorNote message={error} {keyIssue} testid="workflow-error" />
+	{/if}
 
 	{#if workflow}
 		<WorkflowDiagram {workflow} />
@@ -179,15 +211,8 @@
 
 	{#snippet primary()}
 		{#if !workflow}
-			<button
-				class="primary"
-				onclick={() => run('generating', () => generateWorkflow(project.id))}
-				disabled={busy !== 'idle'}
-				data-testid="generate"
-			>
-				{busy === 'generating'
-					? locale.t('workflow.generating.short')
-					: locale.t('workflow.generate')}
+			<button class="primary" disabled data-testid="workflow-continue">
+				{locale.t('step.looksGood')}
 			</button>
 		{:else if !reviewing}
 			<a
@@ -195,7 +220,7 @@
 				href={stepHash(project.id, 'review')}
 				data-testid="workflow-continue"
 			>
-				{locale.t('step.continueReview')}
+				{locale.t('step.looksGood')}
 			</a>
 		{:else if workflow.status === 'valid'}
 			<button
