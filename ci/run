@@ -90,7 +90,9 @@ start_engine() {
 	# Run a copy of the jar: a later build must never change the file of a running engine.
 	cp "$(jar_path)" "$RUN_DIR/$name.jar"
 	env ENGINE_PORT="$port" ENGINE_DB_URL="$(db_url "$db")" ENGINE_GEMINI_CMD="$gemini_cmd" \
-		ENGINE_EXECUTION_TEMPLATES_DIR="$ROOT/templates" "$@" \
+		ENGINE_EXECUTION_TEMPLATES_DIR="$ROOT/templates" \
+		ENGINE_EXECUTION_BROWSER_SCRIPT="$ROOT/tools/use-check/browser.cjs" \
+		ENGINE_EXECUTION_BROWSER_NODE_PATH="$ROOT/frontend/node_modules" "$@" \
 		nohup "$(java_bin)" -jar "$RUN_DIR/$name.jar" >"$RUN_DIR/$name.log" 2>&1 &
 	echo $! >"$RUN_DIR/$name.pid"
 	wait_for "http://localhost:$port/api/status"

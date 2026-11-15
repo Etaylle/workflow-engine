@@ -1,0 +1,7 @@
+{
+  "id": "free",
+  "name": "AI chooses the technology",
+  "kind": "any",
+  "description": "An almost empty project: the builder picks the simplest technology that fits the wish and writes start.sh, check.sh and the README itself.",
+  "needsDatabase": false
+}

@@ -52,12 +52,12 @@ class BriefIT {
     }
 
     @Test
-    void aWebBriefGivesTheLightWebTemplateAndAnExplicitChoiceSurvivesANewBrief() throws Exception {
+    void aBriefLeavesTheTechnologyToTheBuilderAndAnExplicitChoiceSurvivesANewBrief() throws Exception {
         UUID id = http.createProject("Make a browser game with a ferret");
         writer.queue.add(new Brief("A ferret game", List.of("Player"), List.of("Ferret"), List.of(), "web"));
         http.call("POST", "/api/projects/" + id + "/brief", null);
         assertThat(http.json("GET", "/api/projects/" + id, null).get("templateId").asString())
-                .isEqualTo("sveltekit-sqlite");
+                .isEqualTo("free");
 
         http.call("PATCH", "/api/projects/" + id, "{\"templateId\":\"java-svelte-postgres\"}");
         writer.queue.add(new Brief("A ferret game", List.of("Player"), List.of("Ferret"), List.of(), "console"));
@@ -67,17 +67,17 @@ class BriefIT {
     }
 
     @Test
-    void aConsoleBriefProposesTheConsoleTemplateAndTheClientCanChangeIt() throws Exception {
+    void aConsoleBriefKeepsTheFreeTemplateAndTheClientCanChangeIt() throws Exception {
         UUID id = http.createProject("Make an app that opens a console and shows a duck");
         assertThat(http.json("GET", "/api/projects/" + id, null).get("templateId").asString())
-                .isEqualTo("sveltekit-sqlite");
+                .isEqualTo("free");
         writer.queue.add(new Brief("Show a duck in the console", List.of("User"), List.of("Duck"),
                 List.of(), "console"));
 
         http.call("POST", "/api/projects/" + id + "/brief", null);
 
         assertThat(http.json("GET", "/api/projects/" + id, null).get("templateId").asString())
-                .isEqualTo("node-console");
+                .isEqualTo("free");
         assertThat(http.json("PATCH", "/api/projects/" + id, "{\"templateId\":\"java-svelte-postgres\"}")
                 .get("templateId").asString()).isEqualTo("java-svelte-postgres");
         assertThat(http.call("PATCH", "/api/projects/" + id, "{\"templateId\":\"cobol\"}").statusCode())

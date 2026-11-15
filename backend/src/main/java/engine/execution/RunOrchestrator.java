@@ -43,6 +43,7 @@ class RunOrchestrator {
     private final ProjectPort projects;
     private final JdbcClient jdbc;
     private final TemplateCatalog templates;
+    private final UseCheck useCheck;
     private final String dbUrl;
     private final String dbUser;
     private final String dbPassword;
@@ -55,7 +56,8 @@ class RunOrchestrator {
     });
 
     RunOrchestrator(RunStore store, RunEvents events, Builders builders, ExecutionSettings settings,
-            ProjectPort projects, JdbcClient jdbc, TemplateCatalog templates, @Value("${spring.datasource.url}") String dbUrl,
+            ProjectPort projects, JdbcClient jdbc, TemplateCatalog templates, UseCheck useCheck,
+            @Value("${spring.datasource.url}") String dbUrl,
             @Value("${spring.datasource.username:}") String dbUser,
             @Value("${spring.datasource.password:}") String dbPassword) {
         this.store = store;
@@ -65,6 +67,7 @@ class RunOrchestrator {
         this.projects = projects;
         this.jdbc = jdbc;
         this.templates = templates;
+        this.useCheck = useCheck;
         this.dbUrl = dbUrl;
         this.dbUser = dbUser;
         this.dbPassword = dbPassword;
@@ -200,9 +203,24 @@ class RunOrchestrator {
     private record Ctx(RunStore.RunRow run, Template template, Workspace workspace, Path logDir, Map<String, String> appEnv) {
     }
 
-    /** The result of one attempt at a step: passed with a summary, or failed with what went wrong. */
-    private record Attempt(boolean passed, boolean limited, String text) {
+    /**
+     * The result of one attempt at a step: passed with a summary, or failed with what went wrong.
+     * A failure the builder cannot fix by itself (a tool the owner must install) asks the client.
+     */
+    private record Attempt(boolean passed, boolean limited, boolean ask, String text) {
+
+        static Attempt passed(String summary) {
+            return new Attempt(true, false, false, summary);
+        }
+
+        static Attempt failed(String text) {
+            return new Attempt(false, false, false, text);
+        }
     }
+
+    /** The file in which the builder says what the owner must install on the machine. */
+    static final String NEEDS_FILE = "NEEDS.md";
+    private static final int NEEDS_LENGTH = 1500;
 
     private boolean buildTask(Ctx ctx, String contract, List<RunStore.TaskRow> tasks, int index) {
         RunStore.TaskRow task = tasks.get(index);
@@ -256,6 +274,9 @@ class RunOrchestrator {
             if (result.passed()) {
                 return completeStep(ctx, row, def, taskNo, result.text());
             }
+            if (result.ask()) {
+                return askClient(ctx.run(), task, row, result.text(), result.text());
+            }
             if (result.limited()) {
                 if (!waitForTokens(ctx, task, row, result.text(), ++waits)) {
                     return false;
@@ -267,7 +288,8 @@ class RunOrchestrator {
             events.publish(runId, "console", "Attempt " + attempt + " failed: " + failure);
             attempt++;
         }
-        return askClient(ctx.run(), task, row, def.title(), attempts, failure);
+        return askClient(ctx.run(), task, row, def.title() + " could not be fixed after " + attempts
+                + " attempts. What should the engine do? Last failure: " + failure, failure);
     }
 
     /** The prompt of a step may name the task as {task}. */
@@ -370,29 +392,50 @@ class RunOrchestrator {
         events.publish(runId, "console", def.title() + ": " + outcome.summary() + " (USD "
                 + outcome.costUsd().setScale(2, java.math.RoundingMode.HALF_UP) + ", "
                 + outcome.turns() + " turns)");
-        if (!outcome.ok()) {
-            return new Attempt(false, outcome.limited(), def.title() + " failed: " + outcome.summary());
+        String needs = BuilderSupport.read(ctx.workspace().dir().resolve(NEEDS_FILE)).strip();
+        if (!needs.isEmpty()) {
+            return new Attempt(false, false, true, "The builder needs something installed on this machine"
+                    + " before it can continue. Install it and answer Retry, or stop the run. It says: "
+                    + (needs.length() > NEEDS_LENGTH ? needs.substring(0, NEEDS_LENGTH) + "..." : needs));
         }
-        if (def.gated()) {
-            GateResult gate = builder.gate(ctx.workspace().dir(), ctx.appEnv(), ctx.logDir(),
-                    line -> events.publish(runId, "console", line));
-            if (!gate.passed()) {
-                String text = "The check after " + def.title() + " did not pass:\n"
-                        + String.join("\n", gate.tail());
+        if (!outcome.ok()) {
+            return new Attempt(false, outcome.limited(), false, def.title() + " failed: " + outcome.summary());
+        }
+        return def.gated() ? gates(ctx, def, builder, call, outcome.summary())
+                : Attempt.passed(outcome.summary());
+    }
+
+    /** The gates of a step: ./check.sh must pass, then the software must work when it is used. */
+    private Attempt gates(Ctx ctx, Step def, Builder builder, UUID call, String summary) {
+        UUID runId = ctx.run().id();
+        GateResult gate = builder.gate(ctx.workspace().dir(), ctx.appEnv(), ctx.logDir(),
+                line -> events.publish(runId, "console", line));
+        if (!gate.passed()) {
+            String text = "The check after " + def.title() + " did not pass:\n"
+                    + String.join("\n", gate.tail());
+            store.markCheckFailed(call, text);
+            return Attempt.failed(text);
+        }
+        if (useCheck.enabled() && !builders.demo()) {
+            UseCheck.Result use = useCheck.run(ctx.template(), ctx.workspace().dir(), ctx.appEnv(),
+                    ctx.logDir(), () -> stopped(runId), line -> events.publish(runId, "console", line));
+            if (!use.passed() && !stopped(runId)) {
+                String text = "./check.sh passed after " + def.title() + ", but the software does not"
+                        + " work when it is started and used the way a client would:\n"
+                        + String.join("\n", use.lines())
+                        + "\nMake it work for a real user, and add a test that would have caught this.";
                 store.markCheckFailed(call, text);
-                return new Attempt(false, false, text);
+                return Attempt.failed(text);
             }
         }
-        return new Attempt(true, false, outcome.summary());
+        return Attempt.passed(summary);
     }
 
     /** Not fixable after the attempts: the run waits with one question for the client. */
     private boolean askClient(RunStore.RunRow run, RunStore.TaskRow task, RunStore.StepRow step,
-            String stepTitle, int attempts, String failure) {
+            String question, String failure) {
         store.setStep(step.id(), "failed", failure);
         store.setTask(task.id(), "failed");
-        String question = stepTitle + " could not be fixed after " + attempts + " attempts. "
-                + "What should the engine do? Last failure: " + failure;
         store.addQuestion(run.id(), step.id(), question);
         store.setWaiting(run.id(), "question", question);
         events.publish(run.id(), "run", "waiting: question for the client");

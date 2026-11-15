@@ -1,7 +1,7 @@
 import type { Template } from '#lib/api/client.js';
 
-/** The order of the choices on the review step: console first, then the lighter web app, then the heavy one. */
-const ORDER = ['node-console', 'sveltekit-sqlite', 'java-svelte-postgres'];
+/** The order of the choices on the review step: the free choice first, then the prepared templates from light to heavy. */
+const ORDER = ['free', 'node-console', 'sveltekit-sqlite', 'java-svelte-postgres'];
 
 /** The templates the engine offers, in the order of the review step; unknown ids come last. */
 export function templateOptions(templates: Template[]): Template[] {

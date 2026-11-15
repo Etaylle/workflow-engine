@@ -38,6 +38,11 @@ tasks.withType<JavaCompile> {
     options.compilerArgs.addAll(listOf("-Xlint:all,-processing", "-Werror"))
 }
 
+// Starting and using generated software belongs to real runs; a test that wants it turns it on.
+tasks.withType<Test> {
+    systemProperty("engine.execution.use-check", "false")
+}
+
 tasks.test {
     description = "Unit and architecture tests; no database needed."
     useJUnitPlatform { excludeTags("integration") }

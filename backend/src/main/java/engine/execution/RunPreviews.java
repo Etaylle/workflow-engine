@@ -163,7 +163,7 @@ class RunPreviews {
             Template template = templates.require(store.row(runId).orElseThrow().templateId());
             copyCheckpoint(workspace, template, session.checkpoint, dir);
             database = template.needsDatabase() ? createDatabase(runId) : null;
-            Integer port = template.isConsole() ? null : freePort();
+            Integer port = Template.CONSOLE.equals(template.kindIn(dir)) ? null : freePort();
             session.port = port;
             process = launch(dir, log, port, database);
             watch(session, process, log, port);
@@ -333,7 +333,7 @@ class RunPreviews {
     }
 
     /** Asks the process tree to end, then forces it after a few seconds. */
-    private static void kill(Process process) {
+    static void kill(Process process) {
         List<ProcessHandle> tree = Stream.concat(process.descendants(), Stream.of(process.toHandle()))
                 .toList();
         tree.forEach(ProcessHandle::destroy);
@@ -349,7 +349,7 @@ class RunPreviews {
         }
     }
 
-    private static int freePort() {
+    static int freePort() {
         try (ServerSocket socket = new ServerSocket(0)) {
             return socket.getLocalPort();
         } catch (IOException e) {
@@ -357,7 +357,7 @@ class RunPreviews {
         }
     }
 
-    private static boolean answers(int port) {
+    static boolean answers(int port) {
         try (Socket socket = new Socket()) {
             socket.connect(new InetSocketAddress("127.0.0.1", port), 500);
             return true;

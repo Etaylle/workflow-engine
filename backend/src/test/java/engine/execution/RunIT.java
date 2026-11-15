@@ -61,6 +61,8 @@ class RunIT {
         /** Step key to the number of invocations that still answer "rate limit" before it works. */
         final Map<String, Integer> limitTimes = new HashMap<>();
         volatile int failGateTimes;
+        /** Step key at which the builder says once that the owner must install something. */
+        volatile String needsAtStep;
         final List<StepRequest> requests = new CopyOnWriteArrayList<>();
         volatile CountDownLatch hold;
         volatile CountDownLatch entered = new CountDownLatch(1);
@@ -72,6 +74,7 @@ class RunIT {
             failStepTimes.clear();
             limitTimes.clear();
             failGateTimes = 0;
+            needsAtStep = null;
             requests.clear();
             hold = null;
             entered = new CountDownLatch(1);
@@ -98,6 +101,15 @@ class RunIT {
                     || failStepTimes.merge(request.stepKey(), -1, Integer::sum) >= 0) {
                 return new StepOutcome(false, new BigDecimal("0.25"), 2, 1, "error_max_turns",
                         "ran out of turns");
+            }
+            if (request.stepKey().equals(needsAtStep)) {
+                needsAtStep = null;
+                try {
+                    java.nio.file.Files.writeString(request.workspace().resolve(RunOrchestrator.NEEDS_FILE),
+                            "Go 1.23 is needed for the scheduler. Install: brew install go");
+                } catch (java.io.IOException e) {
+                    throw new java.io.UncheckedIOException(e);
+                }
             }
             return new StubBuilder().run(request);
         }
@@ -364,6 +376,28 @@ class RunIT {
     }
 
     @Test
+    void aToolTheOwnerMustInstallAsksTheClientAtOnceAndRetryContinues() throws Exception {
+        UUID project = confirmedProject();
+        builder.needsAtStep = "build";
+        JsonNode waiting = awaitEnd(http.json("POST", "/api/projects/" + project + "/runs", null)
+                .get("id").asString());
+        String id = waiting.get("id").asString();
+
+        assertThat(waiting.get("status").asString()).isEqualTo("waiting");
+        assertThat(waiting.get("question").get("text").asString())
+                .contains("needs something installed on this machine").contains("brew install go");
+        assertThat(builder.requests.stream().filter(r -> r.stepKey().equals("build")).count())
+                .as("no fix attempts: the builder cannot install it").isEqualTo(1);
+
+        assertThat(answer(id, waiting.get("question").get("id").asString(), "retry", null).statusCode())
+                .isEqualTo(200);
+        JsonNode run = awaitEnd(id);
+
+        assertThat(run.get("status").asString()).isEqualTo("done");
+        assertThat(workspaceOf(run).resolve(RunOrchestrator.NEEDS_FILE)).doesNotExist();
+    }
+
+    @Test
     void theClientAnswersTryAgainWithAHintAndTheRunContinuesFromTheStep() throws Exception {
         UUID project = confirmedProject();
         builder.failSteps.add("build");
@@ -483,7 +517,7 @@ class RunIT {
             }
         }
         assertThat(names).contains("CONTRACT.md", "check.sh", "CLAUDE.md", "docs/task-1/STUB-plan.md",
-                "docs/task-2/STUB-check.md", "package.json");
+                "docs/task-2/STUB-check.md", "start.sh", "app.json");
         assertThat(names).noneMatch(n -> n.startsWith(".git/") || n.contains("node_modules"));
         assertThat(names).containsOnlyOnce("RUN-REPORT.md");
     }

@@ -10,14 +10,15 @@ const t = (id: string, kind: 'console' | 'web' = 'web'): Template => ({
 });
 
 describe('templateOptions', () => {
-	it('puts the console program first and the heavy web app last', () => {
+	it('puts the free choice first and the heavy web app last', () => {
 		const ids = templateOptions([
 			t('java-svelte-postgres'),
+			t('free'),
 			t('sveltekit-sqlite'),
 			t('node-console', 'console')
 		]).map((x) => x.id);
 
-		expect(ids).toEqual(['node-console', 'sveltekit-sqlite', 'java-svelte-postgres']);
+		expect(ids).toEqual(['free', 'node-console', 'sveltekit-sqlite', 'java-svelte-postgres']);
 	});
 
 	it('keeps an unknown template after the known ones, sorted by id', () => {

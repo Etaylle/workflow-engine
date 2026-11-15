@@ -395,6 +395,7 @@
 	"preview.start": "Preview",
 	"preview.starting": "Starting...",
 	"preview.hint": "Tries the app from the last finished step in its own database. The builder is not disturbed.",
+	"template.free": "AI chooses the technology (recommended)",
 	"template.node-console": "Console program",
 	"template.sveltekit-sqlite": "Web app (SvelteKit + SQLite)",
 	"template.java-svelte-postgres": "Web app (Java + Svelte + PostgreSQL)",

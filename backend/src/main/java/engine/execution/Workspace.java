@@ -61,6 +61,14 @@ final class Workspace {
             + " (controls, inputs, screens); they are part of what is built.";
 
     static String resultRule(Template template) {
+        if (template.isFree()) {
+            return "The result must be what the wish asks for as a whole, started with ./start.sh. You"
+                    + " choose the kind of software and the technology that fit the wish (see the guide"
+                    + " file) and declare the kind in app.json. Store data only where the wish or a"
+                    + " requirement needs it to outlive the session; otherwise keep state in memory, and do"
+                    + " not add a server, a database or network calls that the wish does not need."
+                    + MANUAL_RULE;
+        }
         if (template.isConsole()) {
             return "This is a console program: the result must be what the wish asks for as a whole,"
                     + " visible in the output of ./start.sh. No server, no database, no web page."

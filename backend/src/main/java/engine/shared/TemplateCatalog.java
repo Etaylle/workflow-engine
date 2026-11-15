@@ -54,8 +54,17 @@ public class TemplateCatalog {
                 "Template '" + id + "' is not one of " + list().stream().map(Template::id).toList()));
     }
 
-    /** The default template of a kind of software (console or web). */
+    /** Template in which the builder chooses the technology; the default when it is offered. */
+    public static final String FREE = "free";
+
+    /**
+     * The default template of a kind of software (console or web): the free template when the
+     * engine offers it, otherwise the prepared template of the kind.
+     */
     public String defaultFor(String kind) {
+        if (Files.isRegularFile(root.resolve(FREE).resolve("template.json"))) {
+            return FREE;
+        }
         return Template.CONSOLE.equals(kind) ? DEFAULT_CONSOLE : DEFAULT_WEB;
     }
 
@@ -63,8 +72,8 @@ public class TemplateCatalog {
         try {
             JsonNode node = JSON.readTree(Files.readString(dir.resolve("template.json")));
             String kind = node.path("kind").asString();
-            if (!Template.CONSOLE.equals(kind) && !Template.WEB.equals(kind)) {
-                throw new IllegalStateException("kind must be console or web");
+            if (!List.of(Template.CONSOLE, Template.WEB, Template.ANY).contains(kind)) {
+                throw new IllegalStateException("kind must be console, web or any");
             }
             return new Template(dir.getFileName().toString(), node.path("name").asString(), kind,
                     node.path("description").asString(), node.path("needsDatabase").asBoolean(false), dir);
