@@ -15,7 +15,10 @@
 <article class="page" aria-labelledby="project-heading">
 	<a href="#projects">{locale.t('nav.back')}</a>
 	<h1 id="project-heading">{project.name}</h1>
-	<WishEditor {project} {changed} />
+	<div class="wish card">
+		<h2>{locale.t('questions.yourWish')}</h2>
+		<WishEditor {project} {changed} />
+	</div>
 
 	<QuestionsStep {project} {changed} />
 	{#if rank(project.status) >= 2}
@@ -29,3 +32,18 @@
 	{/if}
 	<DocumentsPanel {project} />
 </article>
+
+<style>
+	.wish h2 {
+		font-size: 0.85rem;
+		text-transform: uppercase;
+		letter-spacing: 0.06em;
+		color: var(--muted);
+		margin-bottom: 0.4rem;
+	}
+	.wish :global(.lead) {
+		color: var(--ink);
+		margin-bottom: 0.9rem;
+		white-space: pre-wrap;
+	}
+</style>

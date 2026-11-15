@@ -26,6 +26,7 @@
 			nodes={flow.nodes}
 			edges={flow.edges}
 			fitView
+			fitViewOptions={{ padding: 0.04, maxZoom: 1.4 }}
 			nodesDraggable={false}
 			nodesConnectable={false}
 			elementsSelectable={false}
@@ -39,8 +40,11 @@
 
 <style>
 	.diagram {
-		height: 28rem;
-		border: 1px solid #ccc;
+		height: clamp(20rem, 50vh, 30rem);
+		width: 100%;
+		border: 1px solid var(--line);
+		border-radius: 10px;
+		background: #fbfaf8;
 	}
 	.diagram :global(.lane-label) {
 		background: rgba(100, 120, 160, 0.08);

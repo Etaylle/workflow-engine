@@ -13,16 +13,21 @@ public class StatusController {
     private final String name;
     private final String buildId;
     private final Clock clock;
+    private final boolean aiStub;
 
     public StatusController(
-            @Value("${spring.application.name}") String name, BuildProperties build, Clock clock) {
+            @Value("${spring.application.name}") String name,
+            BuildProperties build,
+            Clock clock,
+            @Value("${engine.ai.stub:false}") boolean aiStub) {
         this.name = name;
         this.buildId = build.getVersion();
         this.clock = clock;
+        this.aiStub = aiStub;
     }
 
     @GetMapping("/api/status")
     public EngineStatus status() {
-        return new EngineStatus(name, buildId, clock.instant());
+        return new EngineStatus(name, buildId, clock.instant(), aiStub);
     }
 }

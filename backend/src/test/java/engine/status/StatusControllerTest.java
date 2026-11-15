@@ -14,17 +14,18 @@ class StatusControllerTest {
     private static final Instant NOW = Instant.parse("2026-11-14T10:15:30Z");
 
     @Test
-    void reportsNameBuildIdAndUtcTime() {
+    void reportsNameBuildIdUtcTimeAndDemoMode() {
         Properties properties = new Properties();
         properties.setProperty("version", "abc1234");
         StatusController controller =
                 new StatusController(
                         "workflow-engine",
                         new BuildProperties(properties),
-                        Clock.fixed(NOW, ZoneOffset.UTC));
+                        Clock.fixed(NOW, ZoneOffset.UTC),
+                        true);
 
         EngineStatus status = controller.status();
 
-        assertThat(status).isEqualTo(new EngineStatus("workflow-engine", "abc1234", NOW));
+        assertThat(status).isEqualTo(new EngineStatus("workflow-engine", "abc1234", NOW, true));
     }
 }

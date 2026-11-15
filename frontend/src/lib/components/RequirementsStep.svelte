@@ -8,6 +8,8 @@
 	import { createAction } from '#lib/api/action.svelte.js';
 	import type { MessageKey } from '#lib/i18n/i18n.js';
 	import { locale } from '#lib/i18n/state.svelte.js';
+	import Waiting from './Waiting.svelte';
+	import ErrorNote from './ErrorNote.svelte';
 	import { rank } from '#lib/planning/steps.js';
 
 	let { project, changed }: { project: Project; changed: () => void } = $props();
@@ -38,27 +40,91 @@
 	});
 </script>
 
-<section aria-labelledby="requirements-heading" data-testid="step-requirements">
+<section class="step" aria-labelledby="requirements-heading" data-testid="step-requirements">
 	<h2 id="requirements-heading">{locale.t('requirements.heading')}</h2>
+	<p class="sub">{locale.t('step.requirementsLead')}</p>
 	{#if loading.error}<p role="alert">{loading.error}</p>{/if}
-	{#if editable}
-		<button onclick={write} disabled={writing.busy} data-testid="write-requirements">
-			{writing.busy
-				? locale.t('requirements.writing')
-				: locale.t(written ? 'requirements.again' : 'requirements.write')}
-		</button>
-	{/if}
-	{#if writing.error}<p role="alert" data-testid="requirements-error">{writing.error}</p>{/if}
 
-	{#each requirements.epics as epic (epic.key)}
-		<h3>{epic.key} {epic.name}</h3>
-		<ul data-testid="requirements">
-			{#each epic.requirements as requirement (requirement.key)}
-				<li>
-					<strong>{requirement.key}</strong>
-					({locale.t(priorityKey(requirement.priority))}) {requirement.text}
-				</li>
-			{/each}
-		</ul>
-	{/each}
+	{#if !written && editable}
+		<div class="empty">
+			<h3>{locale.t('requirements.emptyTitle')}</h3>
+			<p>{locale.t('requirements.emptyStep')}</p>
+			<button
+				class="primary"
+				onclick={write}
+				disabled={writing.busy}
+				data-testid="write-requirements"
+			>
+				{writing.busy ? locale.t('requirements.writing') : locale.t('requirements.write')}
+			</button>
+		</div>
+	{/if}
+	{#if writing.busy}<Waiting what={locale.t('requirements.writing')} />{/if}
+	{#if writing.error}
+		<ErrorNote message={writing.error} keyIssue={writing.keyIssue} testid="requirements-error" />
+	{/if}
+
+	{#if written}
+		<p class="count">
+			{locale.t('requirements.count', {
+				count: String(requirements.epics.reduce((n, e) => n + e.requirements.length, 0)),
+				epics: String(requirements.epics.length)
+			})}
+		</p>
+		{#each requirements.epics as epic (epic.key)}
+			<h3 class="epic"><span class="badge">{epic.key}</span> {epic.name}</h3>
+			<ul data-testid="requirements">
+				{#each epic.requirements as requirement (requirement.key)}
+					<li>
+						<strong>{requirement.key}</strong>
+						<span class="badge" class:green={requirement.priority === 'must'}>
+							{locale.t(priorityKey(requirement.priority))}
+						</span>
+						<span class="text">{requirement.text}</span>
+					</li>
+				{/each}
+			</ul>
+		{/each}
+		{#if editable}
+			<div class="actions">
+				<button onclick={write} disabled={writing.busy} data-testid="write-requirements">
+					{writing.busy ? locale.t('requirements.writing') : locale.t('requirements.again')}
+				</button>
+			</div>
+		{/if}
+	{/if}
 </section>
+
+<style>
+	.count {
+		color: var(--muted);
+		margin: 0 0 0.5rem;
+	}
+	.epic {
+		font-size: 1.05rem;
+		margin: 1.25rem 0 0.4rem;
+	}
+	ul {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		border: 1px solid var(--line);
+		border-radius: 10px;
+	}
+	li {
+		display: grid;
+		grid-template-columns: 5.5rem auto 1fr;
+		gap: 0.6rem;
+		align-items: baseline;
+		padding: 0.6rem 0.9rem;
+	}
+	li + li {
+		border-top: 1px solid var(--line);
+	}
+	@media (max-width: 40rem) {
+		li {
+			grid-template-columns: 1fr;
+			gap: 0.2rem;
+		}
+	}
+</style>

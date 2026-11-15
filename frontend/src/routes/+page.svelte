@@ -6,6 +6,7 @@
 	import ProjectPanel from '#lib/components/ProjectPanel.svelte';
 	import WishPage from '#lib/components/WishPage.svelte';
 	import { getStatus, listProjects, type EngineStatus, type Project } from '#lib/api/client.js';
+	import { engineKey } from '#lib/ai/key.svelte.js';
 	import { locale } from '#lib/i18n/state.svelte.js';
 	import { parseRoute, type Route } from '#lib/shell/route.js';
 
@@ -41,6 +42,8 @@
 		locale.init();
 		route = parseRoute(location.hash);
 		void reloadProjects();
+		void engineKey.refresh();
+		void engineKey.loadMode();
 		void getStatus().then(
 			(status) => (engine = status),
 			() => (engine = null)

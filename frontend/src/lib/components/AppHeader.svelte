@@ -2,11 +2,15 @@
 	import { LOCALES } from '#lib/i18n/i18n.js';
 	import type { MessageKey } from '#lib/i18n/i18n.js';
 	import { locale } from '#lib/i18n/state.svelte.js';
+	import { describeKey } from '#lib/ai/keyState.js';
+	import { engineKey } from '#lib/ai/key.svelte.js';
+	import KeyPanel from './KeyPanel.svelte';
 	import { activeChip } from '#lib/planning/steps.js';
 
 	let { projectName, status }: { projectName?: string; status?: string } = $props();
 
 	const CHIPS = ['wish', 'questions', 'requirements', 'workflow', 'review'] as const;
+	const described = $derived(describeKey(engineKey.state));
 	const active = $derived(status === undefined ? -1 : activeChip(status));
 </script>
 
@@ -19,13 +23,33 @@
 	{#if status !== undefined}
 		<ol class="chips" data-testid="steps">
 			{#each CHIPS as chip, index (chip)}
-				<li class:current={index === active} aria-current={index === active ? 'step' : undefined}>
-					{index + 1}
+				<li
+					class:current={index === active}
+					class:done={active >= 0 && index < active}
+					aria-current={index === active ? 'step' : undefined}
+				>
+					<span class="num" aria-hidden="true"
+						>{active >= 0 && index < active ? '✓' : index + 1}</span
+					>
 					{locale.t(`nav.${chip}` as MessageKey)}
 				</li>
 			{/each}
 		</ol>
 	{/if}
+	{#if engineKey.demo}
+		<span class="demo" data-testid="demo-badge">{locale.t('app.demo')}</span>
+	{/if}
+	<button
+		type="button"
+		class="keybtn"
+		class:missing={engineKey.state !== null && !engineKey.state.set}
+		aria-expanded={engineKey.panelOpen}
+		onclick={() => (engineKey.panelOpen ? engineKey.closePanel() : engineKey.openPanel())}
+		data-testid="key-button"
+	>
+		{locale.t('key.button')}:
+		{locale.t(described.key, described.params)}
+	</button>
 	<select
 		class="lang"
 		aria-label={locale.t('language.label')}
@@ -37,10 +61,12 @@
 			<option value={code}>{locale.t(`language.${code}` as MessageKey)}</option>
 		{/each}
 	</select>
+	{#if engineKey.panelOpen}<KeyPanel />{/if}
 </header>
 
 <style>
 	.bar {
+		position: relative;
 		display: flex;
 		flex-wrap: wrap;
 		align-items: center;
@@ -82,13 +108,55 @@
 		padding: 0.25rem 0.9rem;
 		color: var(--muted);
 	}
+	.chips li {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.45rem;
+	}
+	.num {
+		font-size: 0.8rem;
+		min-width: 1.4rem;
+		height: 1.4rem;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		border-radius: 50%;
+		background: var(--grey-soft);
+	}
+	.chips li.done {
+		background: var(--green-soft);
+		border-color: #c3e1b6;
+		color: var(--green-ink);
+	}
+	.chips li.done .num {
+		background: #c3e1b6;
+	}
+	.chips li.current .num {
+		background: var(--blue);
+		color: #fff;
+	}
 	.chips li.current {
 		background: var(--blue-soft);
 		border-color: var(--blue);
 		color: #1b4f9f;
 		font-weight: 600;
 	}
-	.lang {
+	.keybtn {
 		margin-left: auto;
+		padding: 0.3rem 0.8rem;
+	}
+	.keybtn.missing {
+		border-color: #e0a15c;
+		background: var(--amber-soft);
+		color: var(--amber-ink);
+	}
+	.demo {
+		background: var(--amber-soft);
+		color: var(--amber-ink);
+		border: 1px solid #f0d3a8;
+		border-radius: 999px;
+		padding: 0.2rem 0.8rem;
+		font-size: 0.85rem;
+		font-weight: 600;
 	}
 </style>

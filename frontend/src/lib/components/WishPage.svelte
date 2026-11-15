@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { ApiError, checkAiConnection, createProject, type Project } from '#lib/api/client.js';
 	import { describeError } from '#lib/api/problem.js';
+	import { engineKey } from '#lib/ai/key.svelte.js';
+	import { describeKey } from '#lib/ai/keyState.js';
 	import { locale } from '#lib/i18n/state.svelte.js';
 
 	const MAX_WISH = 4000;
@@ -12,6 +14,7 @@
 	let apiKey = $state('');
 	let busy = $state(false);
 	let error = $state<string | null>(null);
+	const held = $derived(describeKey(engineKey.state));
 	let keyCheck = $state<{ state: 'idle' | 'busy' | 'ok' | 'failed'; detail: string }>({
 		state: 'idle',
 		detail: ''
@@ -22,6 +25,7 @@
 		try {
 			await checkAiConnection(apiKey);
 			keyCheck = { state: 'ok', detail: '' };
+			void engineKey.refresh();
 		} catch (e) {
 			const detail = e instanceof ApiError ? e.message : locale.t('ai.unreachable');
 			keyCheck = { state: 'failed', detail };
@@ -37,7 +41,9 @@
 		busy = true;
 		error = null;
 		try {
-			created(await createProject(wish, apiKey, name));
+			const project = await createProject(wish, apiKey, name);
+			void engineKey.refresh();
+			created(project);
 		} catch (e) {
 			const { key, params } = describeError(e);
 			error = locale.t(key, params);
@@ -74,6 +80,11 @@
 				<strong>{locale.t('wish.claudeCode')}</strong>
 				<div class="lead">{locale.t('wish.claudeCodeNote')}</div>
 			</div>
+			{#if engineKey.state?.set}
+				<p class="ok" role="status" data-testid="key-held">
+					{locale.t('key.setHere', { state: locale.t(held.key, held.params) })}
+				</p>
+			{/if}
 			<label class="keylabel">
 				{locale.t('wish.keyLabel')}
 				<span class="keyrow">

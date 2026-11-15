@@ -1,4 +1,10 @@
-export type EngineStatus = { name: string; buildId: string; serverTime: string };
+export type EngineStatus = {
+	name: string;
+	buildId: string;
+	serverTime: string;
+	aiStub: boolean;
+};
+export type AiKeyState = { set: boolean; last4: string | null };
 export type AiCheckResult = { ok: boolean; model: string };
 export type Problem = { title: string; status: number; detail?: string };
 
@@ -30,6 +36,27 @@ export async function checkAiConnection(apiKey: string): Promise<AiCheckResult> 
 	});
 	if (!response.ok) throw await failure(response);
 	return (await response.json()) as AiCheckResult;
+}
+
+export async function getAiKey(): Promise<AiKeyState> {
+	const response = await fetch('/api/ai/key');
+	if (!response.ok) throw await failure(response);
+	return (await response.json()) as AiKeyState;
+}
+
+export async function setAiKey(apiKey: string): Promise<AiKeyState> {
+	const response = await fetch('/api/ai/key', {
+		method: 'PUT',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ apiKey })
+	});
+	if (!response.ok) throw await failure(response);
+	return (await response.json()) as AiKeyState;
+}
+
+export async function deleteAiKey(): Promise<void> {
+	const response = await fetch('/api/ai/key', { method: 'DELETE' });
+	if (!response.ok) throw await failure(response);
 }
 
 export type Project = {

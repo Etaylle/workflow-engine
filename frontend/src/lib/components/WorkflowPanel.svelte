@@ -15,6 +15,9 @@
 	import { reviewFacts } from '#lib/planning/review.js';
 	import WorkflowDiagram from './WorkflowDiagram.svelte';
 	import WorkflowEditor from './WorkflowEditor.svelte';
+	import Waiting from './Waiting.svelte';
+	import ErrorNote from './ErrorNote.svelte';
+	import { isKeyProblem } from '#lib/ai/keyState.js';
 
 	import { rank } from '#lib/planning/steps.js';
 	import {
@@ -30,6 +33,7 @@
 	let contracts = $state<Contract[]>([]);
 	let busy = $state<'idle' | 'loading' | 'generating' | 'confirming'>('loading');
 	let error = $state<string | null>(null);
+	let keyIssue = $state(false);
 	let editing = $state(false);
 
 	async function load() {
@@ -49,6 +53,7 @@
 	function fail(e: unknown) {
 		const { key, params } = describeError(e);
 		error = locale.t(key, params);
+		keyIssue = isKeyProblem(key);
 	}
 
 	async function run(kind: 'generating' | 'confirming', action: () => Promise<unknown>) {
@@ -81,24 +86,32 @@
 	});
 </script>
 
-<section aria-labelledby="workflow-heading" data-testid="step-workflow">
+<section class="step" aria-labelledby="workflow-heading" data-testid="step-workflow">
 	<h2 id="workflow-heading">
 		{locale.t(reviewed ? 'review.heading' : 'workflow.heading')}
 	</h2>
+	<p class="sub">{locale.t('step.workflowLead')}</p>
 	{#if reviewed}
 		<ReviewSummary {project} {facts} />
 		<LimitsCard {project} />
 	{/if}
 
-	<button
-		onclick={() => run('generating', () => generateWorkflow(project.id))}
-		disabled={busy !== 'idle'}
-		data-testid="generate"
-	>
-		{workflow ? locale.t('workflow.regenerate') : locale.t('workflow.generate')}
-	</button>
-	{#if busy === 'generating'}<p role="status">{locale.t('workflow.generating')}</p>{/if}
-	{#if error}<p role="alert" data-testid="workflow-error">{error}</p>{/if}
+	{#if !workflow && busy !== 'loading'}
+		<div class="empty">
+			<h3>{locale.t('workflow.emptyTitle')}</h3>
+			<p>{locale.t('workflow.emptyStep')}</p>
+			<button
+				class="primary"
+				onclick={() => run('generating', () => generateWorkflow(project.id))}
+				disabled={busy !== 'idle'}
+				data-testid="generate"
+			>
+				{busy === 'generating' ? locale.t('workflow.generating') : locale.t('workflow.generate')}
+			</button>
+		</div>
+	{/if}
+	{#if busy === 'generating'}<Waiting what={locale.t('workflow.generating')} />{/if}
+	{#if error}<ErrorNote message={error} {keyIssue} testid="workflow-error" />{/if}
 
 	{#if workflow}
 		<WorkflowDiagram {workflow} />
@@ -112,11 +125,21 @@
 				}}
 				cancel={() => (editing = false)}
 			/>
-		{:else}
-			<button onclick={() => (editing = true)} data-testid="edit-workflow">
-				{locale.t('workflow.edit')}
-			</button>
 		{/if}
+		<div class="actions">
+			{#if !editing}
+				<button onclick={() => (editing = true)} data-testid="edit-workflow">
+					{locale.t('workflow.edit')}
+				</button>
+			{/if}
+			<button
+				onclick={() => run('generating', () => generateWorkflow(project.id))}
+				disabled={busy !== 'idle'}
+				data-testid="generate"
+			>
+				{locale.t('workflow.regenerate')}
+			</button>
+		</div>
 		{#if workflow.status === 'valid'}
 			{#if workflow.confirmedContractVersion}
 				<p>
@@ -126,6 +149,7 @@
 				</p>
 			{/if}
 			<button
+				class="primary"
 				onclick={() => run('confirming', () => confirmWorkflow(project.id))}
 				disabled={busy !== 'idle'}
 				data-testid="confirm"
@@ -144,7 +168,5 @@
 				{locale.t('workflow.versions', { versions: contracts.map((c) => c.version).join(', ') })}
 			</p>
 		{/if}
-	{:else if busy === 'idle'}
-		<p>{locale.t('workflow.none')}</p>
 	{/if}
 </section>
