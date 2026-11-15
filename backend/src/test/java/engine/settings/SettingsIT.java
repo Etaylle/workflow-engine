@@ -69,6 +69,19 @@ class SettingsIT {
     }
 
     @Test
+    void theIndependentCheckComparesWithTheOriginalWishAndTheKindOfSoftware() throws Exception {
+        for (String name : new String[] {"Short", "16 steps"}) {
+            JsonNode steps = profileNamed(name).get("steps");
+            String prompt = steps.get(steps.size() - 1).get("prompt").asString();
+
+            assertThat(prompt).contains("ORIGINAL WISH").contains("Software template")
+                    .contains("not the kind of software the wish asks for").contains("./start.sh")
+                    .contains("README.md");
+            assertThat(prompt.split("ORIGINAL WISH", -1)).as("added once, not twice").hasSize(2);
+        }
+    }
+
+    @Test
     void theSeedGivesTheSameResultWhenRunTwice() throws Exception {
         String seed = new ClassPathResource("db/migration/R__seed_step_profiles.sql")
                 .getContentAsString(StandardCharsets.UTF_8);

@@ -41,7 +41,7 @@ Everything goes through `ci/run <command>` (created in milestone M0): `all-local
 - No login and no auth code: everyone who opens the engine sees and can continue all projects (accepted risk, `ai-docs/audit/deferred-risks.md`). No security and no observability work until the owner opens it.
 - A confirmed contract snapshot never changes; an edit creates a new version.
 - The orchestrator is a state machine in code; agents work only inside a step. A git commit in the workspace is the checkpoint of a green step.
-- Builds run in a sandbox on the engine machine from the prepared template (Java × Svelte × PostgreSQL in the MVP). The run asks the client only when a defect is not fixable; it ends FAILED only when the client stops it; it waits when the rate limit or credit is exhausted.
+- Builds run in a sandbox on the engine machine from a prepared template chosen from the wish (console program, SvelteKit + SQLite, or Java × Svelte × PostgreSQL; `templates/`). The run asks the client only when a defect is not fixable; it ends FAILED only when the client stops it; it waits when the rate limit or credit is exhausted.
 - The development steps of a task are data (screen 7). Two profiles are seeded: the 16 steps and a short one; the build spike measures both (D-19).
 - Time is UTC; identifiers are made by the application; every wait is bounded; migrations are forward-only; seeds give the same result when run twice; configuration comes from the environment.
 
