@@ -6,13 +6,14 @@ import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermission;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Stream;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipOutputStream;
+import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
+import org.apache.commons.compress.archivers.zip.ZipArchiveOutputStream;
 
 /** The folder of one run: copy of the template, contract, git checkpoints, ZIP. */
 final class Workspace {
@@ -21,6 +22,8 @@ final class Workspace {
             Set.of("node_modules", "build", ".gradle", ".svelte-kit", "dist");
     /** Name of the run report inside the ZIP. */
     static final String REPORT_FILE = "RUN-REPORT.md";
+    /** The file type bits of a regular file in a Unix mode. */
+    private static final int REGULAR_FILE = 0100000;
     private static final Duration GIT_TIMEOUT = Duration.ofSeconds(60);
 
     private final Path dir;
@@ -120,24 +123,43 @@ final class Workspace {
 
     /**
      * Writes the workspace as ZIP without .git, build output and node_modules, plus one extra text
-     * file (the run report) that replaces a workspace file of the same name.
+     * file (the run report) that replaces a workspace file of the same name. The entries keep their
+     * Unix permissions, so ./check.sh and ./start.sh still run after unzipping.
      */
     void zip(OutputStream target, String extraName, String extraText) throws IOException {
-        try (ZipOutputStream zip = new ZipOutputStream(target, StandardCharsets.UTF_8);
+        try (ZipArchiveOutputStream zip = new ZipArchiveOutputStream(target);
                 Stream<Path> files = Files.walk(dir)) {
+            zip.setEncoding(StandardCharsets.UTF_8.name());
             for (Path file : (Iterable<Path>) files.filter(Files::isRegularFile)
                     .filter(this::included)::iterator) {
                 String name = dir.relativize(file).toString().replace('\\', '/');
                 if (name.equals(extraName)) {
                     continue;
                 }
-                zip.putNextEntry(new ZipEntry(name));
+                ZipArchiveEntry entry = new ZipArchiveEntry(name);
+                entry.setUnixMode(REGULAR_FILE | unixMode(file));
+                zip.putArchiveEntry(entry);
                 Files.copy(file, zip);
-                zip.closeEntry();
+                zip.closeArchiveEntry();
             }
-            zip.putNextEntry(new ZipEntry(extraName));
+            ZipArchiveEntry report = new ZipArchiveEntry(extraName);
+            report.setUnixMode(REGULAR_FILE | 0644);
+            zip.putArchiveEntry(report);
             zip.write(extraText.getBytes(StandardCharsets.UTF_8));
-            zip.closeEntry();
+            zip.closeArchiveEntry();
+        }
+    }
+
+    /** The permission bits of the file as a Unix mode, 0644 where the file system has none. */
+    private static int unixMode(Path file) throws IOException {
+        int mode = 0;
+        try {
+            for (PosixFilePermission permission : Files.getPosixFilePermissions(file)) {
+                mode |= 1 << (8 - permission.ordinal());
+            }
+            return mode;
+        } catch (UnsupportedOperationException e) {
+            return 0644;
         }
     }
 

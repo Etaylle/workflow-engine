@@ -418,3 +418,19 @@ export const getRunFile = (runId: string, path: string, ref: string) =>
 	json<WorkspaceFileContent>(
 		`/api/runs/${runId}/file?path=${encodeURIComponent(path)}&ref=${encodeURIComponent(ref)}`
 	);
+
+export type PreviewStatus = 'none' | 'starting' | 'running' | 'stopped' | 'failed';
+export type Preview = {
+	status: PreviewStatus;
+	port?: number | null;
+	startedAt?: string | null;
+	expiresAt?: string | null;
+	checkpoint?: string | null;
+	message?: string | null;
+};
+
+export const getRunPreview = (runId: string) => json<Preview>(`/api/runs/${runId}/preview`);
+export const startRunPreview = (runId: string) =>
+	json<Preview>(`/api/runs/${runId}/preview`, 'POST');
+export const stopRunPreview = (runId: string) =>
+	json<Preview>(`/api/runs/${runId}/preview`, 'DELETE');

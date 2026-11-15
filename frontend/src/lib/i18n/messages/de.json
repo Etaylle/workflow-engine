@@ -391,5 +391,17 @@
 	"files.choose": "Wähle eine Datei, um sie zu lesen.",
 	"files.binaryNote": "Das ist eine Binärdatei und wird nicht angezeigt.",
 	"files.tooLarge": "Diese Datei ist {size} groß und zu groß zum Anzeigen.",
-	"dialog.close": "Schließen"
+	"dialog.close": "Schließen",
+	"preview.status.none": "Keine Vorschau",
+	"preview.status.starting": "App wird gebaut",
+	"preview.status.running": "Läuft",
+	"preview.status.stopped": "Gestoppt",
+	"preview.status.failed": "Fehlgeschlagen",
+	"preview.open": "App öffnen",
+	"preview.stop": "Vorschau stoppen",
+	"preview.left": "noch {minutes} Min.",
+	"preview.empty": "Die Ausgabe der App erscheint hier, sobald sie startet.",
+	"preview.start": "Vorschau",
+	"preview.starting": "Startet...",
+	"preview.hint": "Probiert die App vom letzten fertigen Schritt in einer eigenen Datenbank aus. Der Builder wird nicht gestört."
 }

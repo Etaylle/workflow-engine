@@ -33,14 +33,17 @@ class ExecutionConfig {
             @Value("${engine.execution.max-resumes:3}") int maxResumes,
             @Value("${engine.execution.limit-wait-base-ms:60000}") long limitBaseMs,
             @Value("${engine.execution.limit-wait-max-ms:900000}") long limitMaxMs,
-            @Value("${engine.execution.limit-max-retries:6}") int limitMaxRetries) {
+            @Value("${engine.execution.limit-max-retries:6}") int limitMaxRetries,
+            @Value("${engine.execution.preview-seconds:900}") long previewSeconds,
+            @Value("${engine.execution.preview-start-seconds:600}") long previewStartSeconds) {
         Path root = workspaceDir.isBlank()
                 ? Path.of(System.getProperty("user.home"), ".workflow-engine", "workspaces")
                 : Path.of(workspaceDir);
         return new ExecutionSettings(root.toAbsolutePath(), Path.of(templateDir).toAbsolutePath(),
                 claudeBin, model, geminiCmd, geminiModel, useSignIn, createDatabase, costLimit, Duration.ofMinutes(stepMinutes),
                 Duration.ofMinutes(checkMinutes), fixAttempts, maxResumes,
-                Duration.ofMillis(limitBaseMs), Duration.ofMillis(limitMaxMs), limitMaxRetries);
+                Duration.ofMillis(limitBaseMs), Duration.ofMillis(limitMaxMs), limitMaxRetries,
+                Duration.ofSeconds(previewSeconds), Duration.ofSeconds(previewStartSeconds));
     }
 
     @Bean

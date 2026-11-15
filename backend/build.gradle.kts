@@ -24,6 +24,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("org.flywaydb:flyway-database-postgresql")
+    implementation("org.apache.commons:commons-compress:1.27.1")
     implementation("com.anthropic:anthropic-java:3.3.0")
     implementation("com.openai:openai-java:4.101.0")
     runtimeOnly("org.postgresql:postgresql")

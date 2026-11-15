@@ -19,10 +19,13 @@ import java.math.BigDecimal;
  * @param limitWaitMax longest single wait
  * @param limitMaxRetries waits before the run stops retrying by itself and waits for the client
  * @param fixAttempts how many times a failed step is sent back to the builder with the failure
+ * @param previewLifetime how long a preview of the generated app runs once it answers
+ * @param previewStartTimeout how long building and starting a preview may take before it fails
  */
 record ExecutionSettings(Path workspaceRoot, Path templateDir, String claudeBin, String model,
         String geminiCmd, String geminiModel,
         boolean useSignIn, boolean createDatabase, BigDecimal costLimitUsd, Duration stepTimeout,
         Duration checkTimeout, int fixAttempts, int maxResumes,
-        Duration limitWaitBase, Duration limitWaitMax, int limitMaxRetries) {
+        Duration limitWaitBase, Duration limitWaitMax, int limitMaxRetries, Duration previewLifetime,
+        Duration previewStartTimeout) {
 }

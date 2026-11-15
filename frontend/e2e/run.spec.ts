@@ -51,6 +51,16 @@ test('confirmed contract to a finished run and its ZIP, surviving a reload', asy
 	await expect(page.getByTestId('file-content')).toContainText('Notify the student');
 	await page.getByTestId('tab-activity').click();
 
+	// Preview: the app of the last finished step runs on its own; its console output is visible
+	await page.getByTestId('start-preview').click();
+	await expect(page.getByTestId('preview-status')).toHaveText('Running', { timeout: 30_000 });
+	await expect(page.getByTestId('app-console')).toContainText('<(o )___');
+	await expect(page.getByTestId('open-app')).toHaveAttribute('href', /^http:\/\/[^/]+:\d+\/$/);
+	await page.getByTestId('stop-preview').click();
+	await expect(page.getByTestId('preview-status')).toHaveText('Stopped');
+	await expect(page.getByTestId('open-app')).toHaveCount(0);
+	await page.getByTestId('tab-activity').click();
+
 	// Documents take no room: one quiet button opens them in a dialog
 	await expect(page.getByTestId('document-view')).toHaveCount(0);
 	await page.getByTestId('open-documents').click();
@@ -142,4 +152,23 @@ test('a rate limit makes the run wait for tokens and continue by itself', async 
 	await expect(page.getByTestId('run-wait')).toContainText('Waiting for tokens');
 	await expect(page.getByTestId('run-status')).toHaveText('Finished', { timeout: 60_000 });
 	await expect(page.getByTestId('run-progress')).toContainText('8 of 8 steps done');
+});
+
+test('a preview can be tried while the run goes on', async ({ page }) => {
+	await startRunWithWish(page, 'A canteen app where students order a meal stub-slow:500');
+	await expect(page.getByTestId('start-preview')).toHaveCount(0);
+
+	// A task is done after its four steps; the builder carries on in its own folder
+	await expect(page.getByTestId('run-task-1')).toHaveAttribute('data-status', 'done', {
+		timeout: 30_000
+	});
+	await expect(page.getByTestId('run-status')).toHaveText('Building');
+	await page.getByTestId('start-preview').click();
+	await expect(page.getByTestId('preview-status')).toHaveText('Running', { timeout: 30_000 });
+	await expect(page.getByTestId('stop-run')).toBeVisible();
+	await page.getByTestId('stop-preview').click();
+	await expect(page.getByTestId('preview-status')).toHaveText('Stopped');
+	await page.getByTestId('stop-run').click();
+	await page.getByTestId('stop-confirm-yes').click();
+	await expect(page.getByTestId('run-status')).toHaveText('Stopped');
 });

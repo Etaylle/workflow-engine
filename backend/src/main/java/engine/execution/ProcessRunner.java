@@ -77,7 +77,7 @@ final class ProcessRunner {
     }
 
     /** Reads the lines a growing file gains and hands each complete line on; at most 4000 characters each. */
-    private static final class LineTail {
+    static final class LineTail {
         private static final int MAX_LINE = 4000;
         private final Path file;
         private final Consumer<String> onLine;

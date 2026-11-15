@@ -146,7 +146,8 @@ cmd_test_e2e() {
 	build
 	start_engine e2e "$E2E_PORT" "$TEST_DB_NAME" ENGINE_AI_STUB=true \
 		ENGINE_EXECUTION_WORKSPACE_DIR="$RUN_DIR/e2e-workspaces" ENGINE_EXECUTION_CREATE_DATABASE=false \
-		ENGINE_EXECUTION_LIMIT_WAIT_BASE_MS=1500
+		ENGINE_EXECUTION_LIMIT_WAIT_BASE_MS=1500 ENGINE_EXECUTION_PREVIEW_SECONDS=120 \
+		ENGINE_EXECUTION_TEMPLATE_DIR="$ROOT/backend/src/test/resources/fake-template"
 	trap 'stop_engine e2e' EXIT
 	log "end-to-end test (browser) against the engine with the AI stub"
 	npm_frontend ci --silent

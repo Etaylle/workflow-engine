@@ -4,16 +4,21 @@
 		answerRunQuestion,
 		getLatestRun,
 		getRun,
+		getRunPreview,
 		listOlderEvents,
 		runStreamUrl,
 		runZipUrl,
 		startRun,
+		startRunPreview,
+		stopRunPreview,
+		type Preview,
 		type Project,
 		type Run,
 		type RunEvent
 	} from '#lib/api/client.js';
 	import ConsolePane from '#lib/components/ConsolePane.svelte';
 	import FilesPane from '#lib/components/FilesPane.svelte';
+	import PreviewPane from '#lib/components/PreviewPane.svelte';
 	import RunControls from '#lib/components/RunControls.svelte';
 	import RunReportCard from '#lib/components/RunReportCard.svelte';
 	import BuildWith from '#lib/components/BuildWith.svelte';
@@ -37,7 +42,8 @@
 		prependOlder,
 		progress
 	} from '#lib/run/run.js';
-	import { availableTabs, effectiveTab, type RunTab } from '#lib/run/tabs.js';
+	import { previewActive, previewShown } from '#lib/run/preview.js';
+	import { availableTabs, canPreview, effectiveTab, type RunTab } from '#lib/run/tabs.js';
 
 	let { project, changed, back }: { project: Project; changed: () => Promise<void>; back: string } =
 		$props();
@@ -48,7 +54,12 @@
 	let chosenTab = $state<RunTab>('activity');
 	let confirmingStop = $state(false);
 	const older = createAction();
-	const tabs = $derived(availableTabs(run, false));
+	let preview = $state<Preview | null>(null);
+	let appLines = $state<RunEvent[]>([]);
+	let appHasOlder = $state(false);
+	const previewing = createAction();
+	const olderApp = createAction();
+	const tabs = $derived(availableTabs(run, previewShown(preview)));
 	const tab = $derived(effectiveTab(chosenTab, tabs));
 	const loading = createAction();
 	const starting = createAction();
@@ -82,7 +93,48 @@
 				const page = await listOlderEvents(run.id, Number.MAX_SAFE_INTEGER, 'console', OLDER_PAGE);
 				console_ = mergeConsole([], page);
 				hasOlder = page.length === OLDER_PAGE;
+				await loadPreview(run.id);
 			}
+		});
+	}
+
+	async function loadPreview(runId: string) {
+		preview = await getRunPreview(runId);
+		appLines = [];
+		appHasOlder = false;
+		if (previewShown(preview)) {
+			const page = await listOlderEvents(runId, Number.MAX_SAFE_INTEGER, 'app', OLDER_PAGE);
+			appLines = mergeConsole([], page, 'app');
+			appHasOlder = page.length === OLDER_PAGE;
+		}
+	}
+
+	async function startPreview() {
+		if (!run) return;
+		const runId = run.id;
+		const ok = await previewing.run(async () => {
+			appLines = [];
+			preview = await startRunPreview(runId);
+		});
+		if (ok) chosenTab = 'app';
+	}
+
+	async function stopPreview() {
+		if (!run) return;
+		const runId = run.id;
+		await previewing.run(async () => {
+			preview = await stopRunPreview(runId);
+		});
+	}
+
+	async function loadOlderApp() {
+		const before = oldestSeq(appLines);
+		if (!run || before === null) return;
+		const runId = run.id;
+		await olderApp.run(async () => {
+			const page = await listOlderEvents(runId, before, 'app', OLDER_PAGE);
+			appLines = prependOlder(appLines, page);
+			appHasOlder = page.length === OLDER_PAGE;
 		});
 	}
 
@@ -129,10 +181,18 @@
 			const event = JSON.parse(message.data) as RunEvent;
 			if (event.seq <= seen) return;
 			seen = lastSeen([event], seen);
+			if (event.kind === 'app') {
+				appLines = mergeConsole(appLines, [event], 'app');
+				return;
+			}
+			if (event.kind === 'preview') {
+				void getRunPreview(runId).then((fresh) => (preview = fresh));
+				return;
+			}
 			console_ = mergeConsole(console_, [event]);
 			if (event.kind !== 'console') void refresh(runId);
 		};
-		for (const kind of ['run', 'task', 'step', 'console']) {
+		for (const kind of ['run', 'task', 'step', 'console', 'app', 'preview']) {
 			source.addEventListener(kind, onEvent as EventListener);
 		}
 		return () => source.close();
@@ -145,7 +205,7 @@
 	});
 
 	/** The run to follow live; a stable value, so the stream is not reopened on every new line. */
-	const followId = $derived(run && isActive(run) ? run.id : null);
+	const followId = $derived(run && (isActive(run) || previewActive(preview)) ? run.id : null);
 
 	$effect(() => {
 		const id = followId;
@@ -316,6 +376,16 @@
 							/>
 						{:else if tab === 'files'}
 							<FilesPane runId={run.id} version={steps.done} />
+						{:else if tab === 'app' && preview}
+							<PreviewPane
+								{preview}
+								lines={appLines}
+								hasOlder={appHasOlder}
+								loadingOlder={olderApp.busy}
+								loadOlder={loadOlderApp}
+								stop={stopPreview}
+								stopping={previewing.busy}
+							/>
 						{/if}
 					</div>
 				</div>
@@ -351,6 +421,19 @@
 	{/if}
 
 	{#snippet primary()}
+		{#if previewing.error}
+			<span class="reason" role="alert" data-testid="preview-error">{previewing.error}</span>
+		{/if}
+		{#if canPreview(run) && !previewActive(preview)}
+			<button
+				onclick={startPreview}
+				disabled={previewing.busy}
+				title={locale.t('preview.hint')}
+				data-testid="start-preview"
+			>
+				{previewing.busy ? locale.t('preview.starting') : locale.t('preview.start')}
+			</button>
+		{/if}
 		{#if canStart(project.status, run) && !(run && canDownload(run))}
 			<button
 				class="primary"
@@ -373,6 +456,10 @@
 </StepShell>
 
 <style>
+	.reason {
+		color: var(--amber-ink);
+		font-size: var(--text-sm);
+	}
 	.facts {
 		display: flex;
 		flex-wrap: wrap;

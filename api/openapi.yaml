@@ -917,7 +917,7 @@ paths:
           schema: {type: integer, format: int64}
         - name: kind
           in: query
-          schema: {type: string, enum: [console, run, task, step]}
+          schema: {type: string, enum: [console, run, task, step, app, preview]}
         - name: limit
           in: query
           description: Page size with `before` (1 to 1000)
@@ -1196,6 +1196,76 @@ paths:
                 $ref: "#/components/schemas/Problem"
         "404":
           description: No such run or file
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/runs/{runId}/preview:
+    get:
+      operationId: getRunPreview
+      summary: The preview of the generated app of a run (status none when there is none)
+      parameters:
+        - $ref: "#/components/parameters/RunId"
+      responses:
+        "200":
+          description: The preview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Preview"
+        "404":
+          description: No such run
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    post:
+      operationId: startRunPreview
+      summary: Starts the generated app from a copy of the last green checkpoint
+      description: >
+        Allowed while at least one task is done, also while the run goes on (the builder works in
+        the original folder). The engine copies the checkpoint, creates a database of its own, picks
+        a free local port and runs `./start.sh` of the project there with `APP_PORT`, `APP_DB_URL`,
+        `APP_DB_USER` and `APP_DB_PASSWORD`; a run without `start.sh` gets the one of the template.
+        The output of the app comes as events of kind `app` of the run, state changes as events of
+        kind `preview`. One preview per run (a second request returns the one under way), at most two
+        at a time. It ends after its lifetime (default 15 minutes, `ENGINE_EXECUTION_PREVIEW_SECONDS`),
+        on Stop and when the engine stops; process, copy and database are removed then.
+      parameters:
+        - $ref: "#/components/parameters/RunId"
+      responses:
+        "202":
+          description: The preview is starting
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Preview"
+        "404":
+          description: No such run, or its workspace is gone
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: No task is done yet, or two previews already run
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    delete:
+      operationId: stopRunPreview
+      summary: Stops the preview and removes its process, copy and database
+      parameters:
+        - $ref: "#/components/parameters/RunId"
+      responses:
+        "200":
+          description: The preview as it is after stopping
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Preview"
+        "404":
+          description: No such run
           content:
             application/problem+json:
               schema:
@@ -1644,6 +1714,16 @@ components:
         binary: {type: boolean}
         tooLarge: {type: boolean}
         content: {type: [string, "null"]}
+    Preview:
+      type: object
+      required: [status]
+      properties:
+        status: {type: string, enum: [none, starting, running, stopped, failed]}
+        port: {type: [integer, "null"], description: Local port of the app; the link is http://localhost:{port}/ once the status is running}
+        startedAt: {type: [string, "null"], format: date-time}
+        expiresAt: {type: [string, "null"], format: date-time}
+        checkpoint: {type: [string, "null"], description: The commit the preview was built from}
+        message: {type: [string, "null"], description: What it is doing, or why it stopped or failed}
     RunReport:
       type: object
       required: [runId, status, startedAt, seconds, costUsd, costLimitUsd, resumeCount, tasksDone, tasksTotal, stepsDone, stepsTotal, attempts, checkpoints, tasks, questions]
@@ -1818,7 +1898,7 @@ components:
       required: [seq, kind, text, at]
       properties:
         seq: {type: integer, format: int64}
-        kind: {type: string, enum: [run, task, step, console]}
+        kind: {type: string, enum: [run, task, step, console, app, preview]}
         text: {type: string}
         at: {type: string, format: date-time}
     Contract:
