@@ -191,6 +191,19 @@ class RunStore {
                 .param("id", questionId).update();
     }
 
+    /** Every question the run asked, oldest first, for the report. */
+    List<RunReport.Question> questionsOf(UUID runId) {
+        return jdbc.sql("select s.title, q.question, q.choice, q.hint, q.asked_at"
+                        + " from execution.human_questions q"
+                        + " join execution.step_runs s on s.id = q.step_run_id"
+                        + " where q.run_id = :r order by q.asked_at")
+                .param("r", runId)
+                .query((rs, n) -> new RunReport.Question(rs.getString("title"),
+                        rs.getString("question"), rs.getString("choice"), rs.getString("hint"),
+                        rs.getTimestamp("asked_at").toInstant()))
+                .list();
+    }
+
     /** What the client told the builder about this step, oldest first. */
     List<String> hintsOf(UUID stepId) {
         return jdbc.sql("select hint from execution.human_questions where step_run_id = :s"

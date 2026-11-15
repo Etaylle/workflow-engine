@@ -40,10 +40,12 @@ final class ProcessRunner {
         builder.environment().putAll(env);
         try {
             Process process = builder.start();
-            long deadline = System.nanoTime() + timeout.toNanos();
+            // Wall clock, not nanoTime: nanoTime stops while the machine sleeps, so a step that hung
+            // across a sleep would never time out.
+            long deadline = System.currentTimeMillis() + timeout.toMillis();
             while (!process.waitFor(1, TimeUnit.SECONDS)) {
                 boolean stop = cancelled.getAsBoolean();
-                if (stop || System.nanoTime() > deadline) {
+                if (stop || System.currentTimeMillis() > deadline) {
                     process.descendants().forEach(ProcessHandle::destroyForcibly);
                     process.destroyForcibly();
                     return new Result(-1, !stop, stop);

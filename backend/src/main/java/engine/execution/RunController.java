@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
-/** Operations startRun, answerRunQuestion, stopRun, resumeRun, getLatestRun, getRun, listRunEvents, streamRunEvents and downloadRunZip. */
+/** Operations startRun, answerRunQuestion, stopRun, resumeRun, getLatestRun, getRun, listRunEvents, streamRunEvents and downloadRunZip and getRunReport. */
 @RestController
 class RunController {
 
@@ -80,10 +80,16 @@ class RunController {
         return service.resume(runId, request == null ? null : request.costLimitUsd());
     }
 
+    @GetMapping("/api/runs/{runId}/report")
+    RunReport report(@PathVariable UUID runId) {
+        return service.report(runId);
+    }
+
     @GetMapping("/api/runs/{runId}/zip")
     ResponseEntity<StreamingResponseBody> zip(@PathVariable UUID runId) {
         Workspace workspace = service.workspaceForZip(runId);
-        StreamingResponseBody body = workspace::zip;
+        String report = service.report(runId).toMarkdown();
+        StreamingResponseBody body = target -> workspace.zip(target, Workspace.REPORT_FILE, report);
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType("application/zip"))
                 .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()

@@ -365,6 +365,55 @@ class RunIT {
         assertThat(names).contains("CONTRACT.md", "check.sh", "CLAUDE.md", "docs/task-1/STUB-plan.md",
                 "docs/task-2/STUB-check.md", "backend/build.gradle.kts");
         assertThat(names).noneMatch(n -> n.startsWith(".git/") || n.contains("node_modules"));
+        assertThat(names).containsOnlyOnce("RUN-REPORT.md");
+    }
+
+    @Test
+    void theReportCountsTasksStepsAttemptsCostAndCheckpointsOfAFinishedRun() throws Exception {
+        UUID project = confirmedProject();
+        builder.failStepTimes.put("build", 1);
+        String id = awaitEnd(http.json("POST", "/api/projects/" + project + "/runs", null)
+                .get("id").asString()).get("id").asString();
+
+        JsonNode report = http.json("GET", "/api/runs/" + id + "/report", null);
+
+        assertThat(report.get("status").asString()).isEqualTo("done");
+        assertThat(report.get("tasksDone").asInt()).isEqualTo(2);
+        assertThat(report.get("tasksTotal").asInt()).isEqualTo(2);
+        assertThat(report.get("stepsDone").asInt()).isEqualTo(8);
+        assertThat(report.get("attempts").asInt()).isEqualTo(9);
+        assertThat(report.get("checkpoints").asInt()).isEqualTo(8);
+        assertThat(report.get("costUsd").asDouble()).isGreaterThan(0.25);
+        assertThat(report.get("seconds").asLong()).isGreaterThanOrEqualTo(0);
+        assertThat(report.get("tasks").get(0).get("title").asString()).isEqualTo("Order a meal");
+        assertThat(report.get("tasks").get(0).get("steps").get(1).get("attempts").asInt()).isEqualTo(2);
+        assertThat(report.get("questions")).isEmpty();
+        assertThat(http.call("GET", "/api/runs/" + UUID.randomUUID() + "/report", null).statusCode())
+                .isEqualTo(404);
+    }
+
+    @Test
+    void theReportListsTheQuestionAskedAndTheAnswerGiven() throws Exception {
+        UUID project = confirmedProject();
+        builder.failSteps.add("build");
+        JsonNode waiting = awaitEnd(http.json("POST", "/api/projects/" + project + "/runs", null)
+                .get("id").asString());
+        String id = waiting.get("id").asString();
+
+        JsonNode open = http.json("GET", "/api/runs/" + id + "/report", null).get("questions");
+        assertThat(open).hasSize(1);
+        assertThat(open.get(0).get("choice").isNull()).isTrue();
+
+        builder.failSteps.clear();
+        assertThat(answer(id, waiting.get("question").get("id").asString(), "retry", "Keep it simple")
+                .statusCode()).isEqualTo(200);
+        awaitEnd(id);
+        JsonNode answered = http.json("GET", "/api/runs/" + id + "/report", null).get("questions");
+
+        assertThat(answered).hasSize(1);
+        assertThat(answered.get(0).get("choice").asString()).isEqualTo("retry");
+        assertThat(answered.get(0).get("hint").asString()).isEqualTo("Keep it simple");
+        assertThat(answered.get(0).get("stepTitle").asString()).isNotBlank();
     }
 
     @Test

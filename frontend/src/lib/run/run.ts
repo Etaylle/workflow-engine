@@ -68,3 +68,6 @@ export const lastSeen = (events: RunEvent[], from: number): number =>
 	events.reduce((max, event) => Math.max(max, event.seq), from);
 
 export const formatUsd = (usd: number): string => usd.toFixed(2);
+
+/** Minutes with one decimal, for the report: 600 seconds are "10.0". */
+export const formatMinutes = (seconds: number): string => (seconds / 60).toFixed(1);

@@ -952,6 +952,29 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+  /api/runs/{runId}/report:
+    get:
+      operationId: getRunReport
+      summary: The final report of a run, built from the run's own data
+      description: >
+        Tasks, steps, attempts, cost, minutes, checkpoints and the questions the run asked the
+        client. Available at any time (a run under way shows what is known so far); the same
+        report is in the ZIP as REPORT.md.
+      parameters:
+        - $ref: "#/components/parameters/RunId"
+      responses:
+        "200":
+          description: The report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RunReport"
+        "404":
+          description: No such run
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
   /api/settings/step-profiles:
     get:
       operationId: listStepProfiles
@@ -1337,6 +1360,56 @@ components:
               id: {type: string, format: uuid}
               source: {type: string, format: uuid}
               target: {type: string, format: uuid}
+    RunReport:
+      type: object
+      required: [runId, status, startedAt, seconds, costUsd, costLimitUsd, resumeCount, tasksDone, tasksTotal, stepsDone, stepsTotal, attempts, checkpoints, tasks, questions]
+      properties:
+        runId: {type: string, format: uuid}
+        status: {type: string, enum: [preparing, executing, waiting, done, interrupted, failed]}
+        startedAt: {type: string, format: date-time}
+        finishedAt: {type: string, format: date-time, nullable: true}
+        seconds: {type: integer, description: From start to finish (to now while the run is under way)}
+        costUsd: {type: number}
+        costLimitUsd: {type: number}
+        resumeCount: {type: integer}
+        tasksDone: {type: integer}
+        tasksTotal: {type: integer}
+        stepsDone: {type: integer}
+        stepsTotal: {type: integer}
+        attempts: {type: integer, description: Claude Code invocations over all steps}
+        checkpoints: {type: integer, description: Steps with a git commit in the workspace}
+        tasks:
+          type: array
+          items:
+            type: object
+            required: [title, status, steps]
+            properties:
+              title: {type: string}
+              status: {type: string}
+              steps:
+                type: array
+                items:
+                  type: object
+                  required: [title, status, attempts, costUsd, seconds]
+                  properties:
+                    title: {type: string}
+                    status: {type: string}
+                    attempts: {type: integer}
+                    costUsd: {type: number}
+                    seconds: {type: integer}
+                    commit: {type: string, nullable: true}
+        questions:
+          type: array
+          description: What the run asked the client, and what the client answered
+          items:
+            type: object
+            required: [stepTitle, question, askedAt]
+            properties:
+              stepTitle: {type: string}
+              question: {type: string}
+              choice: {type: string, nullable: true, enum: [retry, skip, stop]}
+              hint: {type: string, nullable: true}
+              askedAt: {type: string, format: date-time}
     Run:
       type: object
       required: [id, projectId, contractVersion, status, costUsd, costLimitUsd, lastSeq, startedAt, tasks]

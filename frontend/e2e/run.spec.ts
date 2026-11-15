@@ -32,7 +32,12 @@ test('confirmed contract to a finished run and its ZIP, surviving a reload', asy
 	);
 	await expect(page.getByTestId('start-run')).toHaveText('Run again');
 
-	// US-06.12: the ZIP of the workspace
+	// US-06.12: the final report, then the ZIP of the workspace
+	await expect(page.getByTestId('report-tasks')).toHaveText('2 of 2 tasks done');
+	await expect(page.getByTestId('report-steps')).toHaveText('8 of 8 steps done');
+	await expect(page.getByTestId('report-checkpoints')).toContainText('8 checkpoints');
+	await expect(page.getByTestId('report-cost')).toContainText('USD 0.08 of USD 10.00');
+	await expect(page.getByTestId('report-no-questions')).toBeVisible();
 	const download = page.waitForEvent('download');
 	await page.getByTestId('run-zip').click();
 	expect((await download).suggestedFilename()).toMatch(/^run-[0-9a-f]{8}\.zip$/);
@@ -75,6 +80,7 @@ test('an unfixable defect asks the client; the answer continues the run', async 
 	await page.getByTestId('answer-retry').click();
 	await expect(page.getByTestId('run-status')).toHaveText('Finished', { timeout: 60_000 });
 	await expect(page.getByTestId('run-progress')).toContainText('8 of 8 steps done');
+	await expect(page.getByTestId('report-questions')).toContainText('Use the simplest approach');
 	await expect(page.getByTestId('run-question')).toHaveCount(0);
 });
 

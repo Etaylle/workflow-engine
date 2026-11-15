@@ -19,6 +19,8 @@ final class Workspace {
 
     private static final Set<String> SKIPPED_NAMES =
             Set.of("node_modules", "build", ".gradle", ".svelte-kit", "dist");
+    /** Name of the run report inside the ZIP. */
+    static final String REPORT_FILE = "RUN-REPORT.md";
     private static final Duration GIT_TIMEOUT = Duration.ofSeconds(60);
 
     private final Path dir;
@@ -111,16 +113,26 @@ final class Workspace {
         }
     }
 
-    /** Writes the workspace as ZIP without .git, build output and node_modules. */
-    void zip(OutputStream target) throws IOException {
+    /**
+     * Writes the workspace as ZIP without .git, build output and node_modules, plus one extra text
+     * file (the run report) that replaces a workspace file of the same name.
+     */
+    void zip(OutputStream target, String extraName, String extraText) throws IOException {
         try (ZipOutputStream zip = new ZipOutputStream(target, StandardCharsets.UTF_8);
                 Stream<Path> files = Files.walk(dir)) {
             for (Path file : (Iterable<Path>) files.filter(Files::isRegularFile)
                     .filter(this::included)::iterator) {
-                zip.putNextEntry(new ZipEntry(dir.relativize(file).toString().replace('\\', '/')));
+                String name = dir.relativize(file).toString().replace('\\', '/');
+                if (name.equals(extraName)) {
+                    continue;
+                }
+                zip.putNextEntry(new ZipEntry(name));
                 Files.copy(file, zip);
                 zip.closeEntry();
             }
+            zip.putNextEntry(new ZipEntry(extraName));
+            zip.write(extraText.getBytes(StandardCharsets.UTF_8));
+            zip.closeEntry();
         }
     }
 

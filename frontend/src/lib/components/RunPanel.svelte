@@ -12,6 +12,7 @@
 		type RunEvent
 	} from '#lib/api/client.js';
 	import RunControls from '#lib/components/RunControls.svelte';
+	import RunReportCard from '#lib/components/RunReportCard.svelte';
 	import { createAction } from '#lib/api/action.svelte.js';
 	import type { MessageKey } from '#lib/i18n/i18n.js';
 	import { locale } from '#lib/i18n/state.svelte.js';
@@ -212,6 +213,8 @@
 			<pre class="console" data-testid="run-console" aria-live="polite">{console_
 					.map((line) => line.text)
 					.join('\n')}</pre>
+
+			{#if !active}<RunReportCard {run} />{/if}
 
 			{#if canDownload(run)}
 				<a class="button" href={runZipUrl(run.id)} data-testid="run-zip">

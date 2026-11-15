@@ -200,6 +200,11 @@ class RunService {
         orchestrator.submit(runId, contract.markdown());
     }
 
+    /** The final report of a run (what is known so far while it is under way). */
+    RunReport report(UUID runId) {
+        return RunReport.of(view(runId), store.questionsOf(runId), java.time.Instant.now());
+    }
+
     /** The workspace of a run that is not being built, for the ZIP. */
     Workspace workspaceForZip(UUID runId) {
         RunView run = view(runId);

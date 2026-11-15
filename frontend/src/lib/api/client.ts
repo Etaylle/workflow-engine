@@ -241,6 +241,42 @@ export const listRunEvents = (runId: string, after = 0) =>
 	json<RunEvent[]>(`/api/runs/${runId}/events?after=${after}`);
 export const runStreamUrl = (runId: string, after: number) =>
 	`/api/runs/${runId}/stream?after=${after}`;
+export type RunReport = {
+	runId: string;
+	status: RunStatus;
+	startedAt: string;
+	finishedAt?: string | null;
+	seconds: number;
+	costUsd: number;
+	costLimitUsd: number;
+	resumeCount: number;
+	tasksDone: number;
+	tasksTotal: number;
+	stepsDone: number;
+	stepsTotal: number;
+	attempts: number;
+	checkpoints: number;
+	tasks: {
+		title: string;
+		status: string;
+		steps: {
+			title: string;
+			status: string;
+			attempts: number;
+			costUsd: number;
+			seconds: number;
+			commit?: string | null;
+		}[];
+	}[];
+	questions: {
+		stepTitle: string;
+		question: string;
+		choice?: 'retry' | 'skip' | 'stop' | null;
+		hint?: string | null;
+		askedAt: string;
+	}[];
+};
+export const getRunReport = (runId: string) => json<RunReport>(`/api/runs/${runId}/report`);
 export const runZipUrl = (runId: string) => `/api/runs/${runId}/zip`;
 
 /** The newest run of a project, or null when it has none yet. */

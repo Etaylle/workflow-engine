@@ -9,6 +9,8 @@ E2E_PORT="${ENGINE_E2E_PORT:-8081}"
 DB_HOST="${ENGINE_DB_HOST:-localhost}"
 DB_PORT="${ENGINE_DB_PORT:-5432}"
 DB_USER="${ENGINE_DB_USER:-engine}"
+DB_NAME="${ENGINE_DB_NAME:-engine}"
+TEST_DB_NAME="${ENGINE_TEST_DB_NAME:-engine_test}"
 PG_SERVICE="postgresql@17"
 
 log() { printf '== %s\n' "$*"; }
@@ -37,7 +39,7 @@ ensure_postgres() {
 	exists="$(psql_admin -c "select 1 from pg_roles where rolname='$DB_USER'")"
 	[ -n "$exists" ] || psql_admin -c "create role $DB_USER login createdb"
 	local db
-	for db in engine engine_test; do
+	for db in "$DB_NAME" "$TEST_DB_NAME"; do
 		exists="$(psql_admin -c "select 1 from pg_database where datname='$db'")"
 		[ -n "$exists" ] || psql_admin -c "create database $db owner $DB_USER"
 	done
@@ -99,7 +101,7 @@ stop_engine() {
 cmd_env_up() {
 	ensure_postgres
 	build
-	start_engine engine "$PORT" engine
+	start_engine engine "$PORT" "$DB_NAME"
 	log "engine runs at http://localhost:$PORT"
 }
 
@@ -122,14 +124,14 @@ cmd_test_unit() {
 
 cmd_test_integration() {
 	ensure_postgres
-	log "backend integration tests on engine_test"
-	ENGINE_DB_URL="$(db_url engine_test)" gradle integrationTest
+	log "backend integration tests on $TEST_DB_NAME"
+	ENGINE_DB_URL="$(db_url "$TEST_DB_NAME")" gradle integrationTest
 }
 
 cmd_test_e2e() {
 	ensure_postgres
 	build
-	start_engine e2e "$E2E_PORT" engine_test ENGINE_AI_STUB=true \
+	start_engine e2e "$E2E_PORT" "$TEST_DB_NAME" ENGINE_AI_STUB=true \
 		ENGINE_EXECUTION_WORKSPACE_DIR="$RUN_DIR/e2e-workspaces" ENGINE_EXECUTION_CREATE_DATABASE=false \
 		ENGINE_EXECUTION_LIMIT_WAIT_BASE_MS=1500
 	trap 'stop_engine e2e' EXIT

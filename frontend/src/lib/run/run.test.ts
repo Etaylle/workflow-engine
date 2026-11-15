@@ -7,6 +7,7 @@ import {
 	canResume,
 	canStop,
 	canStart,
+	formatMinutes,
 	formatUsd,
 	hasQuestion,
 	isActive,
@@ -128,6 +129,14 @@ describe('run state', () => {
 	it('formats the cost with two decimals', () => {
 		expect(formatUsd(0.5)).toBe('0.50');
 		expect(formatUsd(1.1049)).toBe('1.10');
+	});
+});
+
+describe('report figures', () => {
+	it('formats seconds as minutes with one decimal', () => {
+		expect(formatMinutes(600)).toBe('10.0');
+		expect(formatMinutes(90)).toBe('1.5');
+		expect(formatMinutes(0)).toBe('0.0');
 	});
 });
 
