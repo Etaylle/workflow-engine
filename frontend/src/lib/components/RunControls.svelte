@@ -97,8 +97,8 @@
 		margin: 0.75rem 0;
 	}
 	.danger {
-		background: #a12121;
-		color: #fff;
+		background: var(--red);
+		color: var(--on-blue);
 		border: none;
 		border-radius: 8px;
 		padding: 0.45rem 1rem;

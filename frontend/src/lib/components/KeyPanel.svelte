@@ -249,7 +249,7 @@
 		background: var(--surface);
 		border: 1px solid var(--line);
 		border-radius: var(--radius);
-		box-shadow: 0 8px 28px rgba(29, 29, 27, 0.18);
+		box-shadow: 0 8px 28px var(--shadow-pop);
 		padding: 1rem 1.25rem 1.1rem;
 	}
 	.head {

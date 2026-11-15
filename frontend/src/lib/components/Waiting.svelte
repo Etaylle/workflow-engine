@@ -30,10 +30,10 @@
 		gap: 0.9rem;
 		padding: 0.9rem 1.1rem;
 		margin-top: 1rem;
-		border: 1px solid #b9d3f7;
+		border: 1px solid var(--blue-line);
 		border-radius: var(--radius);
 		background: var(--blue-soft);
-		color: #1b3f7a;
+		color: var(--blue-ink);
 	}
 	.hint {
 		font-size: 0.9rem;

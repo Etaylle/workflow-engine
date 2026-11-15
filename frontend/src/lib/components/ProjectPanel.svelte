@@ -24,7 +24,7 @@
 			})}
 		</p>
 	{/if}
-	<div class="wish card">
+	<div class="wish card" id="step-wish" tabindex="-1">
 		<h2>{locale.t('questions.yourWish')}</h2>
 		<WishEditor {project} {changed} />
 	</div>

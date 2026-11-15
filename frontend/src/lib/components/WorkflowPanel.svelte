@@ -86,7 +86,13 @@
 	});
 </script>
 
-<section class="step" aria-labelledby="workflow-heading" data-testid="step-workflow">
+<section
+	class="step"
+	aria-labelledby="workflow-heading"
+	id="step-workflow"
+	tabindex="-1"
+	data-testid="step-workflow"
+>
 	<h2 id="workflow-heading">
 		{locale.t(reviewed ? 'review.heading' : 'workflow.heading')}
 	</h2>

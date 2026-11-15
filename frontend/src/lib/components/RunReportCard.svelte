@@ -75,6 +75,6 @@
 <style>
 	.report {
 		margin-top: 1rem;
-		border-top: 1px solid #c9c5bb;
+		border-top: 1px solid var(--field-line);
 	}
 </style>

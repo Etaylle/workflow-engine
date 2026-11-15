@@ -40,12 +40,20 @@
 	});
 </script>
 
-<section class="step" aria-labelledby="requirements-heading" data-testid="step-requirements">
+<section
+	class="step"
+	aria-labelledby="requirements-heading"
+	id="step-requirements"
+	tabindex="-1"
+	data-testid="step-requirements"
+>
 	<h2 id="requirements-heading">{locale.t('requirements.heading')}</h2>
 	<p class="sub">{locale.t('step.requirementsLead')}</p>
 	{#if loading.error}<p role="alert">{loading.error}</p>{/if}
 
-	{#if !written && editable}
+	{#if loading.busy && !written}
+		<div class="skeleton" aria-hidden="true"></div>
+	{:else if !written && editable}
 		<div class="empty">
 			<h3>{locale.t('requirements.emptyTitle')}</h3>
 			<p>{locale.t('requirements.emptyStep')}</p>

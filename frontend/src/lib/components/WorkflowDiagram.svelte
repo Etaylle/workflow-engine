@@ -44,7 +44,7 @@
 		width: 100%;
 		border: 1px solid var(--line);
 		border-radius: 10px;
-		background: #fbfaf8;
+		background: var(--sunken);
 	}
 	.diagram :global(.lane-label) {
 		background: rgba(100, 120, 160, 0.08);
@@ -62,6 +62,17 @@
 	}
 	.diagram :global(.lane-label .svelte-flow__handle) {
 		display: none;
+	}
+	.diagram :global(.svelte-flow__node) {
+		background: var(--surface);
+		color: var(--ink);
+		border-color: var(--field-line);
+	}
+	.diagram :global(.svelte-flow__controls-button) {
+		background: var(--surface);
+		color: var(--ink);
+		fill: var(--ink);
+		border-color: var(--line);
 	}
 	.diagram :global(.kind-start_event) {
 		border-color: #2a7d3f;

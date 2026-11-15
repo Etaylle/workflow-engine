@@ -13,6 +13,15 @@
 	const described = $derived(
 		describeKey(engineKey.keys, (p) => engineKey.nameOf(locale.t('key.nameAnthropic'), p))
 	);
+	/** Moves to a step of the project page; finished steps stay reachable. */
+	function goTo(chip: (typeof CHIPS)[number]) {
+		const id = chip === 'review' ? 'step-workflow' : `step-${chip}`;
+		document.getElementById(id)?.scrollIntoView({
+			behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+			block: 'start'
+		});
+		document.getElementById(id)?.focus({ preventScroll: true });
+	}
 	const active = $derived(status === undefined ? -1 : activeChip(status));
 </script>
 
@@ -28,12 +37,21 @@
 				<li
 					class:current={index === active}
 					class:done={active >= 0 && index < active}
+					class:locked={active >= 0 && index > active}
 					aria-current={index === active ? 'step' : undefined}
 				>
-					<span class="num" aria-hidden="true"
-						>{active >= 0 && index < active ? '✓' : index + 1}</span
+					<button
+						type="button"
+						class="chip"
+						disabled={index > active}
+						onclick={() => goTo(chip)}
+						data-testid={`chip-${chip}`}
 					>
-					{locale.t(`nav.${chip}` as MessageKey)}
+						<span class="num" aria-hidden="true"
+							>{active >= 0 && index < active ? '✓' : index + 1}</span
+						>
+						{locale.t(`nav.${chip}` as MessageKey)}
+					</button>
 				</li>
 			{/each}
 		</ol>
@@ -68,11 +86,13 @@
 
 <style>
 	.bar {
-		position: relative;
+		position: sticky;
+		top: 0;
+		z-index: 10;
 		display: flex;
 		flex-wrap: wrap;
 		align-items: center;
-		gap: 0.75rem 1rem;
+		gap: 0.5rem 0.75rem;
 		padding: 0.75rem 1.25rem;
 		background: var(--surface);
 		border-bottom: 1px solid var(--line);
@@ -87,7 +107,7 @@
 	}
 	.logo {
 		background: var(--blue);
-		color: #fff;
+		color: var(--on-blue);
 		border-radius: 8px;
 		padding: 0.3rem 0.45rem;
 		font-size: 0.6rem;
@@ -107,7 +127,8 @@
 	.chips li {
 		border: 1px solid var(--line);
 		border-radius: 999px;
-		padding: 0.25rem 0.9rem;
+		padding: 0.2rem 0.65rem;
+		font-size: 0.92rem;
 		color: var(--muted);
 	}
 	.chips li {
@@ -125,22 +146,35 @@
 		border-radius: 50%;
 		background: var(--grey-soft);
 	}
+	.chip {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.45rem;
+		border: 0;
+		background: transparent;
+		padding: 0;
+		color: inherit;
+		font: inherit;
+	}
+	.chips li.locked {
+		opacity: 0.6;
+	}
 	.chips li.done {
 		background: var(--green-soft);
-		border-color: #c3e1b6;
+		border-color: var(--green-line);
 		color: var(--green-ink);
 	}
 	.chips li.done .num {
-		background: #c3e1b6;
+		background: var(--green-line);
 	}
 	.chips li.current .num {
 		background: var(--blue);
-		color: #fff;
+		color: var(--on-blue);
 	}
 	.chips li.current {
 		background: var(--blue-soft);
 		border-color: var(--blue);
-		color: #1b4f9f;
+		color: var(--blue-ink);
 		font-weight: 600;
 	}
 	.keybtn {
@@ -148,17 +182,22 @@
 		padding: 0.3rem 0.8rem;
 	}
 	.keybtn.missing {
-		border-color: #e0a15c;
+		border-color: var(--amber-line);
 		background: var(--amber-soft);
 		color: var(--amber-ink);
 	}
 	.demo {
 		background: var(--amber-soft);
 		color: var(--amber-ink);
-		border: 1px solid #f0d3a8;
+		border: 1px solid var(--amber-line);
 		border-radius: 999px;
 		padding: 0.2rem 0.8rem;
 		font-size: 0.85rem;
 		font-weight: 600;
+	}
+	@media (max-width: 52rem) {
+		.bar {
+			position: static;
+		}
 	}
 </style>

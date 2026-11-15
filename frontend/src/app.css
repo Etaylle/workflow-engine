@@ -1,20 +1,69 @@
 :root {
+	color-scheme: light dark;
 	--bg: #f5f3ef;
 	--surface: #ffffff;
+	--sunken: #fbfaf8;
 	--ink: #1d1d1b;
 	--muted: #5b5a55;
 	--line: #e3dfd7;
+	--field-line: #c9c5bb;
 	--blue: #2468d6;
+	--blue-strong: #1b57b8;
 	--blue-soft: #e6f0fd;
+	--blue-line: #b9d3f7;
+	--blue-ink: #1b4f9f;
 	--amber-soft: #faebd7;
+	--amber-line: #f0d3a8;
 	--amber-ink: #7a4b0b;
 	--green-soft: #e3f3dc;
+	--green-line: #c3e1b6;
 	--green-ink: #2d6a1f;
-	--grey-soft: #eeece7;
-	--radius: 12px;
-	--shadow: 0 1px 2px rgba(29, 29, 27, 0.05), 0 4px 14px rgba(29, 29, 27, 0.04);
 	--red: #a12626;
 	--red-soft: #fcebea;
+	--red-line: #f0c4c1;
+	--grey-soft: #eeece7;
+	--on-blue: #ffffff;
+	--radius: 12px;
+	--shadow: 0 1px 2px rgba(29, 29, 27, 0.05), 0 4px 14px rgba(29, 29, 27, 0.04);
+	--shadow-pop: 0 8px 28px rgba(29, 29, 27, 0.18);
+	--text-sm: 0.875rem;
+	--text-base: 1rem;
+	--text-lg: 1.25rem;
+	--text-xl: 1.6rem;
+	--space-1: 0.25rem;
+	--space-2: 0.5rem;
+	--space-3: 0.75rem;
+	--space-4: 1.25rem;
+	--space-5: 2rem;
+}
+@media (prefers-color-scheme: dark) {
+	:root {
+		--bg: #15171b;
+		--surface: #1e2127;
+		--sunken: #1a1d22;
+		--ink: #ecebe7;
+		--muted: #a4a39d;
+		--line: #32363e;
+		--field-line: #4a4f59;
+		--blue: #5a9bff;
+		--blue-strong: #7bb0ff;
+		--blue-soft: #1c2c47;
+		--blue-line: #2f4a78;
+		--blue-ink: #a9ccff;
+		--amber-soft: #3a2c16;
+		--amber-line: #6b4f22;
+		--amber-ink: #f0c987;
+		--green-soft: #1d3320;
+		--green-line: #355a38;
+		--green-ink: #9ad69a;
+		--red: #ff8f8a;
+		--red-soft: #3b1f1f;
+		--red-line: #703636;
+		--grey-soft: #2a2e35;
+		--on-blue: #0b1220;
+		--shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+		--shadow-pop: 0 8px 28px rgba(0, 0, 0, 0.6);
+	}
 }
 * {
 	box-sizing: border-box;
@@ -47,7 +96,7 @@ h1 {
 button {
 	font: inherit;
 	padding: 0.45rem 1rem;
-	border: 1px solid #c9c5bb;
+	border: 1px solid var(--field-line);
 	border-radius: 8px;
 	background: var(--surface);
 	color: var(--ink);
@@ -63,26 +112,26 @@ button:disabled {
 button.primary {
 	background: var(--blue);
 	border-color: var(--blue);
-	color: #fff;
+	color: var(--on-blue);
 	font-weight: 600;
 	padding: 0.6rem 1.3rem;
 }
 button.primary:hover:not(:disabled) {
-	background: #1b57b8;
-	border-color: #1b57b8;
+	background: var(--blue-strong);
+	border-color: var(--blue-strong);
 }
 button:not(.primary):not(.danger) {
-	color: #34332f;
+	color: var(--ink);
 }
 button.danger {
-	color: #a12626;
+	color: var(--red);
 }
 input,
 textarea,
 select {
 	font: inherit;
 	padding: 0.5rem 0.65rem;
-	border: 1px solid #c9c5bb;
+	border: 1px solid var(--field-line);
 	border-radius: 8px;
 	background: var(--surface);
 	color: var(--ink);
@@ -142,23 +191,23 @@ label > select {
 }
 .pill.active {
 	background: var(--blue-soft);
-	border-color: #b9d3f7;
-	color: #1b4f9f;
+	border-color: var(--blue-line);
+	color: var(--blue-ink);
 }
 .pill.wait {
 	background: var(--amber-soft);
-	border-color: #f0d3a8;
+	border-color: var(--amber-line);
 	color: var(--amber-ink);
 }
 .pill.done {
 	background: var(--green-soft);
-	border-color: #c3e1b6;
+	border-color: var(--green-line);
 	color: var(--green-ink);
 }
 [role='alert'] {
 	color: var(--red);
 	background: var(--red-soft);
-	border: 1px solid #f0c4c1;
+	border: 1px solid var(--red-line);
 	border-radius: 10px;
 	padding: 0.7rem 1rem;
 	margin: 0.9rem 0 0;
@@ -172,7 +221,7 @@ label > select {
 	flex: none;
 	width: 1.5rem;
 	height: 1.5rem;
-	border: 3px solid #b9d3f7;
+	border: 3px solid var(--blue-line);
 	border-top-color: var(--blue);
 	border-radius: 50%;
 	animation: spin 0.9s linear infinite;
@@ -210,7 +259,7 @@ label > select {
 	padding: 2rem 1rem;
 	border: 2px dashed var(--line);
 	border-radius: var(--radius);
-	background: #fbfaf8;
+	background: var(--sunken);
 }
 .empty h3 {
 	margin: 0 0 0.4rem;
@@ -236,14 +285,14 @@ label > select {
 	padding: 0.05rem 0.55rem;
 	border-radius: 999px;
 	background: var(--blue-soft);
-	color: #1b4f9f;
-	border: 1px solid #b9d3f7;
+	color: var(--blue-ink);
+	border: 1px solid var(--blue-line);
 	white-space: nowrap;
 }
 .badge.green {
 	background: var(--green-soft);
 	color: var(--green-ink);
-	border-color: #c3e1b6;
+	border-color: var(--green-line);
 }
 fieldset {
 	background: var(--surface);
@@ -257,4 +306,29 @@ legend {
 }
 section {
 	margin-bottom: 1.5rem;
+}
+.skeleton {
+	height: 6rem;
+	border-radius: var(--radius);
+	background: linear-gradient(90deg, var(--grey-soft), var(--sunken), var(--grey-soft));
+	background-size: 200% 100%;
+	animation: shimmer 1.4s linear infinite;
+	margin-bottom: 0.75rem;
+}
+@keyframes shimmer {
+	to {
+		background-position: -200% 0;
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.skeleton {
+		animation: none;
+	}
+	html {
+		scroll-behavior: auto;
+	}
+}
+.step,
+.card {
+	scroll-margin-top: 5rem;
 }

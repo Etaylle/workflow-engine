@@ -31,7 +31,7 @@
 </script>
 
 {#if kinds.length > 0}
-	<section data-testid="documents">
+	<section class="step" data-testid="documents">
 		<h2>{locale.t('documents.heading')}</h2>
 		<ul class="docs">
 			{#each kinds as kind (kind)}

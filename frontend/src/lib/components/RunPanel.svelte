@@ -101,7 +101,7 @@
 	const stepKey = (status: string) => `run.step.${status}` as MessageKey;
 </script>
 
-<section aria-labelledby="run-heading" data-testid="step-run">
+<section class="step" aria-labelledby="run-heading" data-testid="step-run">
 	<h2 id="run-heading">{locale.t('run.heading')}</h2>
 	{#if loading.error}<p role="alert">{loading.error}</p>{/if}
 
@@ -242,13 +242,13 @@
 		white-space: pre-wrap;
 	}
 	[data-status='failed'] {
-		color: #a12121;
+		color: var(--red);
 	}
 	[data-status='done'] {
 		color: var(--green-ink);
 	}
 	.question {
-		border: 1px solid #c9c5bb;
+		border: 1px solid var(--field-line);
 		border-radius: 8px;
 		padding: 0.75rem;
 		margin: 0.75rem 0;
@@ -266,7 +266,7 @@
 	a.button {
 		display: inline-block;
 		padding: 0.45rem 1rem;
-		border: 1px solid #c9c5bb;
+		border: 1px solid var(--field-line);
 		border-radius: 8px;
 		text-decoration: none;
 		background: var(--surface);

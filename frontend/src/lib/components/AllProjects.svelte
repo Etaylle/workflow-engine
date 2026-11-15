@@ -136,7 +136,7 @@
 	.button {
 		display: inline-block;
 		padding: 0.45rem 1rem;
-		border: 1px solid #c9c5bb;
+		border: 1px solid var(--field-line);
 		border-radius: 8px;
 		background: var(--surface);
 		color: var(--ink);
@@ -145,7 +145,7 @@
 	.button.primary {
 		background: var(--blue);
 		border-color: var(--blue);
-		color: #fff;
+		color: var(--on-blue);
 		padding: 0.7rem 1.4rem;
 	}
 	.scroll {

@@ -112,7 +112,13 @@
 	});
 </script>
 
-<section class="step" aria-labelledby="questions-heading" data-testid="step-questions">
+<section
+	class="step"
+	aria-labelledby="questions-heading"
+	id="step-questions"
+	tabindex="-1"
+	data-testid="step-questions"
+>
 	<h2 id="questions-heading">{locale.t('questions.heading')}</h2>
 	<p class="sub">{locale.t('step.questionsLead')}</p>
 	{#if loading.error}<p role="alert">{loading.error}</p>{/if}
@@ -133,7 +139,10 @@
 		</details>
 	{/if}
 
-	{#if questions.length === 0 || stale}
+	{#if loading.busy && questions.length === 0}
+		<div class="skeleton" aria-hidden="true"></div>
+		<div class="skeleton" aria-hidden="true"></div>
+	{:else if questions.length === 0 || stale}
 		<div class="empty">
 			<h3>{locale.t('questions.emptyTitle')}</h3>
 			<p>{locale.t(stale ? 'questions.stale' : 'questions.emptyStep')}</p>
@@ -276,7 +285,7 @@
 		border-radius: 10px;
 		padding: 0.6rem 1rem;
 		margin-bottom: 1.25rem;
-		background: #fbfaf8;
+		background: var(--sunken);
 	}
 	.brief summary {
 		font-weight: 600;
@@ -312,7 +321,7 @@
 		gap: 0.5rem;
 		margin: 0;
 		padding: 0.45rem 0.85rem;
-		border: 1px solid #c9c5bb;
+		border: 1px solid var(--field-line);
 		border-radius: 10px;
 		font-weight: 400;
 		cursor: pointer;
