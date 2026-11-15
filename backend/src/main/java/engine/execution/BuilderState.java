@@ -5,12 +5,12 @@ import java.util.List;
 /**
  * What one builder needs and whether it has it, as the API shows it.
  *
- * @param id "claude_code" or "gemini_cli"
+ * @param id "claude_code", "gemini_cli" or "codex_cli"
  * @param name name for people
  * @param ready nothing is missing: a run with this builder may start
  * @param installed the command runs on this machine
  * @param version what the command prints for --version, empty when not installed
- * @param signedIn "yes", "no" or "unknown" for Claude Code in machine sign-in mode; null otherwise
+ * @param signedIn "yes", "no" or "unknown" for Claude Code in machine sign-in mode and for Codex CLI; null otherwise
  * @param keySet the key this builder needs is set in the session (Anthropic key, Gemini key)
  * @param authMode how Claude Code authenticates ("anthropic_key", "machine_sign_in"); null for Gemini CLI
  * @param model the default model of the builder (a project that chose none uses it)
@@ -37,7 +37,7 @@ record BuilderState(String id, String name, boolean ready, boolean installed, St
      * One missing prerequisite.
      *
      * @param code stable name: claude_not_installed, no_anthropic_key, not_signed_in,
-     *     gemini_not_installed, no_gemini_key
+     *     gemini_not_installed, no_gemini_key, codex_not_installed, codex_not_signed_in
      * @param message what is missing and what to do, for people
      * @param instructionKey message key of the instruction text of the frontend, or null
      */

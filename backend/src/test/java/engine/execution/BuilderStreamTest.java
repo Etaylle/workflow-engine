@@ -49,7 +49,35 @@ class BuilderStreamTest {
     }
 
     @Test
+    void codexStreamBecomesShortHumanLinesAndAnOutcome() throws IOException {
+        List<String> shown = lines("codex.jsonl").stream()
+                .map(line -> BuilderStream.codex(line, "/w/run-1")).flatMap(Optional::stream).toList();
+
+        assertThat(shown).containsExactly("builder started", "runs ./check.sh",
+                "tool error: exit code 1 from ./check.sh", "writes src/duck.ts", "edits src/main.ts",
+                "searches ascii duck", "says: Built the duck.");
+        BuilderStream.CodexSummary summary = BuilderStream.codexSummary(String.join("\n", lines("codex.jsonl")));
+        assertThat(summary.completed()).isTrue();
+        assertThat(summary.failure()).isEmpty();
+        assertThat(summary.tokens()).isEqualTo(24885);
+        assertThat(summary.toolCalls()).isEqualTo(3);
+        assertThat(summary.message()).isEqualTo("Built the duck.");
+    }
+
+    @Test
+    void aFailedCodexTurnShowsTheErrorAndIsNotCompleted() {
+        String stream = "{\"type\":\"error\",\"message\":\"boom\"}\n"
+                + "{\"type\":\"turn.failed\",\"error\":{\"message\":\"boom\"}}";
+
+        assertThat(BuilderStream.codex(stream.split("\n")[1], "/w")).contains("error: boom");
+        BuilderStream.CodexSummary summary = BuilderStream.codexSummary(stream);
+        assertThat(summary.completed()).isFalse();
+        assertThat(summary.failure()).isEqualTo("boom");
+    }
+
+    @Test
     void garbageAndEmptyLinesShowNothing() {
+        assertThat(BuilderStream.codex("{broken", "/w")).isEmpty();
         assertThat(BuilderStream.claude("plain text", "/w")).isEmpty();
         assertThat(BuilderStream.gemini("{broken", "/w")).isEmpty();
         assertThat(BuilderStream.claude("{\"type\":\"result\"}", "/w")).isEmpty();

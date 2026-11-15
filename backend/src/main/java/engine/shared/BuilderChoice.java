@@ -7,8 +7,8 @@ import java.util.regex.Pattern;
  * The model and effort a project chose for its builder; null means the default of the engine (the
  * model) or of the CLI (the effort).
  *
- * @param model a Claude Code alias or a Gemini model id, or null
- * @param effort a Claude Code effort level, or null
+ * @param model a Claude Code alias or a Gemini or Codex model id, or null
+ * @param effort a Claude Code or Codex effort level, or null
  */
 public record BuilderChoice(String model, String effort) {
 
@@ -17,6 +17,9 @@ public record BuilderChoice(String model, String effort) {
 
     /** The effort levels of Claude Code. */
     public static final List<String> EFFORTS = List.of("low", "medium", "high", "xhigh", "max");
+
+    /** The reasoning-effort levels Codex CLI accepts for its models (D-102). */
+    public static final List<String> CODEX_EFFORTS = List.of("low", "medium", "high", "xhigh");
 
     private static final int MAX_MODEL_LENGTH = 80;
     private static final Pattern MODEL_ID = Pattern.compile("[A-Za-z0-9._-]+");
@@ -29,6 +32,9 @@ public record BuilderChoice(String model, String effort) {
     public static BuilderChoice checked(Harness harness, String model, String effort) {
         String m = blankToNull(model);
         String e = blankToNull(effort);
+        if (harness == Harness.CODEX_CLI) {
+            return codex(m, e);
+        }
         if (harness == Harness.GEMINI_CLI) {
             if (e != null) {
                 throw new ApiProblem(400, "No effort for Gemini CLI",
@@ -47,6 +53,18 @@ public record BuilderChoice(String model, String effort) {
         if (e != null && !EFFORTS.contains(e)) {
             throw new ApiProblem(400, "Unknown effort", "The effort must be one of "
                     + String.join(", ", EFFORTS) + ", not \"" + e + "\".");
+        }
+        return new BuilderChoice(m, e);
+    }
+
+    private static BuilderChoice codex(String m, String e) {
+        if (m != null && (m.length() > MAX_MODEL_LENGTH || !MODEL_ID.matcher(m).matches())) {
+            throw new ApiProblem(400, "Unknown model", "A Codex model id has at most "
+                    + MAX_MODEL_LENGTH + " characters of letters, digits, dot, underscore and dash.");
+        }
+        if (e != null && !CODEX_EFFORTS.contains(e)) {
+            throw new ApiProblem(400, "Unknown effort", "For Codex CLI the effort must be one of "
+                    + String.join(", ", CODEX_EFFORTS) + ", not \"" + e + "\".");
         }
         return new BuilderChoice(m, e);
     }

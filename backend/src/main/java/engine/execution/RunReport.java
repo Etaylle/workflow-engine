@@ -65,7 +65,11 @@ public record RunReport(
     }
 
     private String builtWith() {
-        String name = "gemini_cli".equals(harness) ? "Gemini CLI" : "Claude Code";
+        String name = switch (harness) {
+            case "gemini_cli" -> "Gemini CLI";
+            case "codex_cli" -> "Codex CLI";
+            default -> "Claude Code";
+        };
         return name + (builderModel == null ? "" : ", model " + builderModel)
                 + (builderEffort == null ? "" : ", effort " + builderEffort);
     }

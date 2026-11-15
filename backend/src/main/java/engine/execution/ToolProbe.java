@@ -14,7 +14,7 @@ import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Asks the installed command-line tools what they are: version (is it installed) and, for Claude
- * Code, whether the machine is signed in. Answers are cached for a short time because the
+ * Code and Codex CLI, whether the machine is signed in. Answers are cached for a short time because the
  * prerequisite check runs on every start of a run and on every read of the builder state.
  */
 @Component
@@ -60,6 +60,26 @@ class ToolProbe {
         });
     }
 
+    /**
+     * Whether the Codex CLI is signed in on this machine, from {@code codex login status}: exit
+     * code 0 means signed in, exit code 1 with "Not logged in" means not; anything else (the
+     * command did not run, another wording) is unknown. The CLI writes the text to standard error.
+     */
+    Optional<Boolean> codexSignedIn(String command) {
+        return cached("codex-auth:" + command, () -> {
+            Optional<Output> out = run(List.of(command, "login", "status"));
+            if (out.isEmpty()) {
+                return Optional.<Boolean>empty();
+            }
+            if (out.get().exit() == 0) {
+                return Optional.of(true);
+            }
+            boolean notLoggedIn = (out.get().text() + out.get().errors()).toLowerCase(java.util.Locale.ROOT)
+                    .contains("not logged in");
+            return notLoggedIn ? Optional.of(false) : Optional.<Boolean>empty();
+        });
+    }
+
     /** Forgets the cached answers (after the owner changed something and wants a fresh look). */
     void forget() {
         cache.clear();
@@ -78,7 +98,7 @@ class ToolProbe {
     }
 
     /** Exit code and standard output; empty when the command cannot start or ran out of time. */
-    private record Output(int exit, String text) {
+    private record Output(int exit, String text, String errors) {
     }
 
     private static Optional<Output> run(List<String> command) {
@@ -90,7 +110,7 @@ class ToolProbe {
             ProcessRunner.Result result = ProcessRunner.run(command, Path.of("."), Map.of(), out, err,
                     PROBE_TIMEOUT);
             return result.timedOut() ? Optional.empty()
-                    : Optional.of(new Output(result.exitCode(), Files.readString(out)));
+                    : Optional.of(new Output(result.exitCode(), Files.readString(out), Files.readString(err)));
         } catch (IllegalStateException | IOException e) {
             return Optional.empty();
         } finally {

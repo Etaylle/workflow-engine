@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+# A fake Codex CLI for the tests: answers like `codex exec --json`, records its arguments and
+# environment, and does what the first line of the file "queue" in fake-codex/ says (ok, fail,
+# limit, badcheck). Signed in when the file "codex-logged-in" exists next to this script.
+set -euo pipefail
+
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [ "${1:-}" = "--version" ]; then
+	echo "codex-cli 0.0.0-fake"
+	exit 0
+fi
+if [ "${1:-}" = "login" ] && [ "${2:-}" = "status" ]; then
+	if [ -e "$here/codex-logged-in" ]; then
+		echo "Logged in using ChatGPT" >&2
+		exit 0
+	fi
+	echo "Not logged in" >&2
+	exit 1
+fi
+
+dir="$here/fake-codex"
+mkdir -p "$dir"
+args="$*"
+printf '%s\n' "${args//$'\n'/ }" >>"$dir/args.log"
+printf 'openai=%s gemini=%s anthropic=%s cwd=%s\n' "${OPENAI_API_KEY:-}" "${GEMINI_API_KEY:-}" \
+	"${ANTHROPIC_API_KEY:-}" "$PWD" >>"$dir/env.log"
+
+mode=ok
+if [ -s "$dir/queue" ]; then
+	mode="$(head -n 1 "$dir/queue")"
+	tail -n +2 "$dir/queue" >"$dir/queue.tmp"
+	mv "$dir/queue.tmp" "$dir/queue"
+fi
+
+passing() { printf '#!/bin/sh\necho CHECK PASSED\n' >check.sh && chmod +x check.sh; }
+
+case "$mode" in
+ok)
+	passing
+	cat <<'JSON'
+{"type":"thread.started","thread_id":"0199a213-81c0-7800-8aa1-bbab2a035a53"}
+{"type":"turn.started"}
+{"type":"item.started","item":{"id":"item_1","type":"command_execution","command":"bash -lc ls","aggregated_output":"","exit_code":null,"status":"in_progress"}}
+{"type":"item.completed","item":{"id":"item_1","type":"command_execution","command":"bash -lc ls","aggregated_output":"a\n","exit_code":0,"status":"completed"}}
+{"type":"item.completed","item":{"id":"item_2","type":"reasoning","text":"thinking"}}
+{"type":"item.completed","item":{"id":"item_3","type":"file_change","changes":[{"path":"fake.txt","kind":"add"}],"status":"completed"}}
+{"type":"item.completed","item":{"id":"item_4","type":"mcp_tool_call","server":"s","tool":"t","status":"completed"}}
+{"type":"item.completed","item":{"id":"item_5","type":"agent_message","text":"Did the step."}}
+{"type":"turn.completed","usage":{"input_tokens":1000,"cached_input_tokens":800,"output_tokens":234,"reasoning_output_tokens":10}}
+JSON
+	;;
+badcheck)
+	printf '#!/bin/sh\necho tests failed: 1\nexit 1\n' >check.sh && chmod +x check.sh
+	cat <<'JSON'
+{"type":"thread.started","thread_id":"t"}
+{"type":"item.completed","item":{"id":"item_1","type":"agent_message","text":"Did the step."}}
+{"type":"turn.completed","usage":{"input_tokens":60,"cached_input_tokens":0,"output_tokens":40,"reasoning_output_tokens":0}}
+JSON
+	;;
+fail)
+	cat <<'JSON'
+{"type":"thread.started","thread_id":"t"}
+{"type":"error","message":"The step went wrong: no luck"}
+{"type":"turn.failed","error":{"message":"The step went wrong: no luck"}}
+JSON
+	exit 1
+	;;
+limit)
+	cat <<'JSON'
+{"type":"thread.started","thread_id":"t"}
+{"type":"error","message":"You've hit your usage limit. Visit https://chatgpt.com/settings/usage to purchase more credits or try again at 9:40 PM."}
+{"type":"turn.failed","error":{"message":"You've hit your usage limit. Visit https://chatgpt.com/settings/usage to purchase more credits or try again at 9:40 PM."}}
+JSON
+	exit 1
+	;;
+*)
+	echo "fake codex: unknown mode $mode" >&2
+	exit 2
+	;;
+esac

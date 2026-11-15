@@ -214,13 +214,13 @@ paths:
                   maxLength: 80
                   description: >
                     The model of the builder; an empty string = the engine's default. Claude Code takes
-                    haiku, sonnet, opus or fable; Gemini CLI any id of letters, digits, dot, underscore
+                    haiku, sonnet, opus or fable; Gemini CLI and Codex CLI any id of letters, digits, dot, underscore
                     and dash (`GET /api/builders` suggests some). 400 otherwise. A run snapshots it.
                 builderEffort:
                   type: string
                   enum: ["", low, medium, high, xhigh, max]
                   description: >
-                    The effort of Claude Code; an empty string = the CLI's own default. 400 for Gemini CLI.
+                    The effort of Claude Code (low to max) or Codex CLI (low, medium, high, xhigh); an empty string = the CLI's own default. 400 for Gemini CLI.
                     Changing agentHarness clears both builderModel and builderEffort (values sent in the
                     same request apply to the new builder).
                 buildMode:
@@ -237,7 +237,7 @@ paths:
                     template it starts with.
                 agentHarness:
                   type: string
-                  enum: [claude_code, gemini_cli]
+                  enum: [claude_code, gemini_cli, codex_cli]
                   description: >
                     The builder of the project's software. A run remembers the builder it started with,
                     so changing it never affects a run under way or its resume
@@ -812,7 +812,7 @@ paths:
       operationId: getBuilders
       summary: What each builder needs to build, and whether it has it
       description: >
-        For Claude Code and Gemini CLI: installed (with version), the key set in the session, for
+        For Claude Code, Gemini CLI and Codex CLI: installed (with version), the key set in the session, for
         Claude Code the sign-in mode and whether this machine is signed in ("unknown" when the
         installed `claude auth status` gives no answer; the first step's error then tells), and
         `missing`: one entry per missing prerequisite with a stable code, a message and, for a
@@ -829,7 +829,7 @@ paths:
           schema: {type: boolean, default: false}
       responses:
         "200":
-          description: The builders in the order claude_code, gemini_cli
+          description: The builders in the order claude_code, gemini_cli, codex_cli
           content:
             application/json:
               schema:
@@ -874,7 +874,7 @@ paths:
         steps of the project's step profile and stops at its cost limit (project settings). The run uses
         the project's builder (agentHarness) and remembers it. Claude Code needs the Anthropic key of the
         session or the machine sign-in mode; Gemini CLI needs the Gemini key (the OpenAI-compatible key slot
-        set to Google Gemini); both need the command installed (`GET /api/builders`).
+        set to Google Gemini); Codex CLI needs the ChatGPT sign-in of this machine (`codex login`; no key of the engine is passed); all need the command installed (`GET /api/builders`).
       parameters:
         - $ref: "#/components/parameters/ProjectId"
       responses:
@@ -887,8 +887,8 @@ paths:
         "409":
           description: >
             Not confirmed, a run is active, no software task, or the builder is not ready: the title is
-            "Builder not ready: Claude Code" or "Builder not ready: Gemini CLI" and the detail names
-            exactly what is missing (not installed, Anthropic key, not signed in, Gemini key)
+            "Builder not ready: Claude Code" "Builder not ready: Gemini CLI" or "Builder not ready: Codex CLI" and the detail names
+            exactly what is missing (not installed, Anthropic key, not signed in, Gemini key, Codex sign-in)
           content:
             application/problem+json:
               schema:
@@ -1556,7 +1556,7 @@ components:
           enum: [draft, questions_ready, answered, requirements_ready, workflow_drafted, confirmed, executing, done, stopped, failed]
         agentHarness:
           type: string
-          enum: [claude_code, gemini_cli]
+          enum: [claude_code, gemini_cli, codex_cli]
           description: The builder of the software of this project (default claude_code)
         templateId:
           type: string
@@ -1787,7 +1787,7 @@ components:
       properties:
         runId: {type: string, format: uuid}
         status: {type: string, enum: [preparing, executing, waiting, done, interrupted, failed]}
-        harness: {type: string, enum: [claude_code, gemini_cli]}
+        harness: {type: string, enum: [claude_code, gemini_cli, codex_cli]}
         builderModel: {type: string, nullable: true}
         builderEffort: {type: string, nullable: true, enum: [low, medium, high, xhigh, max]}
         startedAt: {type: string, format: date-time}
@@ -1843,7 +1843,7 @@ components:
         contractVersion: {type: integer}
         harness:
           type: string
-          enum: [claude_code, gemini_cli]
+          enum: [claude_code, gemini_cli, codex_cli]
           description: The builder the run started with (snapshot; a resume uses the same one)
         builderModel: {type: string, nullable: true, description: "The model the run builds with (snapshot, the default resolved at start; null only for runs made before the choice existed)"}
         builderEffort: {type: string, nullable: true, enum: [low, medium, high, xhigh, max], description: "The effort the run builds with (snapshot); null = the CLI's own default"}
@@ -1908,8 +1908,8 @@ components:
                     title: {type: string}
                     status: {type: string, enum: [waiting, running, done, failed]}
                     result: {type: string, nullable: true}
-                    costUsd: {type: number, description: Always 0 with Gemini CLI (free tier)}
-                    tokens: {type: integer, format: int64, description: Tokens of the builder invocations (reported by Gemini CLI; 0 for Claude Code)}
+                    costUsd: {type: number, description: Always 0 with Gemini CLI (free tier) and Codex CLI (ChatGPT plan)}
+                    tokens: {type: integer, format: int64, description: Tokens of the builder invocations (reported by Gemini CLI and Codex CLI; 0 for Claude Code)}
                     turns: {type: integer}
                     seconds: {type: integer}
                     attempts:
@@ -1929,7 +1929,7 @@ components:
             type: object
             required: [id, name, ready, installed, version, keySet, model, models, customModel, efforts, missing]
             properties:
-              id: {type: string, enum: [claude_code, gemini_cli]}
+              id: {type: string, enum: [claude_code, gemini_cli, codex_cli]}
               name: {type: string}
               ready: {type: boolean, description: Nothing is missing; a run with this builder may start}
               installed: {type: boolean}
@@ -1939,7 +1939,7 @@ components:
                 nullable: true
                 enum: [yes, no, unknown]
                 description: Claude Code in machine_sign_in mode only
-              keySet: {type: boolean, description: The Anthropic key (Claude Code) or the Gemini key (Gemini CLI) is set}
+              keySet: {type: boolean, description: The Anthropic key (Claude Code) or the Gemini key (Gemini CLI) is set; always false for Codex CLI (it uses the sign-in of the machine)}
               authMode:
                 type: string
                 nullable: true
@@ -1955,11 +1955,11 @@ components:
                   properties:
                     id: {type: string}
                     hint: {type: string}
-              customModel: {type: boolean, description: Any model id may be typed (Gemini CLI), not only the suggestions}
+              customModel: {type: boolean, description: Any model id may be typed (Gemini CLI, Codex CLI), not only the suggestions}
               efforts:
                 type: array
                 items: {type: string, enum: [low, medium, high, xhigh, max]}
-                description: The effort levels; empty when the builder has none (Gemini CLI)
+                description: The effort levels; empty when the builder has none (Gemini CLI); low to xhigh for Codex CLI
               defaultEffort: {type: string, nullable: true, description: The effort used when none is chosen; null = the CLI's own default}
               missing:
                 type: array
@@ -1967,7 +1967,7 @@ components:
                   type: object
                   required: [code, message]
                   properties:
-                    code: {type: string, enum: [claude_not_installed, no_anthropic_key, not_signed_in, gemini_not_installed, no_gemini_key]}
+                    code: {type: string, enum: [claude_not_installed, no_anthropic_key, not_signed_in, gemini_not_installed, no_gemini_key, codex_not_installed, codex_not_signed_in]}
                     message: {type: string}
                     instructionKey: {type: string, nullable: true}
     RunEvent:

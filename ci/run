@@ -14,6 +14,8 @@ TEST_DB_NAME="${ENGINE_TEST_DB_NAME:-engine_test}"
 PG_SERVICE="postgresql@17"
 GEMINI_VERSION="${ENGINE_GEMINI_VERSION:-0.68.0}"
 GEMINI_BIN="$RUN_DIR/tools/node_modules/.bin/gemini"
+CODEX_VERSION="${ENGINE_CODEX_VERSION:-0.169.0}"
+CODEX_BIN="$RUN_DIR/tools/node_modules/.bin/codex"
 
 log() { printf '== %s\n' "$*"; }
 die() {
@@ -89,7 +91,10 @@ start_engine() {
 	[ -x "$GEMINI_BIN" ] && gemini_cmd="${ENGINE_GEMINI_CMD:-$GEMINI_BIN}"
 	# Run a copy of the jar: a later build must never change the file of a running engine.
 	cp "$(jar_path)" "$RUN_DIR/$name.jar"
+	local codex_cmd="${ENGINE_CODEX_CMD:-codex}"
+	[ -x "$CODEX_BIN" ] && codex_cmd="${ENGINE_CODEX_CMD:-$CODEX_BIN}"
 	env ENGINE_PORT="$port" ENGINE_DB_URL="$(db_url "$db")" ENGINE_GEMINI_CMD="$gemini_cmd" \
+		ENGINE_CODEX_CMD="$codex_cmd" \
 		ENGINE_EXECUTION_TEMPLATES_DIR="$ROOT/templates" \
 		ENGINE_EXECUTION_BROWSER_SCRIPT="$ROOT/tools/use-check/browser.cjs" \
 		ENGINE_EXECUTION_BROWSER_NODE_PATH="$ROOT/frontend/node_modules" "$@" \
@@ -120,6 +125,15 @@ cmd_install_gemini() {
 	npm install --prefix "$RUN_DIR/tools" "@google/gemini-cli@$GEMINI_VERSION"
 	"$GEMINI_BIN" --version
 	log "Gemini CLI is ready; ci/run env-up uses it (or set ENGINE_GEMINI_CMD)"
+}
+
+# The Codex CLI builder: installed into the same git-ignored tools folder, never globally.
+cmd_install_codex() {
+	command -v npm >/dev/null || die "npm is missing; install Node.js first"
+	log "installing @openai/codex@$CODEX_VERSION into $RUN_DIR/tools"
+	npm install --prefix "$RUN_DIR/tools" "@openai/codex@$CODEX_VERSION"
+	"$CODEX_BIN" --version
+	log "Codex CLI is ready; sign in once with: $CODEX_BIN login"
 }
 
 cmd_env_down() {
@@ -180,7 +194,7 @@ cmd_all_local() {
 }
 
 usage() {
-	printf 'usage: ci/run {all-local|test-unit|test-integration|test-e2e|env-up|env-down|install-gemini}\n' >&2
+	printf 'usage: ci/run {all-local|test-unit|test-integration|test-e2e|env-up|env-down|install-gemini|install-codex}\n' >&2
 	exit 2
 }
 
@@ -193,5 +207,6 @@ test-e2e) cmd_test_e2e ;;
 env-up) cmd_env_up ;;
 env-down) cmd_env_down ;;
 install-gemini) cmd_install_gemini ;;
+install-codex) cmd_install_codex ;;
 *) usage ;;
 esac

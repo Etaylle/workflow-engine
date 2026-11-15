@@ -1,6 +1,7 @@
 package engine.execution;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.regex.Pattern;
 import tools.jackson.databind.JsonNode;
@@ -8,7 +9,7 @@ import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Turns one line of the streaming output of Claude Code ({@code --output-format stream-json}) or
- * Gemini CLI ({@code -o stream-json}) into one short human line for the console, and keeps keys out.
+ * Gemini CLI ({@code -o stream-json}) or Codex CLI ({@code exec --json}) into one short human line for the console, and keeps keys out.
  */
 final class BuilderStream {
 
@@ -76,6 +77,112 @@ final class BuilderStream {
             default:
                 return Optional.empty();
         }
+    }
+
+    /** The human line for a Codex CLI event (thread.started, item.started/completed, error, turn.failed). */
+    static Optional<String> codex(String line, String workspace) {
+        JsonNode json = parse(line);
+        if (json == null) {
+            return Optional.empty();
+        }
+        String type = json.path("type").asString("");
+        JsonNode item = json.path("item");
+        String itemType = item.path("type").asString("");
+        switch (type) {
+            case "thread.started":
+                return Optional.of("builder started");
+            case "error", "turn.failed":
+                String message = json.path("error").path("message").asString(json.path("message").asString(""));
+                return message.isBlank() ? Optional.empty() : Optional.of("error: " + clip(message));
+            case "item.started":
+                return "command_execution".equals(itemType)
+                        ? Optional.of("runs " + clip(shellCommand(item.path("command").asString(""))))
+                        : Optional.empty();
+            case "item.completed":
+                return codexCompleted(item, itemType, workspace);
+            default:
+                return Optional.empty();
+        }
+    }
+
+    private static Optional<String> codexCompleted(JsonNode item, String itemType, String workspace) {
+        switch (itemType) {
+            case "agent_message":
+                String text = item.path("text").asString("");
+                return text.isBlank() ? Optional.empty() : Optional.of("says: " + clip(text));
+            case "file_change":
+                for (JsonNode change : item.path("changes")) {
+                    String file = relative(change.path("path").asString(""), workspace);
+                    String kind = change.path("kind").asString("");
+                    return Optional.of(("add".equals(kind) ? "writes " : "delete".equals(kind) ? "deletes "
+                            : "edits ") + file);
+                }
+                return Optional.empty();
+            case "command_execution":
+                int exit = item.path("exit_code").asInt(0);
+                return exit == 0 || item.path("exit_code").isNull() ? Optional.empty()
+                        : Optional.of("tool error: exit code " + exit + " from "
+                                + clip(shellCommand(item.path("command").asString(""))));
+            case "mcp_tool_call":
+                return Optional.of("uses " + item.path("server").asString("mcp") + "."
+                        + item.path("tool").asString("tool"));
+            case "web_search":
+                return Optional.of("searches " + clip(item.path("query").asString("")));
+            default:
+                return Optional.empty();
+        }
+    }
+
+    /** The command a Codex shell item ran, without the shell wrapper ("bash -lc ls" becomes "ls"). */
+    private static String shellCommand(String command) {
+        String bare = command.replaceFirst("^(?:/\\S*/)?(?:ba|z)?sh -l?c\\s+", "");
+        return bare.replaceAll("^(['\"])(.*)\\1$", "$2");
+    }
+
+    /**
+     * What the stream of {@code codex exec --json} came to.
+     *
+     * @param completed a turn.completed event came
+     * @param failure the message of the last error or turn.failed event, empty when none
+     * @param tokens input plus output tokens of the turn
+     * @param toolCalls completed commands, file changes and tool calls
+     * @param message the last message of the agent
+     */
+    record CodexSummary(boolean completed, String failure, long tokens, int toolCalls, String message) {
+    }
+
+    /** Reads the whole stream of Codex CLI for its outcome. */
+    static CodexSummary codexSummary(String stream) {
+        boolean completed = false;
+        String failure = "";
+        long tokens = 0;
+        int calls = 0;
+        String message = "";
+        for (String line : stream.split("\n")) {
+            JsonNode json = parse(line);
+            if (json == null) {
+                continue;
+            }
+            switch (json.path("type").asString("")) {
+                case "turn.completed":
+                    completed = true;
+                    tokens = json.path("usage").path("input_tokens").asLong(0)
+                            + json.path("usage").path("output_tokens").asLong(0);
+                    break;
+                case "error", "turn.failed":
+                    failure = json.path("error").path("message").asString(json.path("message").asString(failure));
+                    break;
+                case "item.completed":
+                    String type = json.path("item").path("type").asString("");
+                    calls += List.of("command_execution", "file_change", "mcp_tool_call").contains(type) ? 1 : 0;
+                    message = "agent_message".equals(type) ? json.path("item").path("text").asString(message)
+                            : message;
+                    break;
+                default:
+                    break;
+            }
+        }
+        return new CodexSummary(completed, failure, tokens, calls, message);
     }
 
     /** The line of the final result object of a stream, or null when the stream has none. */

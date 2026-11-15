@@ -26,7 +26,7 @@ public class ProjectController {
         }
     }
 
-    /** Request body of the update: a name, a wish, the builder ("claude_code" or "gemini_cli"), or several. */
+    /** Request body of the update: a name, a wish, the builder ("claude_code", "gemini_cli" or "codex_cli"), or several. */
     public record UpdateRequest(String name, String wish, String agentHarness, String templateId,
             String buildMode, String builderModel, String builderEffort) { }
 

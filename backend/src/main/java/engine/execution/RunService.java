@@ -95,7 +95,11 @@ class RunService {
                 .orElse(defaultBuildMode(contract.softwareTasks().size()));
         BuilderChoice choice = projects.builderChoiceOf(projectId).orElseThrow();
         String model = choice.model() != null ? choice.model()
-                : harness == Harness.GEMINI_CLI ? settings.geminiModel() : settings.model();
+                : switch (harness) {
+                    case GEMINI_CLI -> settings.geminiModel();
+                    case CODEX_CLI -> settings.codexModel();
+                    case CLAUDE_CODE -> settings.model();
+                };
         Path workspace = settings.workspaceRoot().resolve("run-" + runId);
         RunSettingsPort.RunSettings chosen = runSettings.forProject(projectId);
         store.create(runId, projectId, contract.version(), harness,

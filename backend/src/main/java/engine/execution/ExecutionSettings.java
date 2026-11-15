@@ -10,6 +10,8 @@ import java.math.BigDecimal;
  * @param workspaceRoot folder that holds one workspace per run, outside the repository
  * @param geminiCmd the Gemini CLI command (ENGINE_GEMINI_CMD)
  * @param geminiModel the model of the Gemini CLI builder (ENGINE_GEMINI_BUILD_MODEL)
+ * @param codexCmd the Codex CLI command (ENGINE_CODEX_CMD)
+ * @param codexModel the model of the Codex CLI builder (ENGINE_CODEX_BUILD_MODEL)
  * @param useSignIn start value of the Claude Code sign-in mode; the owner changes it at run time
  * @param createDatabase create a PostgreSQL database for the generated project of each run
  * @param costLimitUsd default cost limit of a run
@@ -23,7 +25,7 @@ import java.math.BigDecimal;
  * @param wholeCapMultiple factor on the per-step cap when the whole software is built as one unit
  */
 record ExecutionSettings(Path workspaceRoot, String claudeBin, String model,
-        String geminiCmd, String geminiModel,
+        String geminiCmd, String geminiModel, String codexCmd, String codexModel,
         boolean useSignIn, boolean createDatabase, BigDecimal costLimitUsd, Duration stepTimeout,
         Duration checkTimeout, int fixAttempts, int maxResumes,
         Duration limitWaitBase, Duration limitWaitMax, int limitMaxRetries, Duration previewLifetime,

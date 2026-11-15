@@ -23,6 +23,8 @@ class ExecutionConfig {
             @Value("${engine.execution.model:sonnet}") String model,
             @Value("${engine.gemini.cmd:gemini}") String geminiCmd,
             @Value("${engine.gemini.build-model:gemini-3.1-flash-lite}") String geminiModel,
+            @Value("${engine.codex.cmd:codex}") String codexCmd,
+            @Value("${engine.codex.build-model:gpt-6.1-sol}") String codexModel,
             @Value("${engine.execution.use-sign-in:false}") boolean useSignIn,
             @Value("${engine.execution.create-database:true}") boolean createDatabase,
             @Value("${engine.execution.cost-limit-usd:10}") BigDecimal costLimit,
@@ -40,7 +42,8 @@ class ExecutionConfig {
                 ? Path.of(System.getProperty("user.home"), ".workflow-engine", "workspaces")
                 : Path.of(workspaceDir);
         return new ExecutionSettings(root.toAbsolutePath(),
-                claudeBin, model, geminiCmd, geminiModel, useSignIn, createDatabase, costLimit, Duration.ofMinutes(stepMinutes),
+                claudeBin, model, geminiCmd, geminiModel, codexCmd, codexModel,
+                useSignIn, createDatabase, costLimit, Duration.ofMinutes(stepMinutes),
                 Duration.ofMinutes(checkMinutes), fixAttempts, maxResumes,
                 Duration.ofMillis(limitBaseMs), Duration.ofMillis(limitMaxMs), limitMaxRetries,
                 Duration.ofSeconds(previewSeconds), Duration.ofSeconds(previewStartSeconds),
@@ -54,6 +57,7 @@ class ExecutionConfig {
             ExecutionSettings settings, ClaudeAuth auth, ToolProbe probe) {
         return stub && !realBuilder ? Builders.single(new StubBuilder())
                 : Builders.real(new ClaudeCodeBuilder(sessionKey, settings, auth, probe),
-                        new GeminiCliBuilder(sessionKey, settings, probe));
+                        new GeminiCliBuilder(sessionKey, settings, probe),
+                        new CodexCliBuilder(settings, probe));
     }
 }
