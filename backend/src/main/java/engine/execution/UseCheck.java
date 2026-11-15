@@ -33,6 +33,8 @@ class UseCheck {
     }
 
     private static final String SCRIPT = "start.sh";
+    /** Folder of the workspace with the pictures of the software in use. */
+    static final String SCREENS = "screens";
     private static final long POLL_MS = 300;
     private static final int TAIL = 15;
     /** Exit code of the browser script when no browser tooling is installed. */
@@ -75,7 +77,7 @@ class UseCheck {
         Process process = launch(workspace, appEnv, port, out, err);
         try {
             Result result = isConsole ? useConsole(process, out, err, stopped)
-                    : useWeb(process, port, out, err, logDir, stopped);
+                    : useWeb(process, port, out, err, logDir, workspace, stopped);
             result.lines().forEach(line -> console.accept("use: " + line));
             return result;
         } catch (InterruptedException e) {
@@ -123,7 +125,7 @@ class UseCheck {
     }
 
     /** A web app must answer on its port, and its page must work when opened and used. */
-    private Result useWeb(Process process, int port, Path out, Path err, Path logDir,
+    private Result useWeb(Process process, int port, Path out, Path err, Path logDir, Path workspace,
             BooleanSupplier stopped) throws InterruptedException {
         Instant deadline = Instant.now().plus(startTimeout);
         while (!RunPreviews.answers(port)) {
@@ -143,11 +145,11 @@ class UseCheck {
             return failedWithOutput("The start page " + url + " answered "
                     + (status < 0 ? "nothing" : "HTTP " + status) + ". Output:", out, err);
         }
-        return browse(url, logDir);
+        return browse(url, logDir, workspace);
     }
 
     /** Opens the page in a headless browser through the browser script and reads its findings. */
-    private Result browse(String url, Path logDir) {
+    private Result browse(String url, Path logDir, Path workspace) {
         if (!Files.isRegularFile(browserScript)) {
             return new Result(true, List.of("the app answers at " + url
                     + "; browser check skipped: " + browserScript + " is missing"));
@@ -157,6 +159,7 @@ class UseCheck {
                 List.of("node", browserScript.toString(), url, logDir.resolve("use-check.png").toString()),
                 logDir, Map.of("NODE_PATH", nodePath.toString()), out, out, Duration.ofSeconds(120));
         List<String> lines = BuilderSupport.read(out).lines().filter(line -> !line.isBlank()).toList();
+        int pictures = keepPictures(logDir, workspace);
         if (result.exitCode() == NO_BROWSER) {
             return new Result(true, List.of("the app answers at " + url
                     + "; browser check skipped: no browser tooling in " + nodePath));
@@ -172,13 +175,40 @@ class UseCheck {
             List<String> all = new ArrayList<>(List.of("Opening " + url + " in a browser and pressing"
                     + " its main controls (start button, arrow keys, space, enter) showed:"));
             all.addAll(findings);
+            if (pictures > 0) {
+                all.add("Pictures of what the browser showed are in " + SCREENS + "/ (look at them).");
+            }
             return failed(all);
         }
         List<String> info = new ArrayList<>(List.of("the page works in a browser: no script error,"
                 + " no failed request, not empty"));
         lines.stream().filter(line -> line.startsWith("INFO: ")).map(line -> line.substring(6))
                 .forEach(info::add);
+        if (pictures > 0) {
+            info.add(pictures + " pictures of the page in use are in " + SCREENS + "/");
+        }
         return new Result(true, info);
+    }
+
+    /**
+     * Copies the pictures the browser took into the workspace, so the builder of the next step can
+     * look at what a client sees.
+     */
+    private static int keepPictures(Path logDir, Path workspace) {
+        Path target = workspace.resolve(SCREENS);
+        int kept = 0;
+        try (java.util.stream.Stream<Path> files = Files.list(logDir)) {
+            for (Path file : files.filter(f -> f.getFileName().toString().matches("use-check.*\\.png"))
+                    .sorted().toList()) {
+                Files.createDirectories(target);
+                Files.copy(file, target.resolve(file.getFileName().toString().replace("use-check", "use")),
+                        java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                kept++;
+            }
+        } catch (IOException e) {
+            return kept;
+        }
+        return kept;
     }
 
     private static Process launch(Path workspace, Map<String, String> appEnv, Integer port, Path out,

@@ -1,5 +1,6 @@
 // Opens the page of a generated web app the way a client would and reports what does not work.
 // Usage: node browser.cjs <url> <screenshot.png>   (NODE_PATH must lead to playwright)
+// Pictures: <screenshot> after use, plus -1-opened and -2-started next to it.
 // Output: lines "FINDING: ..." for what is broken and "INFO: ..." for what was seen.
 // Exit code: 0 nothing found, 1 findings, 2 no browser tooling installed.
 'use strict';
@@ -81,8 +82,15 @@ async function use(chromium, url, screenshot) {
 			findings.add(`the page answered ${response ? response.status() : 'nothing'}`);
 		}
 		await page.waitForTimeout(1500);
+		await page.screenshot({ path: screenshot.replace(/\.png$/, '-1-opened.png') }).catch(() => {});
 		const pressed = await pressMainControls(page);
 		await page.waitForTimeout(2000);
+		await page.screenshot({ path: screenshot.replace(/\.png$/, '-2-started.png') }).catch(() => {});
+		await page.keyboard.down('Space').catch(() => {});
+		await page.keyboard.down('ArrowRight').catch(() => {});
+		await page.waitForTimeout(2500);
+		await page.keyboard.up('ArrowRight').catch(() => {});
+		await page.keyboard.up('Space').catch(() => {});
 		const seen = await page.evaluate(facts);
 		if (!seen.text && seen.canvases === 0 && seen.pictures === 0) {
 			findings.add('the page shows nothing: no text, no canvas, no picture');
