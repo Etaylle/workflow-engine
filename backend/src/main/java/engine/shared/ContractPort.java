@@ -19,9 +19,10 @@ public interface ContractPort {
      * @param costLimitUsd the limit chosen for the contract, or empty when none was chosen
      * @param markdown the whole contract as text (wish, answers, requirements, workflow)
      * @param softwareTasks the software tasks in the order of the workflow
+     * @param manualTasks the steps done by a person, in the order of the workflow
      */
     record ContractInfo(int version, Optional<BigDecimal> costLimitUsd, String markdown,
-            List<TaskLine> softwareTasks) {
+            List<TaskLine> softwareTasks, List<TaskLine> manualTasks) {
     }
 
     /** The latest confirmed contract of the project, or empty when there is none. */

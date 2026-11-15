@@ -16,8 +16,11 @@ A Java 21 + Spring Boot backend (`backend/`), a Svelte 5 + Vite + TypeScript fro
 ## Rules
 
 - One slice at a time: migration, API endpoint, backend code, frontend, tests together.
-- Every new behaviour gets a test; tests start the real application on the real PostgreSQL
-  (`APP_DB_URL`, `APP_DB_USER`, `APP_DB_PASSWORD`). Do not mock the database.
+- The database is available, not obligatory: use it only where the wish or a requirement needs data
+  to outlive the session; otherwise keep state in memory and add no endpoints or tables the wish does
+  not need.
+- Every new behaviour gets a test; tests start the real application, and where it uses PostgreSQL the
+  real one (`APP_DB_URL`, `APP_DB_USER`, `APP_DB_PASSWORD`). Do not mock the database.
 - The compiler runs with `-Werror` and `-Xlint:all`: fix every warning, never suppress one.
 - Migrations are forward-only: add a new `V<n>__name.sql`, never edit an applied one.
 - Add dependencies only when the task needs them. Never put a secret into a file.

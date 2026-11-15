@@ -32,13 +32,35 @@ final class ContractMarkdown {
                 .append(n.description() == null || n.description().isBlank() ? ""
                         : ": " + n.description())
                 .append("\n"));
+        appendManualTasks(text, manualTasks(snapshot.workflow()));
         return text.toString();
     }
 
+    /** The steps done by a person: user actions the software must offer, not left out of the build. */
+    private static void appendManualTasks(StringBuilder text, List<TaskLine> manual) {
+        if (manual.isEmpty()) {
+            return;
+        }
+        text.append("\n## Steps done by a person: user actions the software must offer\n\n")
+                .append("A person does these steps, so the software must offer what they need"
+                        + " (controls, inputs, screens). They are part of what is built.\n\n");
+        manual.forEach(t -> text.append("- \"").append(t.title()).append("\" (").append(t.lane())
+                .append(")").append(t.description() == null || t.description().isBlank() ? ""
+                        : ": " + t.description()).append("\n"));
+    }
+
     static List<TaskLine> softwareTasks(WorkflowView workflow) {
+        return tasksOfType(workflow, "software");
+    }
+
+    static List<TaskLine> manualTasks(WorkflowView workflow) {
+        return tasksOfType(workflow, "manual");
+    }
+
+    private static List<TaskLine> tasksOfType(WorkflowView workflow, String taskType) {
         Map<UUID, String> lanes = laneNames(workflow);
         return workflow.nodes().stream()
-                .filter(n -> "task".equals(n.kind()) && "software".equals(n.taskType()))
+                .filter(n -> "task".equals(n.kind()) && taskType.equals(n.taskType()))
                 .map(n -> new TaskLine(n.title(), lanes.get(n.laneId()), n.description()))
                 .toList();
     }

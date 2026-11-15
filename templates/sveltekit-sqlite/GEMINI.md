@@ -10,6 +10,9 @@ and SQLite through Node's built-in `node:sqlite` (file `data/app.db`, `APP_DB_FI
   `#lib/server/db.js` (the `imports` map of `package.json`), not `$lib`.
 - Schema changes are new plain SQL files `migrations/NNN_name.sql` (forward-only, never edit an
   applied one); they are applied when the server starts.
+- The database is available, not obligatory: use it only where the wish or a requirement needs data
+  to outlive the session; otherwise keep state in memory and add no server routes, tables or network
+  calls the wish does not need.
 - Add dependencies only when the task needs them. Never put a secret into a file.
 
 ## Commands
@@ -21,8 +24,8 @@ and SQLite through Node's built-in `node:sqlite` (file `data/app.db`, `APP_DB_FI
 
 ## Rules
 
-- Every new behaviour gets a test (`src/**/*.test.ts`). Test the real SQLite (in memory or a temp
-  file); do not mock the database.
+- Every new behaviour gets a test (`src/**/*.test.ts`). Where the app uses SQLite, test the real one
+  (in memory or a temp file); do not mock the database.
 - Fix every warning and type error; never suppress one. Never weaken or delete a test to get green.
 - Keep `./start.sh` working: when the way the app is built or started changes, change it with it.
   What the app prints to its console is shown to the client.

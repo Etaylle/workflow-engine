@@ -136,7 +136,8 @@ class WorkflowService implements WorkflowPort, ContractPort {
                     json.readValue(stored.snapshot(), WorkflowStore.Snapshot.class);
             return new ContractInfo(stored.version(), Optional.ofNullable(stored.costLimit()),
                     ContractMarkdown.of(stored.version(), snapshot),
-                    ContractMarkdown.softwareTasks(snapshot.workflow()));
+                    ContractMarkdown.softwareTasks(snapshot.workflow()),
+                    ContractMarkdown.manualTasks(snapshot.workflow()));
         });
     }
 
