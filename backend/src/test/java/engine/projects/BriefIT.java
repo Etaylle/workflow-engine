@@ -52,6 +52,21 @@ class BriefIT {
     }
 
     @Test
+    void aWebBriefGivesTheLightWebTemplateAndAnExplicitChoiceSurvivesANewBrief() throws Exception {
+        UUID id = http.createProject("Make a browser game with a ferret");
+        writer.queue.add(new Brief("A ferret game", List.of("Player"), List.of("Ferret"), List.of(), "web"));
+        http.call("POST", "/api/projects/" + id + "/brief", null);
+        assertThat(http.json("GET", "/api/projects/" + id, null).get("templateId").asString())
+                .isEqualTo("sveltekit-sqlite");
+
+        http.call("PATCH", "/api/projects/" + id, "{\"templateId\":\"java-svelte-postgres\"}");
+        writer.queue.add(new Brief("A ferret game", List.of("Player"), List.of("Ferret"), List.of(), "console"));
+        http.call("POST", "/api/projects/" + id + "/brief", null);
+        assertThat(http.json("GET", "/api/projects/" + id, null).get("templateId").asString())
+                .isEqualTo("java-svelte-postgres");
+    }
+
+    @Test
     void aConsoleBriefProposesTheConsoleTemplateAndTheClientCanChangeIt() throws Exception {
         UUID id = http.createProject("Make an app that opens a console and shows a duck");
         assertThat(http.json("GET", "/api/projects/" + id, null).get("templateId").asString())

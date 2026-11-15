@@ -56,7 +56,6 @@ class BriefService {
                 .param("terms", json.writeValueAsString(brief.domainTerms()))
                 .param("risks", json.writeValueAsString(brief.risks()))
                 .param("kind", brief.softwareKind()).param("now", now).update();
-        projects.proposeTemplate(projectId, brief.softwareKind());
         return find(projectId).orElseThrow();
     }
 

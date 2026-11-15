@@ -24,7 +24,9 @@ public class ProjectService implements ProjectPort {
     static final int MAX_WISH_LENGTH = 20_000;
     static final int MAX_NAME_LENGTH = 120;
     private static final int NAME_LENGTH = 60;
-    private static final String COLUMNS = "id, name, wish, status, agent_harness, template_id, build_mode, model, created_at, updated_at";
+    private static final String COLUMNS = "id, name, wish, status, agent_harness, template_id, build_mode, model, created_at, updated_at,"
+            + " (select b.software_kind from projects.project_briefs b where b.project_id = projects.projects.id)"
+            + " as brief_kind";
 
     private final JdbcClient jdbc;
     private final Clock clock;
@@ -76,7 +78,7 @@ public class ProjectService implements ProjectPort {
         String newWish = wish == null ? current.wish() : checkedWish(wish);
         boolean wishChanged = !newWish.equals(current.wish());
         String harness = agentHarness == null ? current.agentHarness() : Harness.ofId(agentHarness).id();
-        String template = templateId == null ? current.templateId() : templates.require(templateId).id();
+        String template = templateId == null ? storedTemplateOf(id) : templates.require(templateId).id();
         String mode = buildMode == null ? current.buildMode() : checkedBuildMode(buildMode);
         jdbc.sql("update projects.projects set name = :name, template_id = :template, build_mode = :mode, wish = :wish, status = :status,"
                         + " agent_harness = :harness, updated_at = :now, version = version + 1 where id = :id")
@@ -141,14 +143,14 @@ public class ProjectService implements ProjectPort {
 
     public List<Project> list() {
         return jdbc.sql("select " + COLUMNS + " from projects.projects order by created_at desc")
-                .query(ProjectService::map)
+                .query(this::map)
                 .list();
     }
 
     public Optional<Project> get(UUID id) {
         return jdbc.sql("select " + COLUMNS + " from projects.projects where id = :id")
                 .param("id", id)
-                .query(ProjectService::map)
+                .query(this::map)
                 .optional();
     }
 
@@ -176,10 +178,9 @@ public class ProjectService implements ProjectPort {
                 .optional();
     }
 
-    /** Sets the template to the default of the kind the brief found (console or web). */
-    void proposeTemplate(UUID projectId, String softwareKind) {
-        jdbc.sql("update projects.projects set template_id = :template where id = :id")
-                .param("template", templates.defaultFor(softwareKind)).param("id", projectId).update();
+    private String storedTemplateOf(UUID projectId) {
+        return jdbc.sql("select template_id from projects.projects where id = :id")
+                .param("id", projectId).query((rs, n) -> rs.getString(1)).optional().orElse(null);
     }
 
     @Override
@@ -192,10 +193,7 @@ public class ProjectService implements ProjectPort {
 
     @Override
     public Optional<String> templateIdOf(UUID projectId) {
-        return jdbc.sql("select template_id from projects.projects where id = :id")
-                .param("id", projectId)
-                .query(String.class)
-                .optional();
+        return get(projectId).map(Project::templateId);
     }
 
     @Override
@@ -249,14 +247,16 @@ public class ProjectService implements ProjectPort {
         return line.length() <= NAME_LENGTH ? line : line.substring(0, NAME_LENGTH - 1) + "…";
     }
 
-    private static Project map(java.sql.ResultSet rs, int row) throws java.sql.SQLException {
+    private Project map(java.sql.ResultSet rs, int row) throws java.sql.SQLException {
+        String chosen = rs.getString("template_id");
+        String template = chosen != null ? chosen : templates.defaultFor(rs.getString("brief_kind"));
         return new Project(
                 rs.getObject("id", UUID.class),
                 rs.getString("name"),
                 rs.getString("wish"),
                 rs.getString("status"),
                 rs.getString("agent_harness"),
-                rs.getString("template_id"),
+                template,
                 rs.getString("build_mode"),
                 rs.getString("model"),
                 rs.getTimestamp("created_at").toInstant(),
