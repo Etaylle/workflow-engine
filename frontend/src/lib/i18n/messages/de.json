@@ -403,5 +403,9 @@
 	"preview.empty": "Die Ausgabe der App erscheint hier, sobald sie startet.",
 	"preview.start": "Vorschau",
 	"preview.starting": "Startet...",
-	"preview.hint": "Probiert die App vom letzten fertigen Schritt in einer eigenen Datenbank aus. Der Builder wird nicht gestört."
+	"preview.hint": "Probiert die App vom letzten fertigen Schritt in einer eigenen Datenbank aus. Der Builder wird nicht gestört.",
+	"template.node-console": "Konsolenprogramm",
+	"template.sveltekit-sqlite": "Web-App (SvelteKit + SQLite)",
+	"template.java-svelte-postgres": "Web-App (Java + Svelte + PostgreSQL)",
+	"template.savedToast": "Vorlage gespeichert"
 }

@@ -12,6 +12,6 @@ public class StubBriefWriter implements BriefWriter {
                 "Let students order a meal in advance and pick it up without queuing.",
                 List.of("Student", "Kitchen"),
                 List.of("Meal", "Order", "Pick-up slot"),
-                List.of("Peak load at lunchtime", "Payment handling is not described"));
+                List.of("Peak load at lunchtime", "Payment handling is not described"), "web");
     }
 }

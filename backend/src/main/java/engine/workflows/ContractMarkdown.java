@@ -22,6 +22,8 @@ final class ContractMarkdown {
         snapshot.requirements().forEach(r -> text.append("- ").append(r.key()).append(" (")
                 .append(r.priority()).append(", ").append(r.epic()).append("): ")
                 .append(r.text()).append("\n"));
+        text.append("\n## Software template\n\n").append(snapshot.template() == null ? "(not chosen)"
+                : snapshot.template()).append("\n");
         text.append("\n## Workflow\n\n");
         Map<UUID, String> lanes = laneNames(snapshot.workflow());
         snapshot.workflow().nodes().forEach(n -> text.append("- ").append(n.kind()).append(" \"")

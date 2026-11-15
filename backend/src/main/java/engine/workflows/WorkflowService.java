@@ -105,7 +105,7 @@ class WorkflowService implements WorkflowPort, ContractPort {
         }
         String snapshot = json.writeValueAsString(new WorkflowStore.Snapshot(wish,
                 projects.briefOf(projectId).orElse(null), answers.answersOf(projectId),
-                requirements.requirementsOf(projectId), view));
+                requirements.requirementsOf(projectId), view, projects.templateIdOf(projectId).orElse(null)));
         ContractView contract = store.confirm(projectId, snapshot).orElseThrow(() -> new ApiProblem(
                 409, "Nothing to confirm", "The workflow changed while confirming; try again."));
         projects.markStatus(projectId, "confirmed");

@@ -161,6 +161,12 @@ public class ProjectService implements ProjectPort {
                 .optional();
     }
 
+    /** Sets the template to the default of the kind the brief found (console or web). */
+    void proposeTemplate(UUID projectId, String softwareKind) {
+        jdbc.sql("update projects.projects set template_id = :template where id = :id")
+                .param("template", templates.defaultFor(softwareKind)).param("id", projectId).update();
+    }
+
     @Override
     public Optional<String> templateIdOf(UUID projectId) {
         return jdbc.sql("select template_id from projects.projects where id = :id")
@@ -186,11 +192,12 @@ public class ProjectService implements ProjectPort {
     /** The stored brief of the project, or empty when none was written. */
     Optional<Brief> briefRecord(UUID projectId) {
         TypeReference<List<String>> strings = new TypeReference<>() { };
-        return jdbc.sql("select goal, actors::text, domain_terms::text, risks::text"
+        return jdbc.sql("select goal, actors::text, domain_terms::text, risks::text, software_kind"
                         + " from projects.project_briefs where project_id = :id")
                 .param("id", projectId)
                 .query((rs, row) -> new Brief(rs.getString(1), json.readValue(rs.getString(2), strings),
-                        json.readValue(rs.getString(3), strings), json.readValue(rs.getString(4), strings)))
+                        json.readValue(rs.getString(3), strings), json.readValue(rs.getString(4), strings),
+                        rs.getString(5)))
                 .optional();
     }
 

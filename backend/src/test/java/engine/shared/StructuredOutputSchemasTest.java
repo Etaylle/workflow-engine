@@ -90,7 +90,7 @@ class StructuredOutputSchemasTest {
     @Test
     void schemaListsTheFieldsClaudeMustWrite() {
         assertThat(names(schemaOf(Brief.class).path("properties")))
-                .containsExactlyInAnyOrder("goal", "actors", "domainTerms", "risks");
+                .containsExactlyInAnyOrder("goal", "actors", "domainTerms", "risks", "softwareKind");
         assertThat(schemaOf(WorkflowDraft.class).path("required").toString())
                 .contains("lanes", "nodes", "edges");
     }

@@ -123,7 +123,7 @@ class WorkflowStore {
 
     /** Frozen copy of everything the contract rests on: wish, brief, answers, requirements, workflow. */
     record Snapshot(String wish, String brief, List<AnswersPort.AnswerLine> answers,
-            List<RequirementsPort.RequirementLine> requirements, WorkflowView workflow) {
+            List<RequirementsPort.RequirementLine> requirements, WorkflowView workflow, String template) {
     }
 
     /**

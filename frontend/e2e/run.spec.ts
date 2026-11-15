@@ -172,3 +172,23 @@ test('a preview can be tried while the run goes on', async ({ page }) => {
 	await page.getByTestId('stop-confirm-yes').click();
 	await expect(page.getByTestId('run-status')).toHaveText('Stopped');
 });
+
+test('a console program: chosen on the review, built, its output shown, no link to open', async ({
+	page
+}) => {
+	await planToReview(page, 'Make an app that opens a console and shows a duck');
+	await page.getByTestId('template-select').selectOption('node-console');
+	await page.reload();
+	await expect(page.getByTestId('template-select')).toHaveValue('node-console');
+
+	await page.getByTestId('confirm').click();
+	await expect(page.getByTestId('confirmed')).toBeVisible();
+	await page.getByTestId('review-continue').click();
+	await page.getByTestId('start-run').click();
+	await expect(page.getByTestId('run-status')).toHaveText('Finished', { timeout: 60_000 });
+
+	await page.getByTestId('start-preview').click();
+	await expect(page.getByTestId('preview-status')).toHaveText('Stopped', { timeout: 30_000 });
+	await expect(page.getByTestId('app-console')).toContainText('<(o )___');
+	await expect(page.getByTestId('open-app')).toHaveCount(0);
+});

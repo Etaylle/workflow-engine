@@ -46,16 +46,17 @@ class BriefService {
                 correction -> writer.write(target, project.wish(), correction), Brief::validate);
         Timestamp now = Timestamp.from(clock.instant());
         jdbc.sql("insert into projects.project_briefs (project_id, goal, actors, domain_terms, risks,"
-                        + " created_at, updated_at) values (:p, :goal, cast(:actors as jsonb),"
-                        + " cast(:terms as jsonb), cast(:risks as jsonb), :now, :now)"
-                        + " on conflict (project_id) do update set goal = :goal,"
+                        + " software_kind, created_at, updated_at) values (:p, :goal, cast(:actors as jsonb),"
+                        + " cast(:terms as jsonb), cast(:risks as jsonb), :kind, :now, :now)"
+                        + " on conflict (project_id) do update set goal = :goal, software_kind = :kind,"
                         + " actors = cast(:actors as jsonb), domain_terms = cast(:terms as jsonb),"
                         + " risks = cast(:risks as jsonb), updated_at = :now")
                 .param("p", projectId).param("goal", brief.goal().strip())
                 .param("actors", json.writeValueAsString(brief.actors()))
                 .param("terms", json.writeValueAsString(brief.domainTerms()))
                 .param("risks", json.writeValueAsString(brief.risks()))
-                .param("now", now).update();
+                .param("kind", brief.softwareKind()).param("now", now).update();
+        projects.proposeTemplate(projectId, brief.softwareKind());
         return find(projectId).orElseThrow();
     }
 

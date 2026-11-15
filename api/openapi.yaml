@@ -1545,12 +1545,13 @@ components:
         updatedAt: {type: string, format: date-time}
     Brief:
       type: object
-      required: [goal, actors, domainTerms, risks]
+      required: [goal, actors, domainTerms, risks, softwareKind]
       properties:
         goal: {type: string}
         actors: {type: array, items: {type: string}}
         domainTerms: {type: array, items: {type: string}}
         risks: {type: array, items: {type: string}}
+        softwareKind: {type: string, enum: [console, web], description: "The kind of software the wish asks for; the brief proposes the default template of the kind (console: node-console, web: sveltekit-sqlite)"}
     Questions:
       type: array
       maxItems: 8

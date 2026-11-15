@@ -52,9 +52,27 @@ class BriefIT {
     }
 
     @Test
+    void aConsoleBriefProposesTheConsoleTemplateAndTheClientCanChangeIt() throws Exception {
+        UUID id = http.createProject("Make an app that opens a console and shows a duck");
+        assertThat(http.json("GET", "/api/projects/" + id, null).get("templateId").asString())
+                .isEqualTo("sveltekit-sqlite");
+        writer.queue.add(new Brief("Show a duck in the console", List.of("User"), List.of("Duck"),
+                List.of(), "console"));
+
+        http.call("POST", "/api/projects/" + id + "/brief", null);
+
+        assertThat(http.json("GET", "/api/projects/" + id, null).get("templateId").asString())
+                .isEqualTo("node-console");
+        assertThat(http.json("PATCH", "/api/projects/" + id, "{\"templateId\":\"java-svelte-postgres\"}")
+                .get("templateId").asString()).isEqualTo("java-svelte-postgres");
+        assertThat(http.call("PATCH", "/api/projects/" + id, "{\"templateId\":\"cobol\"}").statusCode())
+                .isEqualTo(400);
+    }
+
+    @Test
     void invalidBriefIsRetriedOnceWithTheReason() throws Exception {
         UUID id = http.createProject("A canteen app");
-        writer.queue.add(new Brief(" ", List.of(), List.of(), List.of()));
+        writer.queue.add(new Brief(" ", List.of(), List.of(), List.of(), "web"));
 
         assertThat(http.call("POST", "/api/projects/" + id + "/brief", null).statusCode()).isEqualTo(200);
 

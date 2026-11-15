@@ -6,6 +6,7 @@
 		type StepProfile,
 		type ProjectSettings
 	} from '#lib/api/client.js';
+	import TemplatePicker from './TemplatePicker.svelte';
 	import { locale } from '#lib/i18n/state.svelte.js';
 	import { profileSummary } from '#lib/settings/steps.js';
 	import type { ReviewFacts } from '#lib/planning/review.js';
@@ -43,7 +44,7 @@
 			})}
 		</dd>
 		<dt>{locale.t('review.technology')}</dt>
-		<dd>Java + Svelte + PostgreSQL</dd>
+		<dd><TemplatePicker {project} /></dd>
 		<dt>{locale.t('review.ai')}</dt>
 		<dd>{harness} · {project.model}</dd>
 		<dt>{locale.t('review.requirements')}</dt>

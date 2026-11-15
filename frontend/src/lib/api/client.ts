@@ -93,6 +93,7 @@ export type Project = {
 	wish: string;
 	status: string;
 	agentHarness: string;
+	templateId: string;
 	model: string;
 	createdAt: string;
 	updatedAt: string;
@@ -133,11 +134,14 @@ async function json<T>(path: string, method = 'GET', body?: unknown): Promise<T>
 	return (await response.json()) as T;
 }
 
+export type Template = { id: string; name: string; kind: 'console' | 'web'; description: string };
+export const listTemplates = () => json<Template[]>('/api/templates', 'GET');
+
 export const createProject = (wish: string, apiKey: string, name: string) =>
 	json<Project>('/api/projects', 'POST', { wish, apiKey, name });
 export const updateProject = (
 	projectId: string,
-	change: { name?: string; wish?: string; agentHarness?: string }
+	change: { name?: string; wish?: string; agentHarness?: string; templateId?: string }
 ) => json<Project>(`/api/projects/${projectId}`, 'PATCH', change);
 export async function deleteProject(projectId: string): Promise<void> {
 	const response = await fetch(`/api/projects/${projectId}`, { method: 'DELETE' });
