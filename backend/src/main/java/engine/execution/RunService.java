@@ -146,6 +146,7 @@ class RunService {
         store.setRun(runId, "failed", "Stopped by the client");
         store.failUnfinished(runId, "Stopped by the client");
         events.publish(runId, "run", "failed: stopped by the client");
+        projects.markStatus(run.projectId(), "confirmed");
         orchestrator.stop(runId);
         return view(runId);
     }
@@ -198,6 +199,7 @@ class RunService {
         if (store.resumeCount(run.id()) >= settings.maxResumes()) {
             store.setRun(run.id(), "failed", "The run was resumed " + settings.maxResumes()
                     + " times and was interrupted again.");
+            projects.markStatus(run.projectId(), "confirmed");
             events.publish(run.id(), "run", "failed: resumed " + settings.maxResumes() + " times already");
             throw new ApiProblem(409, "Too many resumes", "This run was resumed " + settings.maxResumes()
                     + " times already. Start a new run; the ZIP of the last checkpoint is available.");
@@ -215,6 +217,7 @@ class RunService {
                     + " started. Start a new run on the new contract.");
         }
         store.setRun(runId, "executing", null);
+        projects.markStatus(projectId, "executing");
         orchestrator.submit(runId, contract.markdown());
     }
 
@@ -252,6 +255,7 @@ class RunService {
     void recoverInterrupted() {
         for (UUID runId : store.interruptActive()) {
             events.publish(runId, "run", "interrupted: the engine restarted");
+            store.row(runId).ifPresent(run -> projects.markStatus(run.projectId(), "confirmed"));
         }
     }
 }

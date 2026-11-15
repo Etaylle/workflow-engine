@@ -561,6 +561,8 @@ class RunIT {
         assertThat(http.call("GET", "/api/runs/" + id + "/zip", null).statusCode()).isEqualTo(200);
         assertThat(http.call("POST", "/api/runs/" + id + "/stop", null).statusCode()).isEqualTo(409);
         assertThat(http.call("POST", "/api/runs/" + id + "/resume", null).statusCode()).isEqualTo(409);
+        assertThat(http.statusOf(project)).as("a stopped run frees the project for a new run")
+                .isEqualTo("confirmed");
     }
 
     @Test

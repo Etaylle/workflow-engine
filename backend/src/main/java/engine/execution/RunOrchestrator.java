@@ -400,6 +400,7 @@ class RunOrchestrator {
 
     private void interrupt(UUID runId, String reason) {
         store.setRun(runId, "interrupted", reason);
+        store.row(runId).ifPresent(run -> projects.markStatus(run.projectId(), "confirmed"));
         events.publish(runId, "run", "interrupted: " + reason);
     }
 

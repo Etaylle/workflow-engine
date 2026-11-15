@@ -138,12 +138,16 @@ cmd_test_unit() {
 }
 
 cmd_test_integration() {
+	[ "$TEST_DB_NAME" != "$DB_NAME" ] && [ "$TEST_DB_NAME" != engine ] ||
+		die "the integration tests would fill the main database '$DB_NAME'; set ENGINE_TEST_DB_NAME to another database"
 	ensure_postgres
 	log "backend integration tests on $TEST_DB_NAME"
 	ENGINE_DB_URL="$(db_url "$TEST_DB_NAME")" gradle integrationTest
 }
 
 cmd_test_e2e() {
+	[ "$TEST_DB_NAME" != "$DB_NAME" ] && [ "$TEST_DB_NAME" != engine ] ||
+		die "the end-to-end tests would fill the main database '$DB_NAME'; set ENGINE_TEST_DB_NAME to another database"
 	ensure_postgres
 	build
 	start_engine e2e "$E2E_PORT" "$TEST_DB_NAME" ENGINE_AI_STUB=true \

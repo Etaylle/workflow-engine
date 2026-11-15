@@ -50,6 +50,19 @@ val integrationTest by tasks.registering(Test::class) {
     classpath = sourceSets.test.get().runtimeClasspath
     useJUnitPlatform { includeTags("integration") }
     shouldRunAfter(tasks.test)
+    doFirst {
+        val url = System.getenv("ENGINE_DB_URL") ?: "jdbc:postgresql://localhost:5432/engine"
+        val database = url.substringAfterLast('/').substringBefore('?')
+        val main = System.getenv("ENGINE_DB_NAME") ?: "engine"
+        if (database == "engine" || database == main) {
+            throw GradleException(
+                "Refusing to run the integration tests on the database '$database': it is the main " +
+                    "engine database and the tests would fill it with projects. Set ENGINE_DB_URL to a " +
+                    "test database, for example jdbc:postgresql://localhost:5432/engine_test " +
+                    "(ci/run test-integration does this)."
+            )
+        }
+    }
 }
 
 springBoot {
