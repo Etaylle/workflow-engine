@@ -14,8 +14,10 @@ final class LimitDetector {
     private static final Pattern CREDIT = Pattern.compile(
             "credit balance|insufficient credit|out of credit|billing|payment required",
             Pattern.CASE_INSENSITIVE);
+    /** Quota errors of Google ("RESOURCE_EXHAUSTED ... check your plan and billing") are waited out. */
+    private static final Pattern QUOTA = Pattern.compile("resource[ _]exhausted", Pattern.CASE_INSENSITIVE);
     private static final Pattern RATE = Pattern.compile(
-            "rate[ _-]?limit|\\b429\\b|usage limit|hit your limit|too many requests|overloaded|\\b529\\b",
+            "rate[ _-]?limit|\\b429\\b|resource[ _]exhausted|\\bquota\\b|usage limit|hit your limit|too many requests|overloaded|\\b529\\b",
             Pattern.CASE_INSENSITIVE);
 
     private LimitDetector() {
@@ -23,6 +25,9 @@ final class LimitDetector {
 
     /** The subtype for the output ("credit", "rate_limit"), or null when it names no such limit. */
     static String classify(String output) {
+        if (QUOTA.matcher(output).find()) {
+            return "rate_limit";
+        }
         if (CREDIT.matcher(output).find()) {
             return "credit";
         }

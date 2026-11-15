@@ -12,6 +12,8 @@ DB_USER="${ENGINE_DB_USER:-engine}"
 DB_NAME="${ENGINE_DB_NAME:-engine}"
 TEST_DB_NAME="${ENGINE_TEST_DB_NAME:-engine_test}"
 PG_SERVICE="postgresql@17"
+GEMINI_VERSION="${ENGINE_GEMINI_VERSION:-0.68.0}"
+GEMINI_BIN="$RUN_DIR/tools/node_modules/.bin/gemini"
 
 log() { printf '== %s\n' "$*"; }
 die() {
@@ -83,7 +85,9 @@ start_engine() {
 	mkdir -p "$RUN_DIR"
 	stop_engine "$name"
 	log "starting engine '$name' on port $port (database $db)"
-	env ENGINE_PORT="$port" ENGINE_DB_URL="$(db_url "$db")" \
+	local gemini_cmd="${ENGINE_GEMINI_CMD:-gemini}"
+	[ -x "$GEMINI_BIN" ] && gemini_cmd="${ENGINE_GEMINI_CMD:-$GEMINI_BIN}"
+	env ENGINE_PORT="$port" ENGINE_DB_URL="$(db_url "$db")" ENGINE_GEMINI_CMD="$gemini_cmd" \
 		ENGINE_EXECUTION_TEMPLATE_DIR="$ROOT/templates/java-svelte-postgres" "$@" \
 		nohup "$(java_bin)" -jar "$(jar_path)" >"$RUN_DIR/$name.log" 2>&1 &
 	echo $! >"$RUN_DIR/$name.pid"
@@ -103,6 +107,15 @@ cmd_env_up() {
 	build
 	start_engine engine "$PORT" "$DB_NAME"
 	log "engine runs at http://localhost:$PORT"
+}
+
+# The Gemini CLI builder: installed into the git-ignored .run/tools, never globally.
+cmd_install_gemini() {
+	command -v npm >/dev/null || die "npm is missing; install Node.js first"
+	log "installing @google/gemini-cli@$GEMINI_VERSION into $RUN_DIR/tools"
+	npm install --prefix "$RUN_DIR/tools" "@google/gemini-cli@$GEMINI_VERSION"
+	"$GEMINI_BIN" --version
+	log "Gemini CLI is ready; ci/run env-up uses it (or set ENGINE_GEMINI_CMD)"
 }
 
 cmd_env_down() {
@@ -158,7 +171,7 @@ cmd_all_local() {
 }
 
 usage() {
-	printf 'usage: ci/run {all-local|test-unit|test-integration|test-e2e|env-up|env-down}\n' >&2
+	printf 'usage: ci/run {all-local|test-unit|test-integration|test-e2e|env-up|env-down|install-gemini}\n' >&2
 	exit 2
 }
 
@@ -170,5 +183,6 @@ test-integration) cmd_test_integration ;;
 test-e2e) cmd_test_e2e ;;
 env-up) cmd_env_up ;;
 env-down) cmd_env_down ;;
+install-gemini) cmd_install_gemini ;;
 *) usage ;;
 esac

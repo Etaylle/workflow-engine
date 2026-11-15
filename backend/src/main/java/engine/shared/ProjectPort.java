@@ -18,6 +18,9 @@ public interface ProjectPort {
     /** The brief of the project as text for a planning call, or empty when there is none. */
     Optional<String> briefOf(UUID projectId);
 
+    /** The builder the project chose, or empty when the project does not exist. */
+    Optional<Harness> harnessOf(UUID projectId);
+
     /** Records which provider and model the planning of the project really uses. */
     void recordAi(UUID projectId, AiTarget target);
 

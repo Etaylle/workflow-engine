@@ -1,5 +1,6 @@
 package engine.execution;
 
+import engine.shared.Harness;
 import engine.shared.RunSettingsPort.Step;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
@@ -29,7 +30,8 @@ class RunStore {
 
     /** A run row without tasks. */
     record RunRow(UUID id, UUID projectId, String workspacePath, String databaseName,
-            BigDecimal costLimitUsd, int contractVersion, String status, List<Step> steps) {
+            BigDecimal costLimitUsd, int contractVersion, String status, List<Step> steps,
+            Harness harness) {
     }
 
     /** One question to the client; choice is null until it is answered. */
@@ -52,12 +54,13 @@ class RunStore {
 
     /** Creates the run with all its tasks and steps waiting (the plan is visible at once). */
     @Transactional
-    void create(UUID runId, UUID projectId, int contractVersion, BigDecimal limit, String workspacePath,
+    void create(UUID runId, UUID projectId, int contractVersion, Harness harness, BigDecimal limit,
+            String workspacePath,
             String databaseName, List<engine.shared.ContractPort.TaskLine> tasks, List<Step> steps) {
         jdbc.sql("insert into execution.runs (id, project_id, contract_version, status, cost_limit_usd,"
-                        + " workspace_path, database_name, started_at, steps_json) values (:id, :p, :v,"
-                        + " 'preparing', :limit, :ws, :db, :now, :steps)")
-                .param("id", runId).param("p", projectId).param("v", contractVersion)
+                        + " workspace_path, database_name, started_at, steps_json, harness) values (:id, :p, :v,"
+                        + " 'preparing', :limit, :ws, :db, :now, :steps, :harness)")
+                .param("harness", harness.id()).param("id", runId).param("p", projectId).param("v", contractVersion)
                 .param("limit", limit).param("ws", workspacePath).param("db", databaseName)
                 .param("now", now()).param("steps", json.writeValueAsString(steps)).update();
         for (int t = 0; t < tasks.size(); t++) {
@@ -79,13 +82,14 @@ class RunStore {
 
     Optional<RunRow> row(UUID runId) {
         return jdbc.sql("select id, project_id, workspace_path, database_name, cost_limit_usd,"
-                        + " contract_version, status, steps_json from execution.runs where id = :id")
+                        + " contract_version, status, steps_json, harness from execution.runs where id = :id")
                 .param("id", runId)
                 .query((rs, n) -> new RunRow(rs.getObject("id", UUID.class),
                         rs.getObject("project_id", UUID.class), rs.getString("workspace_path"),
                         rs.getString("database_name"), rs.getBigDecimal("cost_limit_usd"),
                         rs.getInt("contract_version"), rs.getString("status"),
-                        json.readValue(rs.getString("steps_json"), new TypeReference<List<Step>>() { })))
+                        json.readValue(rs.getString("steps_json"), new TypeReference<List<Step>>() { }),
+                        Harness.ofId(rs.getString("harness"))))
                 .optional();
     }
 
@@ -227,7 +231,8 @@ class RunStore {
         int attempt = jdbc.sql("select count(*) + 1 from execution.agent_calls where step_run_id = :s")
                 .param("s", stepId).query(Integer.class).single();
         jdbc.sql("insert into execution.agent_calls (id, step_run_id, attempt, seconds, cost_usd, turns,"
-                        + " outcome, created_at) values (:id, :s, :a, :sec, :cost, :turns, :o, :now)")
+                        + " outcome, created_at, tokens) values (:id, :s, :a, :sec, :cost, :turns, :o, :now, :tokens)")
+                .param("tokens", outcome.tokens())
                 .param("id", id).param("s", stepId).param("a", attempt)
                 .param("sec", outcome.seconds()).param("cost", outcome.costUsd())
                 .param("turns", outcome.turns()).param("o", outcome.subtype()).param("now", now())
@@ -283,11 +288,11 @@ class RunStore {
     }
 
     Optional<RunView> view(UUID runId) {
-        Optional<RunView> head = jdbc.sql("select id, project_id, contract_version, status, failure_reason,"
+        Optional<RunView> head = jdbc.sql("select id, project_id, contract_version, harness, status, failure_reason,"
                         + " wait_kind, resume_count, cost_limit_usd, last_seq, started_at, finished_at from execution.runs"
                         + " where id = :id").param("id", runId)
                 .query((rs, n) -> new RunView(runId, rs.getObject("project_id", UUID.class),
-                        rs.getInt("contract_version"), rs.getString("status"),
+                        rs.getInt("contract_version"), rs.getString("harness"), rs.getString("status"),
                         rs.getString("failure_reason"), rs.getString("wait_kind"), null, rs.getInt("resume_count"),
                         BigDecimal.ZERO,
                         rs.getBigDecimal("cost_limit_usd"), rs.getLong("last_seq"),
@@ -296,7 +301,7 @@ class RunStore {
                                 : rs.getTimestamp("finished_at").toInstant(),
                         List.of()))
                 .optional();
-        return head.map(run -> new RunView(run.id(), run.projectId(), run.contractVersion(), run.status(),
+        return head.map(run -> new RunView(run.id(), run.projectId(), run.contractVersion(), run.harness(), run.status(),
                 run.failureReason(), run.waitKind(), questionOf(runId, run.waitKind()), run.resumeCount(), costOf(runId), run.costLimitUsd(), run.lastSeq(), run.startedAt(),
                 run.finishedAt(), tasksOf(runId)));
     }
@@ -327,6 +332,7 @@ class RunStore {
         return jdbc.sql("select s.id, s.seq, s.step_key, s.title, s.status, s.result,"
                         + " coalesce((select sum(cost_usd) from execution.agent_calls where step_run_id = s.id), 0) cost,"
                         + " coalesce((select sum(turns) from execution.agent_calls where step_run_id = s.id), 0) turns,"
+                        + " coalesce((select sum(tokens) from execution.agent_calls where step_run_id = s.id), 0) tokens,"
                         + " coalesce((select sum(seconds) from execution.agent_calls where step_run_id = s.id), 0) seconds,"
                         + " (select count(*) from execution.agent_calls where step_run_id = s.id) attempts,"
                         + " (select commit_sha from execution.checkpoints where step_run_id = s.id"
@@ -336,7 +342,7 @@ class RunStore {
                 .query((rs, n) -> new RunView.Step(rs.getObject("id", UUID.class), rs.getInt("seq"),
                         rs.getString("step_key"), rs.getString("title"), rs.getString("status"),
                         rs.getString("result"), rs.getBigDecimal("cost"), rs.getInt("turns"),
-                        rs.getInt("seconds"), rs.getInt("attempts"), rs.getString("sha")))
+                        rs.getInt("seconds"), rs.getInt("attempts"), rs.getString("sha"), rs.getLong("tokens")))
                 .list();
     }
 

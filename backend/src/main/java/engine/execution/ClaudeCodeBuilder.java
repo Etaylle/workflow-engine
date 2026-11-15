@@ -1,11 +1,12 @@
 package engine.execution;
 
-import engine.shared.ApiProblem;
+import static engine.execution.BuilderSupport.failed;
+import static engine.execution.BuilderSupport.oneLine;
+import static engine.execution.BuilderSupport.read;
+
+import engine.shared.Harness;
 import engine.shared.SessionKey;
-import java.io.IOException;
 import java.math.BigDecimal;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -18,15 +19,7 @@ import tools.jackson.databind.json.JsonMapper;
  * Claude Code headless, one invocation per step, as measured in the build spike (D-M3-1).
  * The user's key goes to the child only as the environment variable ANTHROPIC_API_KEY.
  */
-class ClaudeCodeBuilder implements Builder {
-
-    private static final String PREAMBLE = "You are one step of a task build run by an orchestrator,"
-            + " working alone in the current folder (the workspace). Read CLAUDE.md and CONTRACT.md"
-            + " first. Do only the step below, nothing from other steps. Earlier steps left their"
-            + " documents in docs/. Do not run git commit or any other git command that changes the"
-            + " repository; the orchestrator commits. Use ./check.sh as the only way to build and"
-            + " test everything; it prints CHECK PASSED when green. Finish with one line saying"
-            + " what you did.";
+class ClaudeCodeBuilder implements RealBuilder {
 
     private static final String ALLOWED = "Read,Edit,Write,Glob,Grep,Bash(./check.sh:*),"
             + "Bash(./gradlew:*),Bash(npm:*),Bash(cd:*),Bash(git status:*),Bash(git diff:*),"
@@ -36,22 +29,49 @@ class ClaudeCodeBuilder implements Builder {
 
     private final SessionKey sessionKey;
     private final ExecutionSettings settings;
+    private final ClaudeAuth auth;
+    private final ToolProbe probe;
 
-    ClaudeCodeBuilder(SessionKey sessionKey, ExecutionSettings settings) {
+    ClaudeCodeBuilder(SessionKey sessionKey, ExecutionSettings settings, ClaudeAuth auth, ToolProbe probe) {
         this.sessionKey = sessionKey;
         this.settings = settings;
+        this.auth = auth;
+        this.probe = probe;
     }
 
     @Override
-    public void checkReady() {
-        if (sessionKey.anthropicKey().isEmpty() && !settings.useSignIn()) {
+    public Harness harness() {
+        return Harness.CLAUDE_CODE;
+    }
+
+    @Override
+    public BuilderState state() {
+        ToolProbe.Installed tool = probe.installed(settings.claudeBin());
+        boolean keySet = sessionKey.anthropicKey().isPresent();
+        String signedIn = null;
+        List<BuilderState.Missing> missing = new ArrayList<>();
+        if (!tool.installed()) {
+            missing.add(new BuilderState.Missing("claude_not_installed", "Claude Code is not installed:"
+                    + " the command \"" + settings.claudeBin() + "\" did not run on this machine.", null));
+        }
+        if (auth.signIn()) {
+            signedIn = tool.installed() ? probe.claudeSignedIn(settings.claudeBin())
+                    .map(in -> in ? "yes" : "no").orElse("unknown") : "unknown";
+            if ("no".equals(signedIn)) {
+                missing.add(new BuilderState.Missing("not_signed_in", "Claude Code is not signed in on"
+                        + " this machine. Run `claude` once in a terminal on this machine and log in.",
+                        "builders.claude.signInInstruction"));
+            }
+        } else if (!keySet) {
             String other = sessionKey.compatible().isPresent()
                     ? " The key of the other provider is only used for planning, not for building."
                     : "";
-            throw new ApiProblem(409, "No Anthropic key",
-                    "Building needs an Anthropic key (or the machine sign-in mode of the engine)."
-                            + " Enter it in the key panel; the engine keeps it in memory only." + other);
+            missing.add(new BuilderState.Missing("no_anthropic_key", "Claude Code needs an Anthropic"
+                    + " API key (or the machine sign-in mode). Enter the key in the key panel; the"
+                    + " engine keeps it in memory only." + other, null));
         }
+        return new BuilderState(harness().id(), harness().label(), missing.isEmpty(), tool.installed(),
+                tool.version(), signedIn, keySet, auth.mode().id(), settings.model(), List.copyOf(missing));
     }
 
     @Override
@@ -59,7 +79,8 @@ class ClaudeCodeBuilder implements Builder {
         Path out = request.logDir().resolve(request.stepKey() + ".json");
         Path err = request.logDir().resolve(request.stepKey() + ".err");
         long start = System.nanoTime();
-        List<String> command = List.of(settings.claudeBin(), "-p", PREAMBLE + "\n\n" + request.prompt(),
+        List<String> command = List.of(settings.claudeBin(), "-p",
+                BuilderSupport.prompt("CLAUDE.md", request.prompt()),
                 "--model", settings.model(), "--output-format", "json", "--permission-mode",
                 "acceptEdits", "--max-budget-usd", request.capUsd().toPlainString(),
                 "--no-session-persistence", "--setting-sources", "project,local",
@@ -73,7 +94,7 @@ class ClaudeCodeBuilder implements Builder {
 
     private Map<String, String> childEnv(StepRequest request) {
         Map<String, String> env = new HashMap<>(request.appEnv());
-        if (!settings.useSignIn()) {
+        if (!auth.signIn()) {
             sessionKey.anthropicKey().ifPresent(key -> env.put("ANTHROPIC_API_KEY", key));
         }
         return env;
@@ -109,34 +130,8 @@ class ClaudeCodeBuilder implements Builder {
         }
     }
 
-    private static StepOutcome failed(int seconds, String subtype, String summary) {
-        return new StepOutcome(false, BigDecimal.ZERO, 0, seconds, subtype, summary);
-    }
-
     @Override
     public GateResult gate(Path workspace, Map<String, String> appEnv, Path logDir) {
-        Path out = logDir.resolve("check.log");
-        ProcessRunner.Result result = ProcessRunner.run(List.of("./check.sh"), workspace, appEnv, out,
-                logDir.resolve("check.err"), settings.checkTimeout());
-        List<String> lines = new ArrayList<>(List.of((read(out) + read(logDir.resolve("check.err"))).split("\n")));
-        boolean passed = result.exitCode() == 0 && lines.stream().anyMatch("CHECK PASSED"::equals);
-        if (result.timedOut()) {
-            lines.add("The check took longer than " + settings.checkTimeout().toMinutes()
-                    + " minutes and was stopped");
-        }
-        return new GateResult(passed, lines.subList(Math.max(0, lines.size() - 12), lines.size()));
-    }
-
-    private static String read(Path file) {
-        try {
-            return Files.readString(file, StandardCharsets.UTF_8);
-        } catch (IOException e) {
-            return "";
-        }
-    }
-
-    private static String oneLine(String text) {
-        String line = text.strip().replace('\n', ' ');
-        return line.length() > 300 ? line.substring(0, 300) + "..." : line;
+        return BuilderSupport.gate(settings, workspace, appEnv, logDir);
     }
 }

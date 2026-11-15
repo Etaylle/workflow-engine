@@ -14,10 +14,10 @@ class RunReportTest {
 
     private static RunView run(Instant finished) {
         RunView.Step done = new RunView.Step(UUID.randomUUID(), 1, "plan", "Plan", "done", "ok",
-                new BigDecimal("0.40"), 5, 90, 1, "0123456789abcdef");
+                new BigDecimal("0.40"), 5, 90, 1, "0123456789abcdef", 0);
         RunView.Step failed = new RunView.Step(UUID.randomUUID(), 2, "build", "Build", "failed", "x",
-                new BigDecimal("1.10"), 9, 300, 3, null);
-        return new RunView(UUID.randomUUID(), UUID.randomUUID(), 1, "waiting", null, "question", null,
+                new BigDecimal("1.10"), 9, 300, 3, null, 0);
+        return new RunView(UUID.randomUUID(), UUID.randomUUID(), 1, "claude_code", "waiting", null, "question", null,
                 0, new BigDecimal("1.50"), new BigDecimal("4.00"), 7, START, finished,
                 List.of(new RunView.Task(UUID.randomUUID(), 1, "Order a meal", "System", "failed",
                         List.of(done, failed))));

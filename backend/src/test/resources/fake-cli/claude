@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# A fake Claude Code for the tests of the builder prerequisites: --version and "auth status".
+# It is signed in when the file "logged-in" exists next to this script.
+set -euo pipefail
+
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+case "${1:-}" in
+--version)
+	echo "9.9.9 (Claude Code fake)"
+	;;
+auth)
+	if [ -e "$here/logged-in" ]; then
+		echo '{"loggedIn": true, "authMethod": "claude.ai"}'
+	else
+		echo '{"loggedIn": false}'
+		exit 1
+	fi
+	;;
+*)
+	echo "fake claude: not supported: $*" >&2
+	exit 2
+	;;
+esac
