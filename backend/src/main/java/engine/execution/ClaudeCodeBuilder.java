@@ -70,7 +70,9 @@ class ClaudeCodeBuilder implements Builder {
 
     private Map<String, String> childEnv(StepRequest request) {
         Map<String, String> env = new HashMap<>(request.appEnv());
-        sessionKey.get().ifPresent(key -> env.put("ANTHROPIC_API_KEY", key));
+        if (!settings.useSignIn()) {
+            sessionKey.get().ifPresent(key -> env.put("ANTHROPIC_API_KEY", key));
+        }
         return env;
     }
 

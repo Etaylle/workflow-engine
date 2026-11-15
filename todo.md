@@ -29,6 +29,8 @@ Reload the page at any step: nothing is lost. A wrong or missing key, a rate lim
 
 Confirm a contract, then press "Run" under the workflow: tasks, steps, cost and console fill live, the ZIP button appears at the end. With `ENGINE_AI_STUB=true ci/run env-up` a run takes seconds and writes small files. Without the stub the engine runs Claude Code per step in a workspace folder (needs the key from the form, or `ENGINE_EXECUTION_USE_SIGN_IN=true` for the machine's sign-in). Cost limit USD 10.
 
+**Live proof of M4 (2026-11-15):** one real run on the canteen contract (stubbed planning, real builder on the machine's Claude Code sign-in, `ENGINE_EXECUTION_REAL_BUILDER=true ENGINE_EXECUTION_USE_SIGN_IN=true`, limit USD 6): 2 software tasks x 4 steps, all green first time, 9.3 minutes, USD 1.52 (`total_cost_usd`), 11 commits; `./check.sh` re-run by hand: CHECK PASSED (25 Vitest, backend tests green). In sign-in mode the session key is not passed to the child (a dummy key gave "Invalid API key" on the first try). Not tried: the real builder with an API key.
+
 ## Current position
 
 | Item | State |

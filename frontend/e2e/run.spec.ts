@@ -27,7 +27,9 @@ test('confirmed contract to a finished run and its ZIP, surviving a reload', asy
 	await expect(page.getByTestId('run-task-1')).toContainText('Order a meal');
 	await expect(page.getByTestId('run-task-2')).toContainText('Notify the student');
 	await expect(page.getByTestId('run-cost')).toContainText('Cost so far: USD 0.08 of USD 10.00');
-	await expect(page.getByTestId('run-console')).toContainText('Independent check: Stub: step check done');
+	await expect(page.getByTestId('run-console')).toContainText(
+		'Independent check: Stub: step check done'
+	);
 	await expect(page.getByTestId('start-run')).toHaveText('Run again');
 
 	// US-06.12: the ZIP of the workspace

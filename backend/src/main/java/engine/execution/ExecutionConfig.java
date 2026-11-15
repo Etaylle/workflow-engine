@@ -9,7 +9,10 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-/** Settings from the environment, and the real builder or the stub when ENGINE_AI_STUB=true. */
+/**
+ * Settings from the environment, and the real builder or the stub when ENGINE_AI_STUB=true.
+ * ENGINE_EXECUTION_REAL_BUILDER=true keeps the real builder with stubbed planning (live proof).
+ */
 @Configuration
 class ExecutionConfig {
 
@@ -34,8 +37,9 @@ class ExecutionConfig {
 
     @Bean
     @ConditionalOnMissingBean
-    Builder builder(@Value("${engine.ai.stub:false}") boolean stub, SessionKey sessionKey,
+    Builder builder(@Value("${engine.ai.stub:false}") boolean stub,
+            @Value("${engine.execution.real-builder:false}") boolean realBuilder, SessionKey sessionKey,
             ExecutionSettings settings) {
-        return stub ? new StubBuilder() : new ClaudeCodeBuilder(sessionKey, settings);
+        return stub && !realBuilder ? new StubBuilder() : new ClaudeCodeBuilder(sessionKey, settings);
     }
 }
