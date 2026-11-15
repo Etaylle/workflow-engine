@@ -24,13 +24,27 @@ const report = normaliseBuilders({
 			]
 		},
 		{ id: 'gemini_cli', ready: true, installed: true, missing: [] },
+		{
+			id: 'codex_cli',
+			ready: false,
+			installed: true,
+			signedIn: 'no',
+			efforts: ['low', 'medium', 'high', 'xhigh'],
+			missing: [
+				{
+					code: 'codex_not_signed_in',
+					message: 'x',
+					instructionKey: 'builders.codex.signInInstruction'
+				}
+			]
+		},
 		{ id: 'other' as 'claude_code', ready: true }
 	]
 });
 
 describe('builder report', () => {
 	it('keeps known builders and tolerates absent fields', () => {
-		expect(report.builders.map((b) => b.id)).toEqual(['claude_code', 'gemini_cli']);
+		expect(report.builders.map((b) => b.id)).toEqual(['claude_code', 'gemini_cli', 'codex_cli']);
 		expect(builderOf(report, 'claude_code')?.missing[0]?.instructionKey).toBe(
 			'builders.claude.signInInstruction'
 		);
@@ -41,6 +55,8 @@ describe('builder report', () => {
 		expect(startBlock(report, 'claude_code')?.id).toBe('claude_code');
 		expect(missingCodes(startBlock(report, 'claude_code')!)).toEqual(['not_signed_in']);
 		expect(startBlock(report, 'gemini_cli')).toBeNull();
+		expect(startBlock(report, 'codex_cli')?.signedIn).toBe('no');
+		expect(missingCodes(startBlock(report, 'codex_cli')!)).toEqual(['codex_not_signed_in']);
 		expect(startBlock(null, 'claude_code')).toBeNull();
 	});
 
@@ -48,6 +64,7 @@ describe('builder report', () => {
 		expect(actionFor('no_anthropic_key')).toBe('open_key_panel');
 		expect(actionFor('no_gemini_key')).toBe('open_key_panel');
 		expect(actionFor('not_signed_in')).toBe('none');
+		expect(actionFor('codex_not_signed_in')).toBe('none');
 		expect(actionFor('surprise')).toBe('none');
 	});
 
@@ -67,13 +84,15 @@ describe('builder model and effort', () => {
 					models: [{ id: 'haiku', hint: 'cheap' }, { hint: 'no id' }],
 					efforts: ['low', 'max']
 				},
-				{ id: 'gemini_cli', customModel: true }
+				{ id: 'gemini_cli', customModel: true },
+				{ id: 'codex_cli', customModel: true, efforts: ['low', 'xhigh'] }
 			]
 		});
 		expect(builderOf(state, 'claude_code')?.models).toEqual([{ id: 'haiku', hint: 'cheap' }]);
 		expect(builderOf(state, 'claude_code')?.efforts).toEqual(['low', 'max']);
 		expect(builderOf(state, 'gemini_cli')?.customModel).toBe(true);
 		expect(builderOf(state, 'gemini_cli')?.efforts).toEqual([]);
+		expect(builderOf(state, 'codex_cli')?.efforts).toEqual(['low', 'xhigh']);
 	});
 
 	it('accepts only model ids the API accepts', () => {

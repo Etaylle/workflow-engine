@@ -31,11 +31,11 @@ export function missingCodes(builder: Builder): string[] {
 	return builder.missing.map((item) => item.code);
 }
 
-export const builderIds: readonly BuilderId[] = ['claude_code', 'gemini_cli'];
+export const builderIds: readonly BuilderId[] = ['claude_code', 'gemini_cli', 'codex_cli'];
 
 const MODEL_ID = /^[A-Za-z0-9._-]{1,80}$/;
 
-/** A model id the engine accepts for Gemini CLI (the same rule as the API). */
+/** A model id the engine accepts for Gemini CLI and Codex CLI (the same rule as the API). */
 export const isModelId = (text: string): boolean => MODEL_ID.test(text);
 
 /**

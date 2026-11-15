@@ -16,6 +16,21 @@ test('confirmed contract to a finished run and its ZIP, surviving a reload', asy
 	await expect(page.getByTestId('pick-gemini_cli')).toHaveAttribute('aria-checked', 'true');
 	await page.reload();
 	await expect(page.getByTestId('pick-gemini_cli')).toHaveAttribute('aria-checked', 'true');
+	await page.getByTestId('pick-codex_cli').click();
+	await expect(page.getByTestId('pick-codex_cli')).toHaveAttribute('aria-checked', 'true');
+	await expect(page.getByTestId('plan-note')).toContainText('ChatGPT sign-in');
+	await expect(page.getByTestId('builder-effort').locator('option')).toHaveText([
+		'Default',
+		'low',
+		'medium',
+		'high',
+		'xhigh'
+	]);
+	await page.getByTestId('builder-model').fill('gpt-6-luna');
+	await page.getByTestId('builder-model').press('Enter');
+	await expect(page.getByText('Builder settings saved.')).toBeVisible();
+	await page.reload();
+	await expect(page.getByTestId('builder-model')).toHaveValue('gpt-6-luna');
 	await page.getByTestId('pick-claude_code').click();
 	await expect(page.getByTestId('pick-claude_code')).toHaveAttribute('aria-checked', 'true');
 	// Model and effort: Claude Code has both, Gemini CLI only a model; saved on change, shown on Review

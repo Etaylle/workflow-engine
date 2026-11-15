@@ -7,7 +7,7 @@
 	import type { MessageKey } from '#lib/i18n/i18n.js';
 	import { locale } from '#lib/i18n/state.svelte.js';
 
-	/** The two builders as cards: readiness, model, and for each missing item an action. */
+	/** The builders as cards: readiness, model, and for each missing item an action. */
 	let {
 		harness,
 		builders,
@@ -76,6 +76,9 @@
 							<span class="hint">{locale.t('build.model', { model: builder.model })}</span>
 						{/if}
 					</button>
+					{#if chosen && id === 'codex_cli'}
+						<p class="hint" data-testid="plan-note">{locale.t('build.planNote.codex_cli')}</p>
+					{/if}
 					{#if chosen}
 						<BuilderChoice {builder} {model} {effort} save={savingChoice} />
 					{/if}

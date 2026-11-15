@@ -1,7 +1,7 @@
 /** Client for the builders of a run: what each one still lacks and how Claude Code signs in. */
 import { ApiError, type Problem } from './client.js';
 
-export type BuilderId = 'claude_code' | 'gemini_cli';
+export type BuilderId = 'claude_code' | 'gemini_cli' | 'codex_cli';
 export type ClaudeAuthMode = 'anthropic_key' | 'machine_sign_in';
 
 export type MissingItem = { code: string; message: string; instructionKey: string | null };
@@ -35,7 +35,8 @@ type RawBuilder = Partial<Omit<Builder, 'missing' | 'models'>> & {
 export function normaliseBuilders(raw: { demo?: boolean; builders?: RawBuilder[] }): Builders {
 	const builders: Builder[] = [];
 	for (const entry of raw.builders ?? []) {
-		if (entry.id !== 'claude_code' && entry.id !== 'gemini_cli') continue;
+		if (entry.id !== 'claude_code' && entry.id !== 'gemini_cli' && entry.id !== 'codex_cli')
+			continue;
 		builders.push({
 			id: entry.id,
 			ready: entry.ready === true,

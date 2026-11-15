@@ -1938,7 +1938,7 @@ components:
                 type: string
                 nullable: true
                 enum: [yes, no, unknown]
-                description: Claude Code in machine_sign_in mode only
+                description: Claude Code in machine_sign_in mode, and Codex CLI
               keySet: {type: boolean, description: The Anthropic key (Claude Code) or the Gemini key (Gemini CLI) is set; always false for Codex CLI (it uses the sign-in of the machine)}
               authMode:
                 type: string

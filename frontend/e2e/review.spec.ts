@@ -36,5 +36,6 @@ test('the wish form offers the builders and the planning line, dark', async ({ p
 	await expect(page.getByTestId('planning-line')).toBeVisible();
 	await expect(page.getByTestId('builder-claude_code')).toBeVisible();
 	await expect(page.getByTestId('builder-gemini_cli')).toBeVisible();
+	await expect(page.getByTestId('builder-codex_cli')).toBeVisible();
 	if (SHOTS) await page.screenshot({ path: `${SHOTS}/wish.png`, fullPage: true });
 });
