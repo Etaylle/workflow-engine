@@ -282,9 +282,9 @@ class GeminiRunIT {
         JsonNode run = awaitEnd(http.json("POST", "/api/projects/" + project + "/runs", null)
                 .get("id").asString());
 
-        assertThat(run.get("builderModel").asString()).isEqualTo("sonnet");
+        assertThat(run.get("builderModel").asString()).isEqualTo("fable");
         assertThat(run.get("builderEffort").isNull()).isTrue();
-        assertThat(Files.readString(BIN.resolve("claude-args.log"))).contains("--model sonnet")
+        assertThat(Files.readString(BIN.resolve("claude-args.log"))).contains("--model fable")
                 .doesNotContain("--effort");
     }
 
@@ -322,7 +322,7 @@ class GeminiRunIT {
         assertThat(claude.get("efforts").valueStream().map(JsonNode::asString).toList())
                 .containsExactly("low", "medium", "high", "xhigh", "max");
         assertThat(claude.get("customModel").asBoolean()).isFalse();
-        assertThat(claude.get("model").asString()).isEqualTo("sonnet");
+        assertThat(claude.get("model").asString()).isEqualTo("fable");
         JsonNode gemini = builder(state, "gemini_cli");
         assertThat(gemini.get("models").valueStream().map(m -> m.get("id").asString()).toList())
                 .containsExactly("gemini-3.1-flash-lite", "gemini-flash-latest", "gemini-pro-latest");

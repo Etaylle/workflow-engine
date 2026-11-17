@@ -31,8 +31,12 @@ describe('stepProblem', () => {
 		expect(stepProblem({ ...step('a'), title: ' ' })).toBe('title');
 		expect(stepProblem({ ...step('a'), prompt: '' })).toBe('prompt');
 		expect(stepProblem({ ...step('a'), capUsd: 0 })).toBe('cap');
-		expect(stepProblem({ ...step('a'), capUsd: 10.5 })).toBe('cap');
+		expect(stepProblem({ ...step('a'), capUsd: 1000.5 })).toBe('cap');
 		expect(stepProblem({ ...step('a'), capUsd: Number.NaN })).toBe('cap');
+	});
+	it('accepts a step without a cap, and a cap up to 1000', () => {
+		expect(stepProblem({ ...step('a'), capUsd: null })).toBeNull();
+		expect(stepProblem({ ...step('a'), capUsd: 1000 })).toBeNull();
 	});
 });
 

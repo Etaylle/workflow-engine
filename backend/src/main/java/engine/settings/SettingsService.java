@@ -7,7 +7,6 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 /** Step profiles and what each project chose; read by the run through RunSettingsPort. */
@@ -15,17 +14,14 @@ import org.springframework.stereotype.Service;
 class SettingsService implements RunSettingsPort {
 
     static final BigDecimal MIN_LIMIT = BigDecimal.ONE;
-    static final BigDecimal MAX_LIMIT = BigDecimal.valueOf(1000);
+    static final BigDecimal MAX_LIMIT = BigDecimal.valueOf(100_000);
 
     private final SettingsStore store;
     private final ProjectPort projects;
-    private final BigDecimal defaultLimit;
 
-    SettingsService(SettingsStore store, ProjectPort projects,
-            @Value("${engine.execution.cost-limit-usd:10}") BigDecimal defaultLimit) {
+    SettingsService(SettingsStore store, ProjectPort projects) {
         this.store = store;
         this.projects = projects;
-        this.defaultLimit = defaultLimit;
     }
 
     List<StepProfileView> profiles() {
@@ -76,9 +72,7 @@ class SettingsService implements RunSettingsPort {
         StepProfileView profile = chosen.profileId() == null ? defaultProfile()
                 : store.profile(chosen.profileId()).orElseGet(this::defaultProfile);
         boolean ownProfile = chosen.profileId() != null && profile.id().equals(chosen.profileId());
-        BigDecimal limit = chosen.costLimitUsd() == null ? defaultLimit : chosen.costLimitUsd();
-        return new ProjectSettingsView(profile.id(), profile.name(), !ownProfile, limit, defaultLimit,
-                chosen.costLimitUsd() == null);
+        return new ProjectSettingsView(profile.id(), profile.name(), !ownProfile, chosen.costLimitUsd());
     }
 
     ProjectSettingsView updateProjectSettings(UUID projectId, UUID profileId, BigDecimal limit) {
@@ -88,7 +82,8 @@ class SettingsService implements RunSettingsPort {
         }
         if (limit != null && (limit.compareTo(MIN_LIMIT) < 0 || limit.compareTo(MAX_LIMIT) > 0)) {
             throw new ApiProblem(400, "Cost limit out of range",
-                    "Choose a cost limit from USD " + MIN_LIMIT + " to USD " + MAX_LIMIT + " per run.");
+                    "Choose a cost limit from USD " + MIN_LIMIT + " to USD " + MAX_LIMIT
+                            + " per run, or none for a run without a limit.");
         }
         store.choose(projectId, new SettingsStore.Chosen(profileId, limit));
         return projectSettings(projectId);

@@ -9,11 +9,14 @@ export function moveStep(steps: StepDef[], index: number, direction: -1 | 1): St
 	return next;
 }
 
-/** A step is ready to save when title and prompt are filled and the cap is above 0 up to 10. */
+export const MAX_CAP = 1000;
+export const EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'] as const;
+
+/** A step is ready to save when title and prompt are filled and the cap is empty or above 0 up to 1000. */
 export function stepProblem(step: StepDef): 'title' | 'prompt' | 'cap' | null {
 	if (step.title.trim() === '' || step.title.trim().length > 80) return 'title';
 	if (step.prompt.trim() === '' || step.prompt.trim().length > 4000) return 'prompt';
-	if (!(step.capUsd > 0 && step.capUsd <= 10)) return 'cap';
+	if (step.capUsd != null && !(step.capUsd > 0 && step.capUsd <= MAX_CAP)) return 'cap';
 	return null;
 }
 

@@ -12,15 +12,18 @@ import java.util.function.Consumer;
  * @param workspace the folder the builder works in
  * @param stepKey key of the step (plan, build, ci, check)
  * @param prompt what the step must do
- * @param capUsd the most this invocation may cost
+ * @param capUsd the most this invocation may cost, or null for no cap
  * @param model the model of the run's snapshot, or null for the default of the builder
  * @param effort the effort level of the run's snapshot, or null for the default of the CLI
  * @param appEnv database settings of the generated project (never a secret of the user)
  * @param logDir where the raw output of the invocation is kept
  * @param console receives short human lines about what the builder is doing, while it works
  * @param cancelled turns true when the client stops the run; the builder then ends the invocation
+ * @param logName name of the log files of this invocation, one per attempt (without extension)
+ * @param resumeSession the session of the previous attempt at this step to continue, or null to
+ *     start a new one; the prompt is then only what went wrong (the session knows the step)
  */
 record StepRequest(Path workspace, String stepKey, String prompt, BigDecimal capUsd,
         String model, String effort, Map<String, String> appEnv, Path logDir, BooleanSupplier cancelled,
-        Consumer<String> console) {
+        Consumer<String> console, String logName, String resumeSession) {
 }

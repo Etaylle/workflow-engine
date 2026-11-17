@@ -316,10 +316,12 @@
 					</span>
 				{/if}
 				<span data-testid="run-cost">
-					{locale.t('run.cost', {
-						cost: formatUsd(run.costUsd),
-						limit: formatUsd(run.costLimitUsd)
-					})}
+					{run.costLimitUsd === null
+						? locale.t('run.costNoLimit', { cost: formatUsd(run.costUsd) })
+						: locale.t('run.cost', {
+								cost: formatUsd(run.costUsd),
+								limit: formatUsd(run.costLimitUsd)
+							})}
 				</span>
 			</div>
 			{#if run.status === 'interrupted'}

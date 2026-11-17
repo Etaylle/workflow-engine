@@ -27,10 +27,12 @@
 				{locale.t('run.report.time', { minutes: formatMinutes(report.seconds) })}
 			</li>
 			<li data-testid="report-cost">
-				{locale.t('run.report.cost', {
-					cost: formatUsd(report.costUsd),
-					limit: formatUsd(report.costLimitUsd)
-				})}
+				{report.costLimitUsd === null
+					? locale.t('run.report.costNoLimit', { cost: formatUsd(report.costUsd) })
+					: locale.t('run.report.cost', {
+							cost: formatUsd(report.costUsd),
+							limit: formatUsd(report.costLimitUsd)
+						})}
 			</li>
 			<li data-testid="report-tasks">
 				{locale.t('run.report.tasks', {

@@ -32,7 +32,8 @@ export const atCostLimit = (run: Run | null): boolean =>
 
 /** A limit that leaves room to continue: what was spent plus the least budget of one step. */
 export const MIN_ROOM_CENTS = 30;
-export const suggestedLimit = (run: Run): number => Math.ceil((run.costLimitUsd * 2) / 5) * 5;
+export const suggestedLimit = (run: Run): number =>
+	Math.ceil(((run.costLimitUsd ?? run.costUsd) * 2) / 5) * 5;
 export const limitHasRoom = (run: Run, limit: number): boolean =>
 	Number.isFinite(limit) &&
 	Math.round(limit * 100) >= Math.round(run.costUsd * 100) + MIN_ROOM_CENTS;

@@ -69,6 +69,43 @@ class RunService {
         return new ContractPort.TaskLine(WHOLE_TITLE, "all", scope.toString());
     }
 
+    static final String FOUNDATION_TITLE = "A working whole in plain form";
+    static final String FINAL_TITLE = "Final pass against the wish";
+    static final int FRAMED_MIN_TASKS = 3;
+
+    /**
+     * The units of work of a run. Whole mode: one unit. Task by task from three tasks on: first the
+     * whole software in its plainest working form, so that every checkpoint after it is usable from
+     * start to end, then one unit per task that deepens its part, then a pass over the whole against
+     * the wish, which catches what no single task owns. With fewer tasks the two extra units would
+     * double the run, so the tasks stand alone.
+     */
+    static List<ContractPort.TaskLine> units(ContractPort.ContractInfo contract, String buildMode) {
+        if ("whole".equals(buildMode)) {
+            return List.of(wholeUnit(contract));
+        }
+        if (contract.softwareTasks().size() < FRAMED_MIN_TASKS) {
+            return contract.softwareTasks();
+        }
+        List<ContractPort.TaskLine> units = new java.util.ArrayList<>();
+        units.add(new ContractPort.TaskLine(FOUNDATION_TITLE, "all", "Before the single tasks: build the"
+                + " whole software of the contract in its plainest working form, so that a user can"
+                + " already go through it from start to end (for a game: start, play, win or lose, start"
+                + " again). Every task must be there in a simple form: " + titles(contract.softwareTasks())
+                + (contract.manualTasks().isEmpty() ? "" : "; and the steps done by a person, as user"
+                        + " actions: " + titles(contract.manualTasks()))
+                + ". Leave detail, depth and polish to the tasks that follow, which each deepen one part,"
+                + " and keep everything the wish does not ask for as small as it can be."));
+        units.addAll(contract.softwareTasks());
+        units.add(new ContractPort.TaskLine(FINAL_TITLE, "all", "After all tasks: go through the whole"
+                + " software from start to end as a critical client would, against the ORIGINAL WISH"
+                + " (section Wish) and, when the wish names software with a well-known design, against"
+                + " every part of that design a user expects. Write down what is missing, wrong or"
+                + " unfinished when the software is used, then build and fix exactly that. Add nothing the"
+                + " wish does not ask for."));
+        return List.copyOf(units);
+    }
+
     private static String titles(List<ContractPort.TaskLine> tasks) {
         return String.join("; ", tasks.stream().map(ContractPort.TaskLine::title).toList());
     }
@@ -102,11 +139,11 @@ class RunService {
         Path workspace = settings.workspaceRoot().resolve("run-" + runId);
         RunSettingsPort.RunSettings chosen = runSettings.forProject(projectId);
         store.create(runId, projectId, contract.version(), harness,
-                chosen.costLimitUsd().orElse(contract.costLimitUsd().orElse(settings.costLimitUsd())),
+                chosen.costLimitUsd().or(contract::costLimitUsd).orElse(null),
                 workspace.toString(), template.id(),
                 settings.createDatabase() && template.needsDatabase() ? RunOrchestrator.databaseName(runId) : null,
                 buildMode, resolvedModel(harness, choice), choice.effort(), reviewerRun,
-                "whole".equals(buildMode) ? List.of(wholeUnit(contract)) : contract.softwareTasks(),
+                units(contract, buildMode),
                 chosen.stepsFor(reviewerRun != null));
         projects.markStatus(projectId, "executing");
         orchestrator.submit(runId, contract.markdown());
@@ -246,6 +283,7 @@ class RunService {
                 run.reviewerHarness() == null ? null : Harness.ofId(run.reviewerHarness()));
     }
 
+    /** A run at its cost limit continues only with a higher one. */
     private void raiseLimit(RunView run, BigDecimal raiseLimitTo) {
         BigDecimal least = run.costUsd().add(RunOrchestrator.MIN_BUDGET);
         if (raiseLimitTo == null || raiseLimitTo.compareTo(least) < 0) {

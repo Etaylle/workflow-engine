@@ -14,7 +14,6 @@ import java.math.BigDecimal;
  * @param codexModel the model of the Codex CLI builder (ENGINE_CODEX_BUILD_MODEL)
  * @param useSignIn start value of the Claude Code sign-in mode; the owner changes it at run time
  * @param createDatabase create a PostgreSQL database for the generated project of each run
- * @param costLimitUsd default cost limit of a run
  * @param maxResumes how many times a run interrupted by an engine restart may be resumed
  * @param limitWaitBase first wait when the rate limit or credit is exhausted; it doubles each retry
  * @param limitWaitMax longest single wait
@@ -26,7 +25,7 @@ import java.math.BigDecimal;
  */
 record ExecutionSettings(Path workspaceRoot, String claudeBin, String model,
         String geminiCmd, String geminiModel, String codexCmd, String codexModel,
-        boolean useSignIn, boolean createDatabase, BigDecimal costLimitUsd, Duration stepTimeout,
+        boolean useSignIn, boolean createDatabase, Duration stepTimeout,
         Duration checkTimeout, int fixAttempts, int maxResumes,
         Duration limitWaitBase, Duration limitWaitMax, int limitMaxRetries, Duration previewLifetime,
         Duration previewStartTimeout, BigDecimal wholeCapMultiple) {

@@ -9,7 +9,6 @@
 	let { project, software }: { project: Project; software: number } = $props();
 
 	let text = $state('');
-	let defaultLimit = $state(10);
 	let saved = $state(false);
 	let baseline = $state('');
 	const saving = createAction();
@@ -18,8 +17,7 @@
 	$effect(() => {
 		void getProjectSettings(project.id).then(
 			(s) => {
-				defaultLimit = s.defaultCostLimitUsd;
-				text = s.usesDefaultLimit ? '' : String(s.costLimitUsd);
+				text = s.costLimitUsd === null ? '' : String(s.costLimitUsd);
 				baseline = text;
 			},
 			() => saving.fail(locale.t('error.unreachable'))
@@ -58,18 +56,14 @@
 		<input
 			bind:value={text}
 			inputmode="decimal"
-			placeholder={String(defaultLimit)}
+			placeholder={locale.t('limits.none')}
 			aria-invalid={parsed === 'invalid' ? 'true' : undefined}
 			aria-describedby="limit-hint"
 			data-testid="limit-input"
 			onblur={() => void save()}
 		/>
 		<span class="hint" id="limit-hint">
-			{locale.t('limits.hint', {
-				default: String(defaultLimit),
-				min: String(MIN_LIMIT),
-				max: String(MAX_LIMIT)
-			})}
+			{locale.t('limits.hint', { min: String(MIN_LIMIT), max: String(MAX_LIMIT) })}
 		</span>
 		{#if parsed === 'invalid'}
 			<span class="field-error" role="alert" data-testid="limit-invalid">

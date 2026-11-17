@@ -63,6 +63,10 @@ class RunIT {
         volatile int failGateTimes;
         /** Step key at which the builder says once that the owner must install something. */
         volatile String needsAtStep;
+        /** Step key at which the builder stops once at its step budget. */
+        volatile String budgetAtStep;
+        /** The session the builder reports, when it keeps one. */
+        volatile String session;
         final List<StepRequest> requests = new CopyOnWriteArrayList<>();
         volatile CountDownLatch hold;
         volatile CountDownLatch entered = new CountDownLatch(1);
@@ -75,6 +79,8 @@ class RunIT {
             limitTimes.clear();
             failGateTimes = 0;
             needsAtStep = null;
+            budgetAtStep = null;
+            session = null;
             requests.clear();
             hold = null;
             entered = new CountDownLatch(1);
@@ -102,6 +108,11 @@ class RunIT {
                 return new StepOutcome(false, new BigDecimal("0.25"), 2, 1, "error_max_turns",
                         "ran out of turns");
             }
+            if (request.stepKey().equals(budgetAtStep)) {
+                budgetAtStep = null;
+                return new StepOutcome(false, new BigDecimal("0.81"), 20, 1, StepOutcome.BUDGET,
+                        "the step stopped at its budget of USD 0.80 after spending USD 0.81");
+            }
             if (request.stepKey().equals(needsAtStep)) {
                 needsAtStep = null;
                 try {
@@ -111,7 +122,7 @@ class RunIT {
                     throw new java.io.UncheckedIOException(e);
                 }
             }
-            return new StubBuilder().run(request);
+            return new StubBuilder().run(request).inSession(session);
         }
 
         @Override
@@ -188,6 +199,11 @@ class RunIT {
             });
         }
         assertThat(run.get("costUsd").asDouble()).isEqualTo(0.08);
+        assertThat(run.get("costLimitUsd").isNull()).as("a run has no cost limit unless one is chosen").isTrue();
+        assertThat(builder.requests).extracting(StepRequest::logName).as("one log per attempt")
+                .startsWith("task-01-plan-attempt-1", "task-01-build-attempt-1").doesNotHaveDuplicates();
+        assertThat(builder.requests.get(0).prompt()).contains("Files in the workspace now (path, lines):")
+                .contains("- CONTRACT.md ");
         Path workspace = workspaceOf(run);
         assertThat(gitLog(workspace)).contains("Task 1 step plan green", "Task 2 step check green",
                 "Task 1 done: Order a meal");
@@ -219,7 +235,7 @@ class RunIT {
                 .contains("Prepare the meal").contains("started with ./start.sh")
                 .contains("keep state in memory").doesNotContain("data kept in")
                 .doesNotContain("SQLite database of the template");
-        assertThat(builder.requests.get(0).capUsd().signum()).isPositive();
+        assertThat(builder.requests.get(0).capUsd()).as("no step budget unless the client sets one").isNull();
     }
 
     @Test
@@ -361,6 +377,52 @@ class RunIT {
         assertThat(calls.get(0)).startsWith("check_failed:").contains("tests failed: 1");
         assertThat(calls.get(1)).startsWith("success:");
         assertThat(events(run.get("id").asString(), 0).toString()).contains("Fix attempt 1 of 2");
+    }
+
+    @Test
+    void aFurtherAttemptContinuesTheSessionOfTheBuilderInsteadOfStartingOver() throws Exception {
+        UUID project = confirmedProject();
+        builder.session = "session-1";
+        builder.failGateTimes = 1;
+
+        JsonNode run = awaitEnd(http.json("POST", "/api/projects/" + project + "/runs", null)
+                .get("id").asString());
+
+        assertThat(run.get("status").asString()).isEqualTo("done");
+        List<StepRequest> buildCalls = builder.requests.stream()
+                .filter(r -> r.stepKey().equals("build")).toList();
+        assertThat(buildCalls.get(0).resumeSession()).as("a new step starts a new session").isNull();
+        assertThat(buildCalls.get(1).resumeSession()).isEqualTo("session-1");
+        assertThat(buildCalls.get(1).prompt()).as("the session knows the step; only the failure is told")
+                .contains("tests failed: 1").contains("Go on from where you are")
+                .doesNotContain("Step BUILD WITH TESTS");
+        assertThat(buildCalls).extracting(StepRequest::logName)
+                .containsExactly("task-01-build-attempt-1", "task-01-build-attempt-2",
+                        "task-02-build-attempt-1");
+        assertThat(builder.requests.stream().filter(r -> r.stepKey().equals("ci")).findFirst().orElseThrow()
+                .resumeSession()).as("the next step does not inherit the session").isNull();
+    }
+
+    @Test
+    void aStepStoppedAtItsBudgetAsksTheClientWithTheReasonInsteadOfTryingAgainBlind() throws Exception {
+        UUID project = confirmedProject();
+        builder.budgetAtStep = "build";
+        String id = http.json("POST", "/api/projects/" + project + "/runs", null).get("id").asString();
+
+        JsonNode waiting = awaitStatus(id, "waiting", "budget");
+
+        assertThat(waiting.get("waitKind").asString()).isEqualTo("question");
+        assertThat(waiting.get("question").get("text").asString())
+                .contains("stopped at its budget of USD 0.80 after spending USD 0.81")
+                .contains("Nothing is wrong with the work").contains("cost cap of this step");
+        JsonNode build = waiting.get("tasks").get(0).get("steps").get(1);
+        assertThat(build.get("attempts").asInt()).as("no blind fix attempt").isEqualTo(1);
+        assertThat(build.get("costUsd").asDouble()).as("what the stopped attempt cost is counted")
+                .isEqualTo(0.81);
+
+        assertThat(answer(id, waiting.get("question").get("id").asString(), "retry", null).statusCode())
+                .isEqualTo(200);
+        assertThat(awaitStatus(id, "done").get("status").asString()).isEqualTo("done");
     }
 
     @Test

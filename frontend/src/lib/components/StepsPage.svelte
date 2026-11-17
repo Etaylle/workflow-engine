@@ -45,7 +45,7 @@
 		const ok = await action.run(async () => {
 			settings = await updateProjectSettings(project.id, {
 				stepProfileId: profile.isDefault ? null : profile.id,
-				costLimitUsd: settings && !settings.usesDefaultLimit ? settings.costLimitUsd : null
+				costLimitUsd: settings ? settings.costLimitUsd : null
 			});
 		});
 		if (ok) await load();
@@ -106,10 +106,13 @@
 						<li>
 							<strong>{step.title}</strong>
 							<span class="lead">
-								{step.gated ? locale.t('steps.checked') : locale.t('steps.notChecked')} · {locale.t(
-									'steps.capValue',
-									{ cap: step.capUsd.toFixed(2) }
-								)}{step.reviewerOnly ? ` · ${locale.t('steps.reviewerOnlyNote')}` : ''}
+								{step.gated
+									? locale.t('steps.checked')
+									: locale.t('steps.notChecked')}{step.capUsd != null
+									? ` · ${locale.t('steps.capValue', { cap: step.capUsd.toFixed(2) })}`
+									: ''}{step.effort
+									? ` · ${locale.t('steps.effortValue', { effort: step.effort })}`
+									: ''}{step.reviewerOnly ? ` · ${locale.t('steps.reviewerOnlyNote')}` : ''}
 							</span>
 						</li>
 					{/each}

@@ -166,9 +166,15 @@ class RunStore {
                 + " and status = 'running'").param("r", runId).update();
     }
 
-    BigDecimal costLimitOf(UUID runId) {
-        return jdbc.sql("select cost_limit_usd from execution.runs where id = :id").param("id", runId)
-                .query(BigDecimal.class).single();
+    /** The cost limit of the run, or empty when it has none (the default). */
+    Optional<BigDecimal> costLimitOf(UUID runId) {
+        return row(runId).map(RunRow::costLimitUsd);
+    }
+
+    /** The number the next attempt of the step gets (1 for the first). */
+    int nextAttempt(UUID stepId) {
+        return jdbc.sql("select count(*) + 1 from execution.agent_calls where step_run_id = :s")
+                .param("s", stepId).query(Integer.class).single();
     }
 
     void setCostLimit(UUID runId, BigDecimal limit) {
@@ -244,8 +250,7 @@ class RunStore {
     /** Records one attempt of a step and returns its id. */
     UUID addAgentCall(UUID stepId, StepOutcome outcome, BuilderRun by) {
         UUID id = UUID.randomUUID();
-        int attempt = jdbc.sql("select count(*) + 1 from execution.agent_calls where step_run_id = :s")
-                .param("s", stepId).query(Integer.class).single();
+        int attempt = nextAttempt(stepId);
         jdbc.sql("insert into execution.agent_calls (id, step_run_id, attempt, seconds, cost_usd, turns,"
                         + " outcome, created_at, tokens, harness, model, effort) values (:id, :s, :a, :sec, :cost, :turns,"
                         + " :o, :now, :tokens, :harness, :model, :effort)")

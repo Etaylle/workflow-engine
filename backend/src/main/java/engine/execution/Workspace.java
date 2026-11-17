@@ -119,6 +119,42 @@ final class Workspace {
         }
     }
 
+    private static final int MAP_FILES = 200;
+    private static final long MAP_COUNTED_BYTES = 512 * 1024;
+
+    /**
+     * The files of the workspace with their line counts, as the end of a prompt: the builder then
+     * knows what is there without listing and measuring it first. At most 200 files are named.
+     */
+    String fileMap() {
+        List<String> files = git("ls-files", "--cached", "--others", "--exclude-standard").lines()
+                .filter(path -> !path.isBlank() && Files.isRegularFile(dir.resolve(path))).sorted().toList();
+        if (files.isEmpty()) {
+            return "";
+        }
+        StringBuilder map = new StringBuilder("\n\nFiles in the workspace now (path, lines):");
+        files.stream().limit(MAP_FILES).forEach(path -> map.append("\n- ").append(path).append(' ')
+                .append(lineCount(dir.resolve(path))));
+        if (files.size() > MAP_FILES) {
+            map.append("\n- and ").append(files.size() - MAP_FILES).append(" more");
+        }
+        return map.toString();
+    }
+
+    /** The lines of a text file; "(binary)" or "(large)" where counting lines makes no sense. */
+    private static String lineCount(Path file) {
+        try {
+            if (Files.size(file) > MAP_COUNTED_BYTES) {
+                return "(large)";
+            }
+            return String.valueOf(Files.readString(file, StandardCharsets.UTF_8).lines().count());
+        } catch (java.nio.charset.CharacterCodingException e) {
+            return "(binary)";
+        } catch (IOException e) {
+            throw new UncheckedIOException("Could not read " + file + " for the file map", e);
+        }
+    }
+
     /** Commits everything and returns the commit id. */
     String commit(String message) {
         git("add", "-A");

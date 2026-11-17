@@ -1474,7 +1474,7 @@ paths:
                 $ref: "#/components/schemas/Problem"
     put:
       operationId: updateProjectSettings
-      summary: Choose the step profile and the cost limit per run (a null value means the default)
+      summary: Choose the step profile and the cost limit per run (a null profile means the default one, a null limit means no limit)
       description: >
         A run copies the profile and takes the limit when it starts; changing the settings later
         does not change a run under way.
@@ -1488,7 +1488,7 @@ paths:
               type: object
               properties:
                 stepProfileId: {type: [string, "null"], format: uuid}
-                costLimitUsd: {type: [number, "null"], minimum: 1, maximum: 1000}
+                costLimitUsd: {type: [number, "null"], minimum: 1, maximum: 100000, description: "null = no cost limit (the default)"}
       responses:
         "200":
           description: The settings as saved
@@ -1817,7 +1817,7 @@ components:
         finishedAt: {type: string, format: date-time, nullable: true}
         seconds: {type: integer, description: From start to finish (to now while the run is under way)}
         costUsd: {type: number}
-        costLimitUsd: {type: number}
+        costLimitUsd: {type: [number, "null"], description: "null = the run has no cost limit"}
         resumeCount: {type: integer}
         tasksDone: {type: integer}
         tasksTotal: {type: integer}
@@ -1911,7 +1911,7 @@ components:
               type: array
               items: {type: string, enum: [retry, skip, stop]}
         costUsd: {type: number, description: Sum of the Claude Code invocations so far}
-        costLimitUsd: {type: number}
+        costLimitUsd: {type: [number, "null"], description: "The cost limit the run waits at; null = no limit (the default)"}
         lastSeq: {type: integer, format: int64}
         startedAt: {type: string, format: date-time}
         finishedAt: {type: string, format: date-time, nullable: true}
@@ -2128,7 +2128,8 @@ components:
         key: {type: string, pattern: "^[a-z0-9-]{1,40}$"}
         title: {type: string, maxLength: 80}
         gated: {type: boolean, description: The orchestrator runs ./check.sh after the step and it must pass}
-        capUsd: {type: number, exclusiveMinimum: 0, maximum: 10}
+        capUsd: {type: [number, "null"], exclusiveMinimum: 0, maximum: 1000, description: "The most one invocation of the step may cost; null = no cap (the default). A step stopped at its cap asks the client."}
+        effort: {type: [string, "null"], enum: [low, medium, high, xhigh, max, null], description: "The effort of this step; null or absent = the builder choice of the project. Codex runs max as xhigh, Gemini has no effort, a separate reviewer keeps its own."}
         prompt: {type: string, maxLength: 4000, description: "What Claude is told; {task} stands for the task title"}
     StepProfile:
       type: object
@@ -2156,14 +2157,12 @@ components:
             $ref: "#/components/schemas/StepDef"
     ProjectSettings:
       type: object
-      required: [stepProfileId, stepProfileName, costLimitUsd, defaultCostLimitUsd, usesDefaultProfile, usesDefaultLimit]
+      required: [stepProfileId, stepProfileName, costLimitUsd, usesDefaultProfile]
       properties:
         stepProfileId: {type: string, format: uuid, description: The profile a run uses now (the default when none was chosen)}
         stepProfileName: {type: string}
         usesDefaultProfile: {type: boolean}
-        costLimitUsd: {type: number, description: The limit a run uses now}
-        defaultCostLimitUsd: {type: number}
-        usesDefaultLimit: {type: boolean}
+        costLimitUsd: {type: [number, "null"], description: "The cost limit the project chose; null = a run has no limit (the default)"}
     Problem:
       description: Error format of every operation (RFC 9457, application/problem+json)
       type: object

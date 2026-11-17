@@ -1,7 +1,7 @@
 export const MIN_LIMIT = 1;
-export const MAX_LIMIT = 1000;
+export const MAX_LIMIT = 100000;
 
-/** The cost limit typed by the client: empty means the default (null), a number from 1 to 1000 is kept. */
+/** The cost limit typed by the client: empty means no limit (null), a number from 1 to 100000 is kept. */
 export function parseLimit(text: string): number | null | 'invalid' {
 	const trimmed = text.trim().replace(',', '.');
 	if (trimmed === '') return null;

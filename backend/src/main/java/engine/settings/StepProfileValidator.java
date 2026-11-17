@@ -1,6 +1,7 @@
 package engine.settings;
 
 import engine.shared.ApiProblem;
+import engine.shared.BuilderChoice;
 import engine.shared.RunSettingsPort.Step;
 import java.math.BigDecimal;
 import java.util.HashSet;
@@ -15,7 +16,7 @@ final class StepProfileValidator {
     static final int MAX_NAME = 60;
     static final int MAX_TITLE = 80;
     static final int MAX_PROMPT = 4000;
-    static final BigDecimal MAX_CAP = BigDecimal.TEN;
+    static final BigDecimal MAX_CAP = BigDecimal.valueOf(1000);
     private static final Pattern KEY = Pattern.compile("^[a-z0-9-]{1,40}$");
 
     private StepProfileValidator() {
@@ -54,7 +55,7 @@ final class StepProfileValidator {
                     + " Leave at least one step that always runs.");
         }
         return raw.stream().map(s -> new Step(s.key(), s.title().strip(), s.gated(), s.capUsd(),
-                s.prompt().strip(), s.review(), s.reviewerOnly())).toList();
+                s.prompt().strip(), s.review(), s.reviewerOnly(), effort(s.effort()))).toList();
     }
 
     private static void checkText(String where, Step step) {
@@ -64,9 +65,19 @@ final class StepProfileValidator {
         if (step.prompt() == null || step.prompt().isBlank() || step.prompt().strip().length() > MAX_PROMPT) {
             throw bad(where + "the prompt needs 1 to " + MAX_PROMPT + " characters.");
         }
-        if (step.capUsd() == null || step.capUsd().signum() <= 0 || step.capUsd().compareTo(MAX_CAP) > 0) {
-            throw bad(where + "the cost cap must be above 0 and at most USD " + MAX_CAP + ".");
+        if (step.capUsd() != null && (step.capUsd().signum() <= 0 || step.capUsd().compareTo(MAX_CAP) > 0)) {
+            throw bad(where + "the cost cap must be above 0 and at most USD " + MAX_CAP
+                    + ", or left empty for no cap.");
         }
+        String effort = effort(step.effort());
+        if (effort != null && !BuilderChoice.EFFORTS.contains(effort)) {
+            throw bad(where + "the effort must be one of " + String.join(", ", BuilderChoice.EFFORTS)
+                    + ", or left empty for the effort of the project.");
+        }
+    }
+
+    private static String effort(String raw) {
+        return raw == null || raw.isBlank() ? null : raw.strip();
     }
 
     private static ApiProblem bad(String detail) {

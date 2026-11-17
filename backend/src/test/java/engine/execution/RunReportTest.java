@@ -13,12 +13,16 @@ class RunReportTest {
     private static final Instant START = Instant.parse("2026-11-15T10:00:00Z");
 
     private static RunView run(Instant finished) {
+        return run(finished, new BigDecimal("4.00"));
+    }
+
+    private static RunView run(Instant finished, BigDecimal limit) {
         RunView.Step done = new RunView.Step(UUID.randomUUID(), 1, "plan", "Plan", "done", "ok",
                 new BigDecimal("0.40"), 5, 90, 1, "0123456789abcdef", 0, false, "claude_code", "fable", "high");
         RunView.Step failed = new RunView.Step(UUID.randomUUID(), 2, "build", "Build", "failed", "x",
                 new BigDecimal("1.10"), 9, 300, 3, null, 0, false, null, null, null);
         return new RunView(UUID.randomUUID(), UUID.randomUUID(), 1, "claude_code", "fable", "high", null, null, null, "waiting", null, "question", null,
-                0, new BigDecimal("1.50"), new BigDecimal("4.00"), 7, START, finished,
+                0, new BigDecimal("1.50"), limit, 7, START, finished,
                 List.of(new RunView.Task(UUID.randomUUID(), 1, "Order a meal", "System", "failed",
                         List.of(done, failed))));
     }
@@ -41,6 +45,13 @@ class RunReportTest {
 
         assertThat(report.seconds()).isEqualTo(120);
         assertThat(report.finishedAt()).isNull();
+    }
+
+    @Test
+    void aRunWithoutACostLimitSaysSoInsteadOfNamingOne() {
+        String md = RunReport.of(run(START.plusSeconds(600), null), List.of(), START).toMarkdown();
+
+        assertThat(md).contains("Cost: USD 1.50 (no cost limit)").doesNotContain("of USD");
     }
 
     @Test

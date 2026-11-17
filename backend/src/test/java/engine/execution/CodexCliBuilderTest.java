@@ -36,7 +36,7 @@ class CodexCliBuilderTest {
 
     private CodexCliBuilder builder(String command) {
         ExecutionSettings settings = new ExecutionSettings(root.resolve("ws"), "claude", "sonnet",
-                "gemini", "gemini-3.1-flash-lite", command, "gpt-6.1-sol", false, false, BigDecimal.TEN,
+                "gemini", "gemini-3.1-flash-lite", command, "gpt-6.1-sol", false, false,
                 Duration.ofSeconds(30), Duration.ofSeconds(30), 2, 3, Duration.ofMillis(10),
                 Duration.ofMillis(10), 1, Duration.ofSeconds(30), Duration.ofSeconds(30), new BigDecimal("4"));
         return new CodexCliBuilder(settings, new ToolProbe());
@@ -46,7 +46,7 @@ class CodexCliBuilderTest {
         Path state = Files.createDirectories(bin.resolve("fake-codex"));
         Files.writeString(state.resolve("queue"), String.join("\n", queue) + "\n");
         return builder(bin.resolve("codex").toString()).run(new StepRequest(workspace, "build", "Do the work",
-                BigDecimal.ONE, model, effort, Map.of(), logs, () -> false, line -> { }));
+                BigDecimal.ONE, model, effort, Map.of(), logs, () -> false, line -> { }, "build", null));
     }
 
     @Test

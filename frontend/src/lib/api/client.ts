@@ -301,7 +301,8 @@ export type Run = {
 	resumeCount: number;
 	question?: RunQuestion | null;
 	costUsd: number;
-	costLimitUsd: number;
+	/** null: the run has no cost limit (the default). */
+	costLimitUsd: number | null;
 	lastSeq: number;
 	startedAt: string;
 	finishedAt?: string | null;
@@ -347,7 +348,7 @@ export type RunReport = {
 	finishedAt?: string | null;
 	seconds: number;
 	costUsd: number;
-	costLimitUsd: number;
+	costLimitUsd: number | null;
 	resumeCount: number;
 	tasksDone: number;
 	tasksTotal: number;
@@ -394,7 +395,10 @@ export type StepDef = {
 	review: boolean;
 	/** The step runs only when the project has a separate reviewer; otherwise a run leaves it out. */
 	reviewerOnly: boolean;
-	capUsd: number;
+	/** The most one call of the step may cost; null: no cap (the default). */
+	capUsd: number | null;
+	/** The effort of this step; null: the builder choice of the project. */
+	effort?: string | null;
 	prompt: string;
 };
 export type StepProfile = {
@@ -409,9 +413,8 @@ export type ProjectSettings = {
 	stepProfileId: string;
 	stepProfileName: string;
 	usesDefaultProfile: boolean;
-	costLimitUsd: number;
-	defaultCostLimitUsd: number;
-	usesDefaultLimit: boolean;
+	/** The cost limit the project chose; null: a run has no limit (the default). */
+	costLimitUsd: number | null;
 };
 
 export const listStepProfiles = () => json<StepProfile[]>('/api/settings/step-profiles');

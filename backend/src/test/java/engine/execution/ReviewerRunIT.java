@@ -96,7 +96,7 @@ class ReviewerRunIT {
         assertThat(codex.get(2)).contains("Your previous attempt at this step failed");
         assertThat(claude).as("plan, build and ci of every task").hasSize(tasks * 3)
                 .allSatisfy(call -> assertThat(call).doesNotContain("another AI builder")
-                        .contains("--model sonnet"));
+                        .contains("--model fable"));
         JsonNode steps = run.get("tasks").get(0).get("steps");
         assertThat(steps).extracting(s -> s.get("key").asString())
                 .containsExactly("plan", "plan-review", "build", "ci", "check");

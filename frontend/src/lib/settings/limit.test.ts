@@ -12,9 +12,9 @@ describe('parseLimit', () => {
 		expect(parseLimit('12,50')).toBe(12.5);
 	});
 	it('refuses text, negatives, too many decimals and the range ends', () => {
-		for (const bad of ['abc', '-5', '1.234', '0.5', '1001', '1e3'])
+		for (const bad of ['abc', '-5', '1.234', '0.5', '100001', '1e3'])
 			expect(parseLimit(bad)).toBe('invalid');
 		expect(parseLimit('1')).toBe(1);
-		expect(parseLimit('1000')).toBe(1000);
+		expect(parseLimit('100000')).toBe(100000);
 	});
 });

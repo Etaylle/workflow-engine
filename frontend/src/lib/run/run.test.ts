@@ -107,6 +107,10 @@ describe('run state', () => {
 		expect(suggestedLimit(atLimit)).toBe(20);
 	});
 
+	it('suggests a limit from the cost so far when the run had none', () => {
+		expect(suggestedLimit({ ...run('waiting'), costLimitUsd: null, costUsd: 21.64 })).toBe(45);
+	});
+
 	it('does not offer a new Run while the run waits', () => {
 		expect(canStart('executing', run('waiting'))).toBe(false);
 	});

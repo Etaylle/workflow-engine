@@ -207,14 +207,25 @@ class RunOrchestrator {
      * The result of one attempt at a step: passed with a summary, or failed with what went wrong.
      * A failure the builder cannot fix by itself (a tool the owner must install) asks the client.
      */
-    private record Attempt(boolean passed, boolean limited, boolean ask, String text) {
+    private record Attempt(Kind kind, String text, String session) {
+
+        /** How an attempt ended; RUN_LIMIT means the cost limit of the run cut it short. */
+        enum Kind { PASSED, FAILED, LIMITED, ASK, RUN_LIMIT }
 
         static Attempt passed(String summary) {
-            return new Attempt(true, false, false, summary);
+            return new Attempt(Kind.PASSED, summary, null);
         }
 
-        static Attempt failed(String text) {
-            return new Attempt(false, false, false, text);
+        static Attempt failed(String text, String session) {
+            return new Attempt(Kind.FAILED, text, session);
+        }
+
+        static Attempt ask(String question) {
+            return new Attempt(Kind.ASK, question, null);
+        }
+
+        boolean passed() {
+            return kind == Kind.PASSED;
         }
     }
 
@@ -233,7 +244,8 @@ class RunOrchestrator {
         store.setTask(task.id(), "running");
         events.publish(ctx.run().id(), "task", "Task " + (index + 1) + " of " + tasks.size() + ": " + task.title());
         List<String> done = tasks.subList(0, index).stream().map(RunStore.TaskRow::title).toList();
-        List<String> later = tasks.subList(index + 1, tasks.size()).stream().map(RunStore.TaskRow::title).toList();
+        List<String> later = RunService.FOUNDATION_TITLE.equals(task.title()) ? List.of()
+                : tasks.subList(index + 1, tasks.size()).stream().map(RunStore.TaskRow::title).toList();
         if ("whole".equals(ctx.run().buildMode())) {
             ctx.workspace().writeWhole(contract, ctx.template(), task.description());
         } else {
@@ -252,7 +264,11 @@ class RunOrchestrator {
         return true;
     }
 
-    /** Runs a step; a failed attempt goes back to the builder with the failure, a bounded number of times. */
+    /**
+     * Runs a step; a failed attempt goes back to the builder with the failure, a bounded number of
+     * times. Where the builder keeps a session, the next attempt continues it instead of starting
+     * over, so what the builder already read and wrote is not paid for twice.
+     */
     private boolean buildStep(Ctx ctx, RunStore.TaskRow task, int stepIndex, int taskNo) {
         UUID runId = ctx.run().id();
         RunStore.StepRow row = task.steps().get(stepIndex);
@@ -260,48 +276,56 @@ class RunOrchestrator {
         store.setStep(row.id(), "running", null);
         events.publish(runId, "step", "Step " + def.title() + " started");
         int attempts = 1 + settings.fixAttempts();
-        String failure = null;
+        Tried last = new Tried(null, null);
         int waits = 0;
         int attempt = 1;
         while (attempt <= attempts) {
             if (stopped(runId)) {
                 return false;
             }
-            BigDecimal limit = store.costLimitOf(runId);
-            BigDecimal remaining = limit.subtract(store.costOf(runId));
-            if (remaining.compareTo(MIN_BUDGET) < 0) {
-                return costLimit(ctx.run().id(), limit, task, row);
+            BigDecimal limit = store.costLimitOf(runId).orElse(null);
+            BigDecimal remaining = limit == null ? null : limit.subtract(store.costOf(runId));
+            if (remaining != null && remaining.compareTo(MIN_BUDGET) < 0) {
+                return costLimit(runId, limit, task, row);
             }
             announceFix(runId, def, attempt, waits);
-            Attempt result = attempt(ctx, row, def, remaining, failure);
+            Attempt result = attempt(ctx, row, def, taskNo, remaining, last);
             if (stopped(runId)) {
                 return false;
             }
-            if (result.passed()) {
-                return completeStep(ctx, row, def, taskNo, result.text());
-            }
-            if (result.ask()) {
-                return askClient(ctx.run(), task, row, result.text(), result.text());
-            }
-            if (result.limited()) {
-                if (!waitForTokens(ctx, task, row, result.text(), ++waits)) {
-                    return false;
-                }
-                continue;
+            switch (result.kind()) {
+                case PASSED:
+                    return completeStep(ctx, row, def, taskNo, result.text());
+                case ASK:
+                    return askClient(ctx.run(), task, row, result.text(), result.text());
+                case RUN_LIMIT:
+                    return costLimit(runId, limit, task, row);
+                case LIMITED:
+                    if (!waitForTokens(ctx, task, row, result.text(), ++waits)) {
+                        return false;
+                    }
+                    continue;
+                case FAILED:
+                    break;
             }
             waits = 0;
-            failure = result.text();
-            events.publish(runId, "console", "Attempt " + attempt + " failed: " + failure);
+            last = new Tried(result.text(), result.session());
+            events.publish(runId, "console", "Attempt " + attempt + " failed: " + last.failure());
             attempt++;
         }
         return askClient(ctx.run(), task, row, def.title() + " could not be fixed after " + attempts
-                + " attempts. What should the engine do? Last failure: " + failure, failure);
+                + " attempts. What should the engine do? Last failure: " + last.failure(), last.failure());
+    }
+
+    /** What the previous attempt at a step left: why it failed and the session to continue, if any. */
+    private record Tried(String failure, String session) {
     }
 
     /** The prompt of a step may name the task as {task}. */
     private static Step withTask(Step step, String taskTitle) {
         return new Step(step.key(), step.title(), step.gated(), step.capUsd(),
-                step.prompt().replace("{task}", taskTitle), step.review(), step.reviewerOnly());
+                step.prompt().replace("{task}", taskTitle), step.review(), step.reviewerOnly(),
+                step.effort());
     }
 
     private void announceFix(UUID runId, Step def, int attempt, int waits) {
@@ -376,47 +400,100 @@ class RunOrchestrator {
                 + String.join(" ", hints);
     }
 
-    /** The cap of one invocation; the whole software in one unit gets a multiple of the per-task cap. */
-    private BigDecimal capOf(RunStore.RunRow run, Step def) {
-        return "whole".equals(run.buildMode()) ? def.capUsd().multiply(settings.wholeCapMultiple())
-                : def.capUsd();
+    /**
+     * The cap of one invocation, or null without one (the default): the cap of the step, in whole mode
+     * a multiple of it, and never more than what the cost limit of the run leaves.
+     */
+    private BigDecimal capOf(RunStore.RunRow run, Step def, BigDecimal remaining) {
+        if (def.capUsd() == null) {
+            return remaining;
+        }
+        BigDecimal cap = "whole".equals(run.buildMode())
+                ? def.capUsd().multiply(settings.wholeCapMultiple()) : def.capUsd();
+        return remaining == null ? cap : cap.min(remaining);
     }
 
-    private Attempt attempt(Ctx ctx, RunStore.StepRow row, Step def, BigDecimal remaining,
-            String previousFailure) {
-        UUID runId = ctx.run().id();
+    /** The effort a step runs with: its own when it has one, in the levels the builder knows. */
+    static String effortOf(engine.shared.Harness harness, String stepEffort, String runEffort) {
+        if (stepEffort == null) {
+            return runEffort;
+        }
+        return switch (harness) {
+            case GEMINI_CLI -> null;
+            case CODEX_CLI -> "max".equals(stepEffort) ? "xhigh" : stepEffort;
+            case CLAUDE_CODE -> stepEffort;
+        };
+    }
+
+    /** What a new attempt is told: the step, and after a failure what went wrong, then the files. */
+    private String promptOf(Ctx ctx, RunStore.StepRow row, Step def, Tried last, boolean separate) {
+        if (last.session() != null) {
+            return "Your attempt at this step did not end green. What went wrong:\n" + last.failure()
+                    + "\n\nGo on from where you are: fix this, change only what is needed, then run"
+                    + " ./check.sh until it prints CHECK PASSED. Finish with one line saying what you did.";
+        }
         String base = hintsOf(row, def);
-        String prompt = previousFailure == null ? base : base
-                + "\n\nYour previous attempt at this step failed. What went wrong:\n" + previousFailure
+        String prompt = last.failure() == null ? base : base
+                + "\n\nYour previous attempt at this step failed. What went wrong:\n" + last.failure()
                 + "\n\nFix this. Change only what is needed, then run ./check.sh until it prints"
                 + " CHECK PASSED.";
+        return (separate ? prompt + REVIEWER_NOTE : prompt) + ctx.workspace().fileMap();
+    }
+
+    private Attempt attempt(Ctx ctx, RunStore.StepRow row, Step def, int taskNo, BigDecimal remaining,
+            Tried last) {
+        UUID runId = ctx.run().id();
         boolean separate = def.review() && ctx.run().reviewer() != null;
         BuilderRun by = separate ? ctx.run().reviewer() : new BuilderRun(ctx.run().harness(),
-                ctx.run().builderModel(), ctx.run().builderEffort());
+                ctx.run().builderModel(),
+                effortOf(ctx.run().harness(), def.effort(), ctx.run().builderEffort()));
         Builder builder = builders.forHarness(by.harness());
+        BigDecimal cap = capOf(ctx.run(), def, remaining);
+        String logName = String.format("task-%02d-%s-attempt-%d", taskNo, def.key(),
+                store.nextAttempt(row.id()));
         StepOutcome outcome = builder.run(new StepRequest(ctx.workspace().dir(), def.key(),
-                separate ? prompt + REVIEWER_NOTE : prompt, capOf(ctx.run(), def).min(remaining), by.model(),
-                by.effort(), ctx.appEnv(), ctx.logDir(), () -> stopped(runId),
-                line -> events.publish(runId, "console", line)));
+                promptOf(ctx, row, def, last, separate), cap, by.model(), by.effort(), ctx.appEnv(),
+                ctx.logDir(), () -> stopped(runId), line -> events.publish(runId, "console", line),
+                logName, last.session()));
         UUID call = store.addAgentCall(row.id(), outcome, by);
         events.publish(runId, "console", def.title() + ": " + outcome.summary() + " (USD "
                 + outcome.costUsd().setScale(2, java.math.RoundingMode.HALF_UP) + ", "
                 + outcome.turns() + " turns)");
         String needs = BuilderSupport.read(ctx.workspace().dir().resolve(NEEDS_FILE)).strip();
         if (!needs.isEmpty()) {
-            return new Attempt(false, false, true, "The builder needs something installed on this machine"
+            return Attempt.ask("The builder needs something installed on this machine"
                     + " before it can continue. Install it and answer Retry, or stop the run. It says: "
                     + (needs.length() > NEEDS_LENGTH ? needs.substring(0, NEEDS_LENGTH) + "..." : needs));
         }
-        if (!outcome.ok()) {
-            return new Attempt(false, outcome.limited(), false, def.title() + " failed: " + outcome.summary());
+        if (outcome.overBudget()) {
+            return overBudget(def, outcome, cap, remaining);
         }
-        return def.gated() ? gates(ctx, def, builder, call, outcome.summary())
+        if (!outcome.ok()) {
+            return new Attempt(outcome.limited() ? Attempt.Kind.LIMITED : Attempt.Kind.FAILED,
+                    def.title() + " failed: " + outcome.summary(), outcome.session());
+        }
+        return def.gated() ? gates(ctx, def, builder, call, outcome)
                 : Attempt.passed(outcome.summary());
     }
 
+    /**
+     * A budget cut the step short. Sending it back to the builder would only spend the same again, so
+     * the run waits: at the cost limit of the run when that was the budget, else with a question
+     * that names the step budget.
+     */
+    private static Attempt overBudget(Step def, StepOutcome outcome, BigDecimal cap, BigDecimal remaining) {
+        if (remaining != null && cap != null && cap.compareTo(remaining) == 0) {
+            return new Attempt(Attempt.Kind.RUN_LIMIT, outcome.summary(), null);
+        }
+        return Attempt.ask(def.title() + ": " + outcome.summary() + ". Nothing is wrong with the work;"
+                + " the budget of this step was too small for it. Answer Retry to run the step again"
+                + " with the same budget, Skip to go on without it, or stop the run. For more room,"
+                + " raise or clear the cost cap of this step in the step profile (Team and steps) and"
+                + " start a new run.");
+    }
+
     /** The gates of a step: ./check.sh must pass, then the software must work when it is used. */
-    private Attempt gates(Ctx ctx, Step def, Builder builder, UUID call, String summary) {
+    private Attempt gates(Ctx ctx, Step def, Builder builder, UUID call, StepOutcome outcome) {
         UUID runId = ctx.run().id();
         GateResult gate = builder.gate(ctx.workspace().dir(), ctx.appEnv(), ctx.logDir(),
                 line -> events.publish(runId, "console", line));
@@ -424,7 +501,7 @@ class RunOrchestrator {
             String text = "The check after " + def.title() + " did not pass:\n"
                     + String.join("\n", gate.tail());
             store.markCheckFailed(call, text);
-            return Attempt.failed(text);
+            return Attempt.failed(text, outcome.session());
         }
         if (useCheck.enabled() && !builders.demo()) {
             UseCheck.Result use = useCheck.run(ctx.template(), ctx.workspace().dir(), ctx.appEnv(),
@@ -435,10 +512,10 @@ class RunOrchestrator {
                         + String.join("\n", use.lines())
                         + "\nMake it work for a real user, and add a test that would have caught this.";
                 store.markCheckFailed(call, text);
-                return Attempt.failed(text);
+                return Attempt.failed(text, outcome.session());
             }
         }
-        return Attempt.passed(summary);
+        return Attempt.passed(outcome.summary());
     }
 
     /** Not fixable after the attempts: the run waits with one question for the client. */

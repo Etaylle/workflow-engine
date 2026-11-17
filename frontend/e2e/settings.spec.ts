@@ -5,7 +5,9 @@ test('choose and edit a step profile; the run uses it', async ({ page }) => {
 	await planToReview(page, 'A canteen app where students order a meal and pick it up');
 	await expect(page.getByTestId('review-steps')).toContainText('Short: 4 steps per task');
 
-	// The cost limit per run is chosen on the review page
+	// The cost limit per run is optional: empty means no limit; one is chosen on the review page
+	await expect(page.getByTestId('limit-input')).toHaveValue('');
+	await expect(page.getByTestId('limit-input')).toHaveAttribute('placeholder', 'no limit');
 	await page.getByTestId('limit-input').fill('abc');
 	await expect(page.getByTestId('limit-invalid')).toBeVisible();
 	await page.getByTestId('limit-input').fill('7,5');
@@ -30,10 +32,16 @@ test('choose and edit a step profile; the run uses it', async ({ page }) => {
 	const mine = page.locator('[data-profile="Mine"]');
 	await mine.getByTestId('step-title').first().fill('Think first');
 	await expect(mine.getByTestId('profile-editor')).toBeVisible();
+	await expect(mine.getByTestId('step-cap').first()).toHaveValue('');
+	await mine.getByTestId('step-effort').first().selectOption('medium');
 	await mine.getByRole('button', { name: 'Move down' }).first().click();
 	await page.screenshot({ path: 'test-results/steps-edit.png', fullPage: true });
 	await mine.getByTestId('profile-save').click();
 	await expect(mine.getByTestId('profile-steps').locator('li').nth(1)).toContainText('Think first');
+	await expect(mine.getByTestId('profile-steps').locator('li').nth(1)).toContainText(
+		'effort medium'
+	);
+	await expect(mine.getByTestId('profile-steps')).not.toContainText('at most USD');
 	await mine.getByTestId('profile-use').click();
 	await expect(mine.getByTestId('profile-used')).toBeVisible();
 	await page.screenshot({ path: 'test-results/steps-page.png', fullPage: true });

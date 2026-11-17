@@ -79,8 +79,8 @@ class GeminiCliBuilder implements RealBuilder {
 
     @Override
     public StepOutcome run(StepRequest request) {
-        Path out = request.logDir().resolve(request.stepKey() + ".jsonl");
-        Path err = request.logDir().resolve(request.stepKey() + ".err");
+        Path out = request.logDir().resolve(request.logName() + ".jsonl");
+        Path err = request.logDir().resolve(request.logName() + ".err");
         long start = System.nanoTime();
         Path home = settings.workspaceRoot().resolve(".gemini-home");
         List<String> command = List.of(settings.geminiCmd(), "-p",

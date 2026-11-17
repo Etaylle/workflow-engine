@@ -41,7 +41,7 @@ class GeminiCliBuilderTest {
 
     private GeminiCliBuilder builder(String command) {
         ExecutionSettings settings = new ExecutionSettings(root.resolve("ws"), "claude", "sonnet",
-                command, "gemini-3.1-flash-lite", "codex", "gpt-6.1-sol", false, false, BigDecimal.TEN, Duration.ofSeconds(30),
+                command, "gemini-3.1-flash-lite", "codex", "gpt-6.1-sol", false, false, Duration.ofSeconds(30),
                 Duration.ofSeconds(30), 2, 3, Duration.ofMillis(10), Duration.ofMillis(10), 1, Duration.ofSeconds(30),
                 Duration.ofSeconds(30), new BigDecimal("4"));
         return new GeminiCliBuilder(keys, settings, new ToolProbe());
@@ -51,7 +51,7 @@ class GeminiCliBuilderTest {
         Path state = Files.createDirectories(root.resolve("ws/fake-gemini"));
         Files.writeString(state.resolve("queue"), String.join("\n", queue) + "\n");
         return builder.run(new StepRequest(workspace, "build", "Do the work", BigDecimal.ONE, null, null, Map.of(),
-                logs, () -> false, line -> { }));
+                logs, () -> false, line -> { }, "build", null));
     }
 
     @Test

@@ -2,7 +2,7 @@
 	import { updateStepProfile, type StepDef, type StepProfile } from '#lib/api/client.js';
 	import { createAction } from '#lib/api/action.svelte.js';
 	import { locale } from '#lib/i18n/state.svelte.js';
-	import { moveStep, stepProblem } from '#lib/settings/steps.js';
+	import { EFFORTS, MAX_CAP, moveStep, stepProblem } from '#lib/settings/steps.js';
 
 	let { profile, saved, cancel }: { profile: StepProfile; saved: () => void; cancel: () => void } =
 		$props();
@@ -17,7 +17,13 @@
 	const canSave = $derived(name.trim() !== '' && broken.every((p) => p === null));
 
 	async function save() {
-		if (await saving.run(() => updateStepProfile(profile.id, name, steps))) saved();
+		// An emptied number field is not a number: it means no cap.
+		const cleaned = steps.map((s) => ({
+			...s,
+			capUsd: typeof s.capUsd === 'number' ? s.capUsd : null,
+			effort: s.effort ? s.effort : null
+		}));
+		if (await saving.run(() => updateStepProfile(profile.id, name, cleaned))) saved();
 	}
 </script>
 
@@ -46,7 +52,28 @@
 			</label>
 			<label>
 				{locale.t('steps.cap')}
-				<input type="number" min="0.1" max="10" step="0.1" bind:value={steps[i]!.capUsd} />
+				<input
+					type="number"
+					min="0.1"
+					max={MAX_CAP}
+					step="0.1"
+					placeholder={locale.t('steps.capNone')}
+					bind:value={steps[i]!.capUsd}
+					data-testid="step-cap"
+				/>
+			</label>
+			<label>
+				{locale.t('steps.effort')}
+				<select
+					value={steps[i]!.effort ?? ''}
+					onchange={(e) => (steps[i]!.effort = e.currentTarget.value || null)}
+					data-testid="step-effort"
+				>
+					<option value="">{locale.t('steps.effortProject')}</option>
+					{#each EFFORTS as level (level)}
+						<option value={level}>{level}</option>
+					{/each}
+				</select>
 			</label>
 			<label class="inline">
 				<input type="checkbox" bind:checked={steps[i]!.gated} />

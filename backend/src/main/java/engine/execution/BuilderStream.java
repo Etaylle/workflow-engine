@@ -185,6 +185,18 @@ final class BuilderStream {
         return new CodexSummary(completed, failure, tokens, calls, message);
     }
 
+    /** The session a Claude Code stream names (every line carries it), or null when it has none. */
+    static String sessionId(String stream) {
+        for (String line : stream.split("\n")) {
+            JsonNode json = line.startsWith("{") ? parse(line) : null;
+            String id = json == null ? "" : json.path("session_id").asString("");
+            if (!id.isBlank()) {
+                return id;
+            }
+        }
+        return null;
+    }
+
     /** The line of the final result object of a stream, or null when the stream has none. */
     static JsonNode lastResult(String stream) {
         JsonNode result = null;

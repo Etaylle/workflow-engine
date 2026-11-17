@@ -14,15 +14,17 @@ public interface RunSettingsPort {
      * @param key short name, unique in the profile
      * @param title shown on the run screen
      * @param gated the orchestrator runs the check after the step and it must pass
-     * @param capUsd most the step may cost in one invocation
+     * @param capUsd most the step may cost in one invocation, or null for no cap (the default)
      * @param prompt what Claude is told; {task} stands for the task title
      * @param review an independent review step: a separate reviewer builder runs it when the project
      *     has one; absent in the JSON of older runs and requests, which means false
      * @param reviewerOnly the step runs only when the project has a separate reviewer (the second
      *     opinion on the plan); a run without one leaves it out; absent means false
+     * @param effort the effort level of this step, or null for the builder choice of the project; a
+     *     separate reviewer keeps its own effort
      */
     record Step(String key, String title, boolean gated, BigDecimal capUsd, String prompt,
-            Boolean review, Boolean reviewerOnly) {
+            Boolean review, Boolean reviewerOnly, String effort) {
 
         /** A missing flag is false. */
         public Step {
@@ -36,7 +38,7 @@ public interface RunSettingsPort {
      *
      * @param profileName name of the step profile
      * @param steps the steps of one task in order
-     * @param costLimitUsd the limit the client chose, or empty for the engine default
+     * @param costLimitUsd the limit the client chose, or empty for a run without a limit
      */
     record RunSettings(String profileName, List<Step> steps, Optional<BigDecimal> costLimitUsd) {
 
@@ -46,6 +48,6 @@ public interface RunSettingsPort {
         }
     }
 
-    /** The profile and cost limit the project chose, or the defaults. */
+    /** The profile the project chose (or the default one) and its cost limit, if it chose one. */
     RunSettings forProject(UUID projectId);
 }

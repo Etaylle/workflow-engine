@@ -116,8 +116,8 @@ class SettingsIT {
         String copyId = copy.get("id").asString();
         String edited = "{\"name\":\"Mine 2\",\"steps\":[{\"key\":\"build\",\"title\":\"Build it\","
                 + "\"gated\":true,\"capUsd\":2.5,\"prompt\":\"Build {task}\"},"
-                + "{\"key\":\"plan\",\"title\":\"Plan\",\"gated\":false,\"capUsd\":0.5,"
-                + "\"prompt\":\"Plan {task}\"}]}";
+                + "{\"key\":\"plan\",\"title\":\"Plan\",\"gated\":false,\"capUsd\":null,"
+                + "\"effort\":\"medium\",\"prompt\":\"Plan {task}\"}]}";
 
         JsonNode saved = http.json("PUT", "/api/settings/step-profiles/" + copyId, edited);
 
@@ -125,6 +125,11 @@ class SettingsIT {
         assertThat(saved.get("steps")).extracting(s -> s.get("key").asString())
                 .containsExactly("build", "plan");
         assertThat(saved.get("steps").get(0).get("capUsd").asDouble()).isEqualTo(2.5);
+        assertThat(saved.get("steps").get(0).get("effort").isNull()).isTrue();
+        assertThat(saved.get("steps").get(1).get("capUsd").isNull()).as("a step without a cap").isTrue();
+        assertThat(saved.get("steps").get(1).get("effort").asString()).isEqualTo("medium");
+        assertThat(profileNamed("Short").get("steps")).as("no seeded step has a cap")
+                .allSatisfy(step -> assertThat(step.get("capUsd").isNull()).isTrue());
         assertThat(profileNamed("Short").get("steps")).hasSize(5);
         assertThat(http.call("DELETE", "/api/settings/step-profiles/" + copyId, null).statusCode())
                 .isEqualTo(204);
@@ -148,8 +153,10 @@ class SettingsIT {
         assertThat(put(copyId, "[]")).contains("1 to 20 steps");
         assertThat(put(copyId, "[" + step + "," + step + "]")).contains("used twice");
         assertThat(put(copyId, "[" + step.replace("\"a\"", "\"A b\"") + "]")).contains("key");
-        assertThat(put(copyId, "[" + step.replace("\"capUsd\":1", "\"capUsd\":11") + "]"))
+        assertThat(put(copyId, "[" + step.replace("\"capUsd\":1", "\"capUsd\":1001") + "]"))
                 .contains("cost cap");
+        assertThat(put(copyId, "[" + step.replace("\"gated\"", "\"effort\":\"huge\",\"gated\"") + "]"))
+                .contains("effort must be one of");
         assertThat(put(copyId, "[" + step.replace("\"capUsd\":1", "\"capUsd\":0") + "]"))
                 .contains("cost cap");
         assertThat(put(copyId, "[" + step.replace("\"p\"", "\"\"") + "]")).contains("prompt");
@@ -169,13 +176,12 @@ class SettingsIT {
     }
 
     @Test
-    void aProjectChoosesAProfileAndALimitAndFallsBackToTheDefaults() throws Exception {
+    void aProjectHasNoCostLimitUntilItChoosesOneAndFallsBackToTheDefaultProfile() throws Exception {
         UUID project = http.createProject("A canteen app");
         JsonNode initial = http.json("GET", "/api/projects/" + project + "/settings", null);
         assertThat(initial.get("stepProfileName").asString()).isEqualTo("Short");
         assertThat(initial.get("usesDefaultProfile").asBoolean()).isTrue();
-        assertThat(initial.get("usesDefaultLimit").asBoolean()).isTrue();
-        assertThat(initial.get("costLimitUsd").asDouble()).isEqualTo(10.0);
+        assertThat(initial.get("costLimitUsd").isNull()).as("no limit by default").isTrue();
         String fullId = profileNamed("16 steps").get("id").asString();
 
         JsonNode chosen = http.json("PUT", "/api/projects/" + project + "/settings",
@@ -185,10 +191,10 @@ class SettingsIT {
         assertThat(chosen.get("usesDefaultProfile").asBoolean()).isFalse();
         assertThat(chosen.get("costLimitUsd").asDouble()).isEqualTo(25.5);
         assertThat(http.json("GET", "/api/projects/" + project + "/settings", null)
-                .get("usesDefaultLimit").asBoolean()).isFalse();
+                .get("costLimitUsd").asDouble()).isEqualTo(25.5);
         JsonNode reset = http.json("PUT", "/api/projects/" + project + "/settings", "{}");
         assertThat(reset.get("usesDefaultProfile").asBoolean()).isTrue();
-        assertThat(reset.get("costLimitUsd").asDouble()).isEqualTo(10.0);
+        assertThat(reset.get("costLimitUsd").isNull()).as("the limit is cleared again").isTrue();
     }
 
     @Test
@@ -196,7 +202,7 @@ class SettingsIT {
         UUID project = http.createProject("A canteen app");
         String path = "/api/projects/" + project + "/settings";
         assertThat(http.call("PUT", path, "{\"costLimitUsd\":0.5}").statusCode()).isEqualTo(400);
-        assertThat(http.call("PUT", path, "{\"costLimitUsd\":1001}").statusCode()).isEqualTo(400);
+        assertThat(http.call("PUT", path, "{\"costLimitUsd\":100001}").statusCode()).isEqualTo(400);
         assertThat(http.call("PUT", path, "{\"stepProfileId\":\"" + UUID.randomUUID() + "\"}")
                 .statusCode()).isEqualTo(404);
         assertThat(http.call("GET", "/api/projects/" + UUID.randomUUID() + "/settings", null)

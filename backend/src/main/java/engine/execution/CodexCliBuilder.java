@@ -63,8 +63,8 @@ class CodexCliBuilder implements RealBuilder {
 
     @Override
     public StepOutcome run(StepRequest request) {
-        Path out = request.logDir().resolve(request.stepKey() + ".jsonl");
-        Path err = request.logDir().resolve(request.stepKey() + ".err");
+        Path out = request.logDir().resolve(request.logName() + ".jsonl");
+        Path err = request.logDir().resolve(request.logName() + ".err");
         long start = System.nanoTime();
         ProcessRunner.Result result = ProcessRunner.run(command(request), request.workspace(),
                 request.appEnv(), out, err, settings.stepTimeout(), request.cancelled(),
