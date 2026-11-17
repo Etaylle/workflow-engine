@@ -107,7 +107,7 @@ class RunService {
                 settings.createDatabase() && template.needsDatabase() ? RunOrchestrator.databaseName(runId) : null,
                 buildMode, resolvedModel(harness, choice), choice.effort(), reviewerRun,
                 "whole".equals(buildMode) ? List.of(wholeUnit(contract)) : contract.softwareTasks(),
-                chosen.steps());
+                chosen.stepsFor(reviewerRun != null));
         projects.markStatus(projectId, "executing");
         orchestrator.submit(runId, contract.markdown());
         return view(runId);

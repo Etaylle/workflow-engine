@@ -44,9 +44,17 @@ final class StepProfileValidator {
                 throw bad(where + "the key " + step.key() + " is used twice.");
             }
             checkText(where, step);
+            if (step.reviewerOnly() && !step.review()) {
+                throw bad(where + "only an independent review step can be limited to runs with a reviewer."
+                        + " Mark it as a review step or remove the limit.");
+            }
+        }
+        if (raw.stream().allMatch(Step::reviewerOnly)) {
+            throw bad("Every step runs only with a reviewer, so a run without one would have no steps."
+                    + " Leave at least one step that always runs.");
         }
         return raw.stream().map(s -> new Step(s.key(), s.title().strip(), s.gated(), s.capUsd(),
-                s.prompt().strip(), s.review())).toList();
+                s.prompt().strip(), s.review(), s.reviewerOnly())).toList();
     }
 
     private static void checkText(String where, Step step) {

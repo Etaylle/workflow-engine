@@ -7,6 +7,7 @@ const step = (key: string): StepDef => ({
 	title: key,
 	gated: false,
 	review: false,
+	reviewerOnly: false,
 	capUsd: 1,
 	prompt: 'p'
 });
@@ -36,8 +37,12 @@ describe('stepProblem', () => {
 });
 
 describe('profileSummary', () => {
+	const profiles = [{ id: 'x', steps: [step('plan'), { ...step('opinion'), reviewerOnly: true }] }];
 	it('counts the steps of the profile, 0 when unknown', () => {
-		expect(profileSummary([{ id: 'x', steps: [1, 2] }], 'x')).toBe(2);
-		expect(profileSummary([], 'x')).toBe(0);
+		expect(profileSummary(profiles, 'x', true)).toBe(2);
+		expect(profileSummary([], 'x', true)).toBe(0);
+	});
+	it('leaves out the steps that need a reviewer when the project has none', () => {
+		expect(profileSummary(profiles, 'x', false)).toBe(1);
 	});
 });

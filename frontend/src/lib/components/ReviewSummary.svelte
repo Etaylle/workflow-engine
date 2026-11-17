@@ -112,7 +112,9 @@
 			<dd data-testid="review-steps">
 				{locale.t('review.stepsValue', {
 					profile: settings.stepProfileName,
-					count: String(profileSummary(profiles, settings.stepProfileId))
+					count: String(
+						profileSummary(profiles, settings.stepProfileId, project.reviewerHarness !== null)
+					)
 				})}
 				·
 				<a href={`#${project.id}/steps`} data-testid="review-steps-link"

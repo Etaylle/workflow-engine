@@ -56,7 +56,7 @@ class SettingsIT {
         assertThat(profiles.size()).isGreaterThanOrEqualTo(2);
         assertThat(shortProfile.get("isDefault").asBoolean()).isTrue();
         assertThat(shortProfile.get("steps")).extracting(s -> s.get("key").asString())
-                .containsExactly("plan", "build", "ci", "check");
+                .containsExactly("plan", "plan-review", "build", "ci", "check");
         assertThat(full.get("isDefault").asBoolean()).isFalse();
         assertThat(full.get("seeded").asBoolean()).isTrue();
         assertThat(full.get("steps")).hasSize(16);
@@ -112,7 +112,7 @@ class SettingsIT {
         JsonNode copy = http.json("POST", "/api/settings/step-profiles",
                 "{\"fromId\":\"" + id + "\",\"name\":\"Mine\"}");
         assertThat(copy.get("seeded").asBoolean()).isFalse();
-        assertThat(copy.get("steps")).hasSize(4);
+        assertThat(copy.get("steps")).hasSize(5);
         String copyId = copy.get("id").asString();
         String edited = "{\"name\":\"Mine 2\",\"steps\":[{\"key\":\"build\",\"title\":\"Build it\","
                 + "\"gated\":true,\"capUsd\":2.5,\"prompt\":\"Build {task}\"},"
@@ -125,7 +125,7 @@ class SettingsIT {
         assertThat(saved.get("steps")).extracting(s -> s.get("key").asString())
                 .containsExactly("build", "plan");
         assertThat(saved.get("steps").get(0).get("capUsd").asDouble()).isEqualTo(2.5);
-        assertThat(profileNamed("Short").get("steps")).hasSize(4);
+        assertThat(profileNamed("Short").get("steps")).hasSize(5);
         assertThat(http.call("DELETE", "/api/settings/step-profiles/" + copyId, null).statusCode())
                 .isEqualTo(204);
         assertThat(http.call("DELETE", "/api/settings/step-profiles/" + copyId, null).statusCode())
@@ -154,7 +154,11 @@ class SettingsIT {
                 .contains("cost cap");
         assertThat(put(copyId, "[" + step.replace("\"p\"", "\"\"") + "]")).contains("prompt");
         assertThat(put(copyId, "[" + step.replace("\"A\"", "\" \"") + "]")).contains("title");
-        assertThat(profileNamed("Mine").get("steps")).hasSize(4);
+        String only = step.replace("\"gated\"", "\"reviewerOnly\":true,\"gated\"");
+        assertThat(put(copyId, "[" + only + "]")).contains("only an independent review step");
+        assertThat(put(copyId, "[" + only.replace("\"gated\"", "\"review\":true,\"gated\"") + "]"))
+                .contains("at least one step that always runs");
+        assertThat(profileNamed("Mine").get("steps")).hasSize(5);
     }
 
     private String put(String id, String steps) throws Exception {

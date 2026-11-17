@@ -53,8 +53,24 @@
 				{locale.t('steps.gated')}
 			</label>
 			<label class="inline">
-				<input type="checkbox" bind:checked={steps[i]!.review} data-testid="step-review" />
+				<input
+					type="checkbox"
+					bind:checked={steps[i]!.review}
+					onchange={() => {
+						if (!steps[i]!.review) steps[i]!.reviewerOnly = false;
+					}}
+					data-testid="step-review"
+				/>
 				{locale.t('steps.review')}
+			</label>
+			<label class="inline">
+				<input
+					type="checkbox"
+					bind:checked={steps[i]!.reviewerOnly}
+					disabled={!steps[i]!.review}
+					data-testid="step-reviewer-only"
+				/>
+				{locale.t('steps.reviewerOnly')}
 			</label>
 			{#if broken[i]}<p role="alert">{locale.t(`steps.problem.${broken[i]}`)}</p>{/if}
 			<button type="button" disabled={i === 0} onclick={() => (steps = moveStep(steps, i, -1))}>

@@ -2124,6 +2124,7 @@ components:
       required: [key, title, gated, capUsd, prompt]
       properties:
         review: {type: boolean, default: false, description: "An independent review step: a separate reviewer builder runs it when the project has one (all its attempts)"}
+        reviewerOnly: {type: boolean, default: false, description: "The step runs only when the project has a separate reviewer (the second opinion on the plan); a run without one leaves it out. 400 unless review is true, and when every step of the profile has it"}
         key: {type: string, pattern: "^[a-z0-9-]{1,40}$"}
         title: {type: string, maxLength: 80}
         gated: {type: boolean, description: The orchestrator runs ./check.sh after the step and it must pass}

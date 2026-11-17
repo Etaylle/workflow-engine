@@ -62,13 +62,15 @@ test('confirmed contract to a finished run and its ZIP, surviving a reload', asy
 	await page.reload();
 	await expect(page.getByTestId('run-card')).toBeVisible();
 	await expect(page.getByTestId('run-status')).toHaveText('Finished', { timeout: 60_000 });
-	await expect(page.getByTestId('run-progress')).toContainText('8 of 8 steps done');
+	// With a reviewer every task has five steps: the second opinion on the plan comes on top.
+	await expect(page.getByTestId('run-progress')).toContainText('10 of 10 steps done');
 	await expect(page.getByTestId('run-reviewer')).toContainText('Codex CLI');
+	await expect(page.getByTestId('review-by-plan-review').first()).toContainText('Codex CLI');
 	await expect(page.getByTestId('review-by-check').first()).toContainText('Independent check');
 	await expect(page.getByTestId('run-task-1')).toContainText('Order a meal');
 	await expect(page.getByTestId('run-task-2')).toContainText('Notify the student');
 	await expect(page.getByTestId('run-builder')).toHaveText('Built with Claude Code · opus · high');
-	await expect(page.getByTestId('run-cost')).toContainText('Cost so far: USD 0.08 of USD 10.00');
+	await expect(page.getByTestId('run-cost')).toContainText('Cost so far: USD 0.10 of USD 10.00');
 	await expect(page.getByTestId('run-console')).toContainText(
 		'Independent check: Stub: step check done'
 	);
@@ -107,9 +109,9 @@ test('confirmed contract to a finished run and its ZIP, surviving a reload', asy
 
 	// US-06.12: the final report, then the ZIP of the workspace
 	await expect(page.getByTestId('report-tasks')).toHaveText('2 of 2 tasks done');
-	await expect(page.getByTestId('report-steps')).toHaveText('8 of 8 steps done');
-	await expect(page.getByTestId('report-checkpoints')).toContainText('8 checkpoints');
-	await expect(page.getByTestId('report-cost')).toContainText('USD 0.08 of USD 10.00');
+	await expect(page.getByTestId('report-steps')).toHaveText('10 of 10 steps done');
+	await expect(page.getByTestId('report-checkpoints')).toContainText('10 checkpoints');
+	await expect(page.getByTestId('report-cost')).toContainText('USD 0.10 of USD 10.00');
 	await expect(page.getByTestId('report-no-questions')).toBeVisible();
 	const download = page.waitForEvent('download');
 	await page.getByTestId('run-zip').click();

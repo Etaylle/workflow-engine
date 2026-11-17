@@ -17,7 +17,15 @@ export function stepProblem(step: StepDef): 'title' | 'prompt' | 'cap' | null {
 	return null;
 }
 
-/** The profile that a project uses now, with the number of its steps, for the review table. */
-export function profileSummary(profiles: { id: string; steps: unknown[] }[], id: string): number {
-	return profiles.find((p) => p.id === id)?.steps.length ?? 0;
+/**
+ * The number of steps a run of the project takes with the profile, for the review table: the steps
+ * that need a reviewer count only when the project has one. 0 when the profile is unknown.
+ */
+export function profileSummary(
+	profiles: { id: string; steps: { reviewerOnly: boolean }[] }[],
+	id: string,
+	hasReviewer: boolean
+): number {
+	const steps = profiles.find((p) => p.id === id)?.steps ?? [];
+	return steps.filter((step) => hasReviewer || !step.reviewerOnly).length;
 }

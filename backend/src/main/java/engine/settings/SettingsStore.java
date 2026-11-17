@@ -51,11 +51,11 @@ class SettingsStore {
     }
 
     private List<Step> steps(UUID profileId) {
-        return jdbc.sql("select key, title, gated, cap_usd, prompt, review from settings.profile_steps"
+        return jdbc.sql("select key, title, gated, cap_usd, prompt, review, reviewer_only from settings.profile_steps"
                         + " where profile_id = :p order by seq").param("p", profileId)
                 .query((rs, n) -> new Step(rs.getString("key"), rs.getString("title"),
                         rs.getBoolean("gated"), rs.getBigDecimal("cap_usd"), rs.getString("prompt"),
-                        rs.getBoolean("review")))
+                        rs.getBoolean("review"), rs.getBoolean("reviewer_only")))
                 .list();
     }
 
@@ -88,11 +88,12 @@ class SettingsStore {
         for (int i = 0; i < steps.size(); i++) {
             Step step = steps.get(i);
             jdbc.sql("insert into settings.profile_steps (id, profile_id, seq, key, title, gated, cap_usd,"
-                            + " prompt, review) values (:id, :p, :seq, :key, :title, :gated, :cap, :prompt, :review)")
+                            + " prompt, review, reviewer_only) values (:id, :p, :seq, :key, :title, :gated,"
+                            + " :cap, :prompt, :review, :only)")
                     .param("id", UUID.randomUUID()).param("p", profileId).param("seq", i + 1)
                     .param("key", step.key()).param("title", step.title()).param("gated", step.gated())
                     .param("cap", step.capUsd()).param("prompt", step.prompt())
-                    .param("review", step.review()).update();
+                    .param("review", step.review()).param("only", step.reviewerOnly()).update();
         }
     }
 

@@ -392,6 +392,8 @@ export type StepDef = {
 	gated: boolean;
 	/** An independent review step: a separate reviewer builder runs it. */
 	review: boolean;
+	/** The step runs only when the project has a separate reviewer; otherwise a run leaves it out. */
+	reviewerOnly: boolean;
 	capUsd: number;
 	prompt: string;
 };

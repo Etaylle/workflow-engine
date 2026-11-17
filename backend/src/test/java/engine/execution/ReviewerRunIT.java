@@ -72,7 +72,7 @@ class ReviewerRunIT {
     @Test
     void theReviewStepAndItsFixAttemptsRunWithTheReviewerAndEveryOtherStepWithTheBuilder() throws Exception {
         signIn();
-        queue("badcheck", "ok");
+        queue("ok", "badcheck", "ok");
         UUID project = confirmedProject();
         http.json("PATCH", "/api/projects/" + project, "{\"reviewerHarness\":\"codex_cli\","
                 + "\"reviewerModel\":\"gpt-6-luna\",\"reviewerEffort\":\"low\"}");
@@ -87,25 +87,31 @@ class ReviewerRunIT {
         int tasks = run.get("tasks").size();
         List<String> codex = Files.readAllLines(BIN.resolve("fake-codex/args.log"));
         List<String> claude = Files.readAllLines(BIN.resolve("claude-args.log"));
-        assertThat(codex).as("the check step of every task and one fix attempt").hasSize(tasks + 1)
+        assertThat(codex).as("plan review and check of every task and one fix attempt").hasSize(tasks * 2 + 1)
                 .allSatisfy(call -> assertThat(call).contains("-m gpt-6-luna")
                         .contains("model_reasoning_effort=\"low\"")
                         .contains("reviewing work written by another AI builder"));
-        assertThat(codex.get(1)).contains("Your previous attempt at this step failed");
+        assertThat(codex.get(0)).as("the second opinion comes before anything is built")
+                .contains("SECOND OPINION ON THE PLAN").contains("docs/PLAN.md");
+        assertThat(codex.get(2)).contains("Your previous attempt at this step failed");
         assertThat(claude).as("plan, build and ci of every task").hasSize(tasks * 3)
                 .allSatisfy(call -> assertThat(call).doesNotContain("another AI builder")
                         .contains("--model sonnet"));
         JsonNode steps = run.get("tasks").get(0).get("steps");
-        assertThat(steps.get(3).get("key").asString()).isEqualTo("check");
-        assertThat(steps.get(3).get("review").asBoolean()).isTrue();
-        assertThat(steps.get(3).get("builderHarness").asString()).isEqualTo("codex_cli");
-        assertThat(steps.get(3).get("builderModel").asString()).isEqualTo("gpt-6-luna");
-        assertThat(steps.get(3).get("attempts").asInt()).isEqualTo(2);
-        assertThat(steps.get(1).get("review").asBoolean()).isFalse();
-        assertThat(steps.get(1).get("builderHarness").asString()).isEqualTo("claude_code");
+        assertThat(steps).extracting(s -> s.get("key").asString())
+                .containsExactly("plan", "plan-review", "build", "ci", "check");
+        assertThat(steps.get(1).get("review").asBoolean()).isTrue();
+        assertThat(steps.get(1).get("status").asString()).isEqualTo("done");
+        assertThat(steps.get(1).get("builderHarness").asString()).isEqualTo("codex_cli");
+        assertThat(steps.get(4).get("review").asBoolean()).isTrue();
+        assertThat(steps.get(4).get("builderHarness").asString()).isEqualTo("codex_cli");
+        assertThat(steps.get(4).get("builderModel").asString()).isEqualTo("gpt-6-luna");
+        assertThat(steps.get(4).get("attempts").asInt()).isEqualTo(2);
+        assertThat(steps.get(2).get("review").asBoolean()).isFalse();
+        assertThat(steps.get(2).get("builderHarness").asString()).isEqualTo("claude_code");
         JsonNode report = http.json("GET", "/api/runs/" + run.get("id").asString() + "/report", null);
         assertThat(report.get("reviewerHarness").asString()).isEqualTo("codex_cli");
-        assertThat(report.get("tasks").get(0).get("steps").get(3).get("builderModel").asString())
+        assertThat(report.get("tasks").get(0).get("steps").get(4).get("builderModel").asString())
                 .isEqualTo("gpt-6-luna");
     }
 
@@ -122,8 +128,10 @@ class ReviewerRunIT {
         assertThat(BIN.resolve("fake-codex/args.log")).doesNotExist();
         assertThat(Files.readAllLines(BIN.resolve("claude-args.log"))).hasSize(run.get("tasks").size() * 4)
                 .allSatisfy(call -> assertThat(call).doesNotContain("another AI builder"));
-        assertThat(run.get("tasks").get(0).get("steps").get(3).get("builderHarness").asString())
-                .isEqualTo("claude_code");
+        JsonNode steps = run.get("tasks").get(0).get("steps");
+        assertThat(steps).as("without a reviewer the second opinion on the plan is left out")
+                .extracting(s -> s.get("key").asString()).containsExactly("plan", "build", "ci", "check");
+        assertThat(steps.get(3).get("builderHarness").asString()).isEqualTo("claude_code");
     }
 
     @Test
@@ -209,7 +217,13 @@ class ReviewerRunIT {
         JsonNode shortProfile = profiles.valueStream().filter(p -> "Short".equals(p.get("name").asString()))
                 .findFirst().orElseThrow();
         assertThat(shortProfile.get("steps").valueStream().filter(s -> s.get("review").asBoolean())
-                .map(s -> s.get("key").asString()).toList()).containsExactly("check");
+                .map(s -> s.get("key").asString()).toList()).containsExactly("plan-review", "check");
+        assertThat(shortProfile.get("steps").valueStream().filter(s -> s.get("reviewerOnly").asBoolean())
+                .map(s -> s.get("key").asString()).toList()).containsExactly("plan-review");
+        JsonNode shortCopy = http.json("POST", "/api/settings/step-profiles", "{\"fromId\":\""
+                + shortProfile.get("id").asString() + "\",\"name\":\"Copy with second opinion\"}");
+        assertThat(shortCopy.get("steps").get(1).get("reviewerOnly").asBoolean()).isTrue();
+        http.call("DELETE", "/api/settings/step-profiles/" + shortCopy.get("id").asString(), null);
     }
 
     private static void signIn() throws IOException {

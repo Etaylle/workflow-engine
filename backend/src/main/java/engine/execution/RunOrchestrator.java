@@ -301,7 +301,7 @@ class RunOrchestrator {
     /** The prompt of a step may name the task as {task}. */
     private static Step withTask(Step step, String taskTitle) {
         return new Step(step.key(), step.title(), step.gated(), step.capUsd(),
-                step.prompt().replace("{task}", taskTitle), step.review());
+                step.prompt().replace("{task}", taskTitle), step.review(), step.reviewerOnly());
     }
 
     private void announceFix(UUID runId, Step def, int attempt, int waits) {

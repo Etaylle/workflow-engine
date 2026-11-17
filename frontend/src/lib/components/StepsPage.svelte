@@ -109,7 +109,7 @@
 								{step.gated ? locale.t('steps.checked') : locale.t('steps.notChecked')} · {locale.t(
 									'steps.capValue',
 									{ cap: step.capUsd.toFixed(2) }
-								)}
+								)}{step.reviewerOnly ? ` · ${locale.t('steps.reviewerOnlyNote')}` : ''}
 							</span>
 						</li>
 					{/each}
