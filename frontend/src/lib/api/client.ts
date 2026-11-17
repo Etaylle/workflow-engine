@@ -12,6 +12,8 @@ export type AiKeys = {
 	openai: CompatibleKeyState;
 	planning: { provider: AiProviderId; model: string } | null;
 	defaults: { baseUrl: string; model: string };
+	/** The keys are saved on the engine machine and survive a restart (false: memory only). */
+	saved: boolean;
 };
 export type AiCheckResult = { ok: boolean; model: string };
 export type Problem = { title: string; status: number; detail?: string };

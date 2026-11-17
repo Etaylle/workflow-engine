@@ -37,7 +37,7 @@ Everything goes through `ci/run <command>` (created in milestone M0): `all-local
 
 ## 5. Product decisions that hold
 
-- Planning with Claude or an OpenAI-compatible provider (D-74), building with Claude Code, Gemini CLI or Codex CLI, the project's choice (D-77, D-102, replaces D-21; Codex uses the owner's ChatGPT sign-in on this machine, never an engine key). The user's AI keys (Anthropic, OpenAI-compatible) and GitHub token live in engine memory for the session and its runs: no table, column, log, file or image holds them; they are entered again after a restart.
+- Planning with Claude or an OpenAI-compatible provider (D-74), building with Claude Code, Gemini CLI or Codex CLI, the project's choice (D-77, D-102, replaces D-21; Codex uses the owner's ChatGPT sign-in on this machine, never an engine key). The user's AI keys (Anthropic, OpenAI-compatible) are saved on the engine machine in one file outside the repository that only the owner of the engine process can read (`ENGINE_KEYS_FILE`, set by `ci/run env-up`; D-109, the owner's decision of 17 November 2026) and are read again after a restart; without that setting they live in memory only. No table, column, log, project file or image holds them. The GitHub token lives in engine memory for the session and its runs.
 - No login and no auth code: everyone who opens the engine sees and can continue all projects (accepted risk, `ai-docs/audit/deferred-risks.md`). No security and no observability work until the owner opens it.
 - A confirmed contract snapshot never changes; an edit creates a new version.
 - The orchestrator is a state machine in code; agents work only inside a step. A git commit in the workspace is the checkpoint of a green step.

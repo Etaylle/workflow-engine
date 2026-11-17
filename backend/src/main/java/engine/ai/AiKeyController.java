@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * Operations getAiKeys, setAiKey, deleteAiKey and choosePlanningProvider of api/openapi.yaml: the
- * keys of the session, which are never shown (only the last 4 characters).
+ * keys of the engine, which are never shown (only the last 4 characters).
  */
 @RestController
 public class AiKeyController {
@@ -39,8 +39,14 @@ public class AiKeyController {
     public record Defaults(String baseUrl, String model) {
     }
 
+    /**
+     * The state of the keys.
+     *
+     * @param saved true when the keys are saved on this machine and outlive a restart of the engine
+     */
     public record AiKeys(
-            KeyState anthropic, CompatibleState openai, Planning planning, Defaults defaults) {
+            KeyState anthropic, CompatibleState openai, Planning planning, Defaults defaults,
+            boolean saved) {
     }
 
     /** Request body; the key never appears in toString. */
@@ -70,7 +76,7 @@ public class AiKeyController {
         Planning planning = sessionKey.planning()
                 .map(t -> new Planning(t.provider().id(), t.model())).orElse(null);
         return new AiKeys(anthropic, openai, planning,
-                new Defaults(sessionKey.defaultBaseUrl(), sessionKey.defaultModel()));
+                new Defaults(sessionKey.defaultBaseUrl(), sessionKey.defaultModel()), sessionKey.saved());
     }
 
     @PutMapping("/api/ai/keys/{provider}")

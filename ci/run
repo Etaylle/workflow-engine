@@ -114,7 +114,10 @@ stop_engine() {
 cmd_env_up() {
 	ensure_postgres
 	build
-	start_engine engine "$PORT" "$DB_NAME"
+	# The AI keys are saved outside the repository, readable by this user only (D-109); set
+	# ENGINE_KEYS_FILE= (empty) to keep them in memory only.
+	start_engine engine "$PORT" "$DB_NAME" \
+		ENGINE_KEYS_FILE="${ENGINE_KEYS_FILE-$HOME/.workflow-engine/keys.json}"
 	log "engine runs at http://localhost:$PORT"
 }
 

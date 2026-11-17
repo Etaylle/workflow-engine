@@ -99,7 +99,9 @@
 			{locale.t('key.close')}
 		</button>
 	</div>
-	<p class="hint">{locale.t('key.note')}</p>
+	<p class="hint" data-testid="key-note">
+		{locale.t(keys?.saved ? 'key.noteSaved' : 'key.note')}
+	</p>
 
 	<section class="slot">
 		<h3>{locale.t('key.anthropic')}</h3>

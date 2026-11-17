@@ -1,13 +1,22 @@
 package engine.shared;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Optional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 /**
- * The AI keys of this engine session: memory only, never written anywhere. One Anthropic key and
- * one key for an OpenAI-compatible provider (with its base URL and model).
+ * The AI keys of the engine: one Anthropic key and one key for an OpenAI-compatible provider (with
+ * its base URL and model). With a keys file (ENGINE_KEYS_FILE, D-109) they are saved there, readable
+ * by the owner of the engine process only, and read again at the next start; without one they live
+ * in memory only. No table, log or project file ever holds them.
  */
 @Component
 public class SessionKey {
@@ -15,6 +24,8 @@ public class SessionKey {
     static final String DEFAULT_BASE_URL = "https://api.openai.com/v1";
     static final String GEMINI_HOST = "generativelanguage.googleapis.com";
     static final String DEFAULT_MODEL = "gpt-5.4-mini";
+    private static final tools.jackson.databind.json.JsonMapper JSON =
+            tools.jackson.databind.json.JsonMapper.builder().build();
 
     /** The OpenAI-compatible provider of the session. */
     public record Compatible(String apiKey, String baseUrl, String model) {
@@ -29,17 +40,76 @@ public class SessionKey {
     private volatile String anthropic;
     private volatile Compatible compatible;
     private volatile AiProvider preferred;
+    private final Path file;
+
+    /** What the keys file holds; a field is null when that key is not set. */
+    record Saved(String anthropic, Compatible compatible, AiProvider preferred) {
+    }
 
     @Autowired
     public SessionKey(
             @Value("${engine.openai.base-url:" + DEFAULT_BASE_URL + "}") String defaultBaseUrl,
-            @Value("${engine.openai.model:" + DEFAULT_MODEL + "}") String defaultModel) {
+            @Value("${engine.openai.model:" + DEFAULT_MODEL + "}") String defaultModel,
+            @Value("${engine.keys.file:}") String keysFile) {
         this.defaultBaseUrl = defaultBaseUrl;
         this.defaultModel = defaultModel;
+        this.file = keysFile == null || keysFile.isBlank() ? null : Path.of(keysFile).toAbsolutePath();
+        load();
     }
 
+    /** Keys in memory only. */
     public SessionKey() {
-        this(DEFAULT_BASE_URL, DEFAULT_MODEL);
+        this(DEFAULT_BASE_URL, DEFAULT_MODEL, "");
+    }
+
+    /** Keys saved in the file and read from it. */
+    public SessionKey(Path keysFile) {
+        this(DEFAULT_BASE_URL, DEFAULT_MODEL, keysFile.toString());
+    }
+
+    /** True when the keys are saved on this machine and outlive a restart of the engine. */
+    public boolean saved() {
+        return file != null;
+    }
+
+    private void load() {
+        if (file == null || !Files.exists(file)) {
+            return;
+        }
+        try {
+            Saved saved = JSON.readValue(Files.readString(file, StandardCharsets.UTF_8), Saved.class);
+            anthropic = saved.anthropic();
+            compatible = saved.compatible();
+            preferred = saved.preferred();
+        } catch (IOException | RuntimeException e) {
+            throw new IllegalStateException("The keys file " + file + " cannot be read as the engine wrote"
+                    + " it. Delete the file and enter the keys again in the key panel.", e);
+        }
+    }
+
+    /** Writes the keys to the file, which only the owner may read; without keys the file is removed. */
+    private synchronized void save() {
+        if (file == null) {
+            return;
+        }
+        try {
+            if (anthropic == null && compatible == null) {
+                Files.deleteIfExists(file);
+                return;
+            }
+            Files.createDirectories(file.getParent());
+            Path next = file.resolveSibling(file.getFileName() + ".new");
+            Files.deleteIfExists(next);
+            Files.createFile(next, PosixFilePermissions.asFileAttribute(
+                    PosixFilePermissions.fromString("rw-------")));
+            Files.writeString(next, JSON.writeValueAsString(new Saved(anthropic, compatible, preferred)),
+                    StandardCharsets.UTF_8);
+            Files.move(next, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+        } catch (IOException e) {
+            throw new UncheckedIOException("The keys could not be saved in " + file
+                    + ". Check that the folder can be written, or start the engine without"
+                    + " ENGINE_KEYS_FILE to keep keys in memory only.", e);
+        }
     }
 
     public String defaultBaseUrl() {
@@ -52,6 +122,7 @@ public class SessionKey {
 
     public void setAnthropic(String apiKey) {
         anthropic = apiKey;
+        save();
     }
 
     /** Sets the key of the compatible provider; a blank base URL or model is the default. */
@@ -59,6 +130,7 @@ public class SessionKey {
         String url = AiEndpoint.checked(baseUrl == null || baseUrl.isBlank() ? defaultBaseUrl : baseUrl);
         String chosen = model == null || model.isBlank() ? defaultModel : model.strip();
         compatible = new Compatible(apiKey, url, chosen);
+        save();
     }
 
     public void clear(AiProvider provider) {
@@ -67,12 +139,14 @@ public class SessionKey {
         } else {
             compatible = null;
         }
+        save();
     }
 
     public void clearAll() {
         anthropic = null;
         compatible = null;
         preferred = null;
+        save();
     }
 
     /** The Anthropic key: used by the planning calls and by the builder. */
@@ -93,6 +167,7 @@ public class SessionKey {
     /** Chooses which provider plans when both keys are set. */
     public void choose(AiProvider provider) {
         preferred = provider;
+        save();
     }
 
     /** The provider the planning calls use: the only key set, or the chosen one when both are. */

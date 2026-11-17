@@ -22,8 +22,10 @@ paths:
       operationId: checkAiConnection
       summary: Make one tiny call with a key (typed, or the saved one) and keep a typed key for the session
       description: >
-        The key is held in engine memory only (never stored, never logged). On success the key
-        stays for the session; on failure nothing changes: a key saved earlier stays, and the key that was typed is not kept.
+        The key is never logged and never shown. With a keys file (ENGINE_KEYS_FILE) it is saved on
+        the engine machine, readable by the owner of the engine process only, and survives a restart;
+        otherwise it is held in memory only (getAiKeys says which, field saved). On success the key
+        stays; on failure nothing changes: a key saved earlier stays, and the key that was typed is not kept.
       requestBody:
         required: true
         content:
@@ -79,7 +81,8 @@ paths:
       operationId: setAiKey
       summary: Replace the key of one provider without calling the AI
       description: >
-        Held in engine memory only (never stored, never logged). For openai, baseUrl (https, or http
+        Never logged, never shown; saved in the keys file when the engine has one (see getAiKeys,
+        field saved), else held in memory only. For openai, baseUrl (https, or http
         for localhost) and model are kept with the key; blank means the defaults of the engine
         (ENGINE_OPENAI_BASE_URL, ENGINE_OPENAI_MODEL). Use checkAiConnection to test a key.
       requestBody:
@@ -145,7 +148,7 @@ paths:
     post:
       operationId: createProject
       summary: Create a project from a wish; the Anthropic key, if given, is kept for the session
-      description: The key is held in engine memory only (never stored, never logged).
+      description: The key is never logged; it is saved in the keys file when the engine has one, else held in memory only.
       requestBody:
         required: true
         content:
@@ -2077,8 +2080,9 @@ components:
           nullable: true
     AiKeys:
       type: object
-      required: [anthropic, openai, planning, defaults]
+      required: [anthropic, openai, planning, defaults, saved]
       properties:
+        saved: {type: boolean, description: "true = the keys are saved on the engine machine (a file only the owner of the engine process can read) and survive a restart; false = memory only"}
         anthropic:
           $ref: "#/components/schemas/KeyState"
         openai:

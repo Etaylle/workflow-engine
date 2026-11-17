@@ -26,6 +26,14 @@ class AiKeyControllerTest {
         assertThat(state.openai().set()).isFalse();
         assertThat(state.planning()).isNull();
         assertThat(state.defaults().baseUrl()).isEqualTo("https://api.openai.com/v1");
+        assertThat(state.saved()).as("without a keys file the keys are in memory only").isFalse();
+    }
+
+    @Test
+    void theStateSaysWhenTheKeysAreSavedOnTheMachine(@org.junit.jupiter.api.io.TempDir java.nio.file.Path dir) {
+        var saving = new AiKeyController(new SessionKey(dir.resolve("keys.json")));
+
+        assertThat(saving.state().saved()).isTrue();
     }
 
     @Test
