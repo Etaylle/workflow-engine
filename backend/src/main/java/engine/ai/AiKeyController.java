@@ -74,7 +74,9 @@ public class AiKeyController {
                 .map(c -> new CompatibleState(true, suffix(c.apiKey()), c.baseUrl(), c.model()))
                 .orElse(new CompatibleState(false, null, null, null));
         Planning planning = sessionKey.planning()
-                .map(t -> new Planning(t.provider().id(), t.model())).orElse(null);
+                .map(t -> new Planning(t.provider().id(),
+                        t.signIn() ? t.model() + " (Claude Code sign-in, no key)" : t.model()))
+                .orElse(null);
         return new AiKeys(anthropic, openai, planning,
                 new Defaults(sessionKey.defaultBaseUrl(), sessionKey.defaultModel()), sessionKey.saved());
     }

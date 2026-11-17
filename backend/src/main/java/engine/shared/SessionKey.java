@@ -41,6 +41,8 @@ public class SessionKey {
     private volatile Compatible compatible;
     private volatile AiProvider preferred;
     private final Path file;
+    /** Planning without a key: Claude Code with the sign-in of this machine, or null when off. */
+    private final AiTarget signIn;
 
     /** What the keys file holds; a field is null when that key is not set. */
     record Saved(String anthropic, Compatible compatible, AiProvider preferred) {
@@ -50,21 +52,31 @@ public class SessionKey {
     public SessionKey(
             @Value("${engine.openai.base-url:" + DEFAULT_BASE_URL + "}") String defaultBaseUrl,
             @Value("${engine.openai.model:" + DEFAULT_MODEL + "}") String defaultModel,
-            @Value("${engine.keys.file:}") String keysFile) {
+            @Value("${engine.keys.file:}") String keysFile,
+            @Value("${engine.planning.sign-in:false}") boolean planningSignIn,
+            @Value("${engine.execution.claude-bin:claude}") String claudeCommand,
+            @Value("${engine.execution.model:fable}") String claudeModel) {
         this.defaultBaseUrl = defaultBaseUrl;
         this.defaultModel = defaultModel;
         this.file = keysFile == null || keysFile.isBlank() ? null : Path.of(keysFile).toAbsolutePath();
+        this.signIn = planningSignIn ? AiTarget.claudeSignIn(claudeCommand, claudeModel) : null;
         load();
+    }
+
+    /** Keys in the file (or in memory only when null), planning without a key as given. */
+    public SessionKey(Path keysFile, boolean planningSignIn) {
+        this(DEFAULT_BASE_URL, DEFAULT_MODEL, keysFile == null ? "" : keysFile.toString(), planningSignIn,
+                "claude", "fable");
     }
 
     /** Keys in memory only. */
     public SessionKey() {
-        this(DEFAULT_BASE_URL, DEFAULT_MODEL, "");
+        this(null, false);
     }
 
     /** Keys saved in the file and read from it. */
     public SessionKey(Path keysFile) {
-        this(DEFAULT_BASE_URL, DEFAULT_MODEL, keysFile.toString());
+        this(keysFile, false);
     }
 
     /** True when the keys are saved on this machine and outlive a restart of the engine. */
@@ -183,12 +195,16 @@ public class SessionKey {
         return hasCompatible ? Optional.of(AiProvider.OPENAI) : Optional.empty();
     }
 
-    /** What the next planning call talks to, or empty when no key is set. */
+    /**
+     * What the next planning call talks to: the provider of a key that is set, else Claude Code with
+     * the sign-in of this machine when that is switched on (D-110), else empty.
+     */
     public Optional<AiTarget> planning() {
         String claude = anthropic;
         Compatible other = compatible;
         return active().map(provider -> provider == AiProvider.ANTHROPIC
                 ? new AiTarget(provider, claude, null, AnthropicCall.MODEL)
-                : new AiTarget(provider, other.apiKey(), other.baseUrl(), other.model()));
+                : new AiTarget(provider, other.apiKey(), other.baseUrl(), other.model()))
+                .or(() -> Optional.ofNullable(signIn));
     }
 }

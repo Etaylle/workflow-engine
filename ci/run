@@ -115,9 +115,11 @@ cmd_env_up() {
 	ensure_postgres
 	build
 	# The AI keys are saved outside the repository, readable by this user only (D-109); set
-	# ENGINE_KEYS_FILE= (empty) to keep them in memory only.
+	# ENGINE_KEYS_FILE= (empty) to keep them in memory only. Without a key, planning uses the Claude
+	# Code sign-in of this machine (D-110); ENGINE_PLANNING_SIGN_IN=false asks for a key instead.
 	start_engine engine "$PORT" "$DB_NAME" \
-		ENGINE_KEYS_FILE="${ENGINE_KEYS_FILE-$HOME/.workflow-engine/keys.json}"
+		ENGINE_KEYS_FILE="${ENGINE_KEYS_FILE-$HOME/.workflow-engine/keys.json}" \
+		ENGINE_PLANNING_SIGN_IN="${ENGINE_PLANNING_SIGN_IN-true}"
 	log "engine runs at http://localhost:$PORT"
 }
 
@@ -161,7 +163,8 @@ cmd_test_integration() {
 		die "the integration tests would fill the main database '$DB_NAME'; set ENGINE_TEST_DB_NAME to another database"
 	ensure_postgres
 	log "backend integration tests on $TEST_DB_NAME"
-	ENGINE_DB_URL="$(db_url "$TEST_DB_NAME")" gradle integrationTest
+	ENGINE_DB_URL="$(db_url "$TEST_DB_NAME")" ENGINE_KEYS_FILE='' ENGINE_PLANNING_SIGN_IN=false \
+		gradle integrationTest
 }
 
 cmd_test_e2e() {
@@ -169,7 +172,9 @@ cmd_test_e2e() {
 		die "the end-to-end tests would fill the main database '$DB_NAME'; set ENGINE_TEST_DB_NAME to another database"
 	ensure_postgres
 	build
-	start_engine e2e "$E2E_PORT" "$TEST_DB_NAME" ENGINE_AI_STUB=true \
+	# The test engine never saves keys and never plans through the sign-in of this machine.
+	start_engine e2e "$E2E_PORT" "$TEST_DB_NAME" ENGINE_AI_STUB=true ENGINE_KEYS_FILE= \
+		ENGINE_PLANNING_SIGN_IN=false \
 		ENGINE_EXECUTION_WORKSPACE_DIR="$RUN_DIR/e2e-workspaces" ENGINE_EXECUTION_CREATE_DATABASE=false \
 		ENGINE_EXECUTION_LIMIT_WAIT_BASE_MS=1500 ENGINE_EXECUTION_PREVIEW_SECONDS=120 \
 		ENGINE_EXECUTION_TEMPLATES_DIR="$ROOT/backend/src/test/resources/fake-templates"

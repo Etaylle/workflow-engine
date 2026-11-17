@@ -5,7 +5,8 @@ import java.util.function.Function;
 
 /**
  * One planning call to the AI the user chose: Anthropic (Claude) or an OpenAI-compatible
- * provider. Structured output by class, one validation with one retry.
+ * provider by key, or Claude Code with the sign-in of the machine when no key is set.
+ * Structured output by class, one validation with one retry.
  */
 public final class PlanningCall {
 
@@ -23,6 +24,9 @@ public final class PlanningCall {
      * @throws InvalidAiOutputException when the answer cannot be read as the class
      */
     public static <T> T structured(AiTarget target, String system, String user, Class<T> type) {
+        if (target.signIn()) {
+            return ClaudeCliCall.structured(target, system, user, type);
+        }
         return switch (target.provider()) {
             case ANTHROPIC -> AnthropicCall.structured(target.apiKey(), system, user, type);
             case OPENAI -> OpenAiCall.structured(target, system, user, type);
@@ -64,7 +68,8 @@ public final class PlanningCall {
     /** What the next planning call talks to, or a 409 problem telling the user to enter a key. */
     public static AiTarget requireTarget(SessionKey sessionKey) {
         return sessionKey.planning().orElseThrow(() -> new ApiProblem(409, "AI key missing",
-                "No AI key is set for this session. Enter an Anthropic key or a key of an"
+                "No AI key is set, and planning with the Claude Code sign-in of this machine is"
+                        + " switched off (ENGINE_PLANNING_SIGN_IN). Enter an Anthropic key or a key of an"
                         + " OpenAI-compatible provider (for example Gemini) in the key panel."));
     }
 }

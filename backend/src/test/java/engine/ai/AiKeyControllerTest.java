@@ -30,6 +30,15 @@ class AiKeyControllerTest {
     }
 
     @Test
+    void withoutAKeyThePanelShowsPlanningThroughTheClaudeCodeSignIn() {
+        var state = new AiKeyController(new SessionKey(null, true)).state();
+
+        assertThat(state.anthropic().set()).isFalse();
+        assertThat(state.planning().provider()).isEqualTo("anthropic");
+        assertThat(state.planning().model()).isEqualTo("fable (Claude Code sign-in, no key)");
+    }
+
+    @Test
     void theStateSaysWhenTheKeysAreSavedOnTheMachine(@org.junit.jupiter.api.io.TempDir java.nio.file.Path dir) {
         var saving = new AiKeyController(new SessionKey(dir.resolve("keys.json")));
 

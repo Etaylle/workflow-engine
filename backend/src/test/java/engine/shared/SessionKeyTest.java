@@ -75,6 +75,31 @@ class SessionKeyTest {
     }
 
     @Test
+    void withoutAKeyPlanningUsesTheClaudeCodeSignInOnlyWhenThatIsSwitchedOn() {
+        assertThat(new SessionKey().planning()).as("off by default: a key is asked for").isEmpty();
+
+        AiTarget target = new SessionKey(null, true).planning().orElseThrow();
+
+        assertThat(target.signIn()).isTrue();
+        assertThat(target.provider()).isEqualTo(AiProvider.ANTHROPIC);
+        assertThat(target.apiKey()).isNull();
+        assertThat(target.model()).isEqualTo("fable");
+    }
+
+    @Test
+    void aKeyThatIsSetIsUsedBeforeTheSignIn() {
+        SessionKey keys = new SessionKey(null, true);
+        keys.setAnthropic(CLAUDE_KEY);
+
+        assertThat(keys.planning().orElseThrow().signIn()).isFalse();
+        assertThat(keys.planning().orElseThrow().apiKey()).isEqualTo(CLAUDE_KEY);
+
+        keys.clear(AiProvider.ANTHROPIC);
+
+        assertThat(keys.planning().orElseThrow().signIn()).isTrue();
+    }
+
+    @Test
     void aFileTheEngineDidNotWriteStopsTheStartAndSaysWhatToDo() throws IOException {
         Files.createDirectories(file().getParent());
         Files.writeString(file(), "not json");
