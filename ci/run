@@ -117,9 +117,12 @@ cmd_env_up() {
 	# The AI keys are saved outside the repository, readable by this user only (D-109); set
 	# ENGINE_KEYS_FILE= (empty) to keep them in memory only. Without a key, planning uses the Claude
 	# Code sign-in of this machine (D-110); ENGINE_PLANNING_SIGN_IN=false asks for a key instead.
+	# Claude Code builds with that sign-in too unless ENGINE_EXECUTION_USE_SIGN_IN=false or the
+	# owner switches the builder to the Anthropic key on the Run screen.
 	start_engine engine "$PORT" "$DB_NAME" \
 		ENGINE_KEYS_FILE="${ENGINE_KEYS_FILE-$HOME/.workflow-engine/keys.json}" \
-		ENGINE_PLANNING_SIGN_IN="${ENGINE_PLANNING_SIGN_IN-true}"
+		ENGINE_PLANNING_SIGN_IN="${ENGINE_PLANNING_SIGN_IN-true}" \
+		ENGINE_EXECUTION_USE_SIGN_IN="${ENGINE_EXECUTION_USE_SIGN_IN-true}"
 	log "engine runs at http://localhost:$PORT"
 }
 
