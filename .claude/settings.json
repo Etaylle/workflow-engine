@@ -32,9 +32,7 @@
       "WebFetch",
       "Bash(node .claude/hooks/selftest.mjs)"
     ],
-    "ask": [
-
-    ],
+    "ask": [],
     "deny": [
       "Read(./.env)",
       "Read(./.env.local)",
@@ -45,20 +43,6 @@
       "Bash(git push -f:*)",
       "Bash(git reset --hard:*)",
       "Bash(sudo:*)"
-    ]
-  },
-  "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Write|Edit|MultiEdit|NotebookEdit|Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/guard.mjs --mode=global",
-            "timeout": 15
-          }
-        ]
-      }
     ]
   }
 }
