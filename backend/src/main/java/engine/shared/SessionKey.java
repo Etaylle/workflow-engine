@@ -182,29 +182,40 @@ public class SessionKey {
         save();
     }
 
-    /** The provider the planning calls use: the only key set, or the chosen one when both are. */
+    /** True when planning can go through Claude Code with the sign-in of this machine (D-110). */
+    public boolean signInOffered() {
+        return signIn != null;
+    }
+
+    /**
+     * The provider the planning calls use. Claude counts as available with its key or with the
+     * sign-in of this machine; when Claude and the compatible provider are both available the
+     * chosen one plans, Claude when nothing was chosen.
+     */
     public Optional<AiProvider> active() {
-        boolean hasAnthropic = anthropic != null;
+        boolean hasClaude = anthropic != null || signIn != null;
         boolean hasCompatible = compatible != null;
-        if (hasAnthropic && hasCompatible) {
+        if (hasClaude && hasCompatible) {
             return Optional.of(preferred == null ? AiProvider.ANTHROPIC : preferred);
         }
-        if (hasAnthropic) {
+        if (hasClaude) {
             return Optional.of(AiProvider.ANTHROPIC);
         }
         return hasCompatible ? Optional.of(AiProvider.OPENAI) : Optional.empty();
     }
 
     /**
-     * What the next planning call talks to: the provider of a key that is set, else Claude Code with
-     * the sign-in of this machine when that is switched on (D-110), else empty.
+     * What the next planning call talks to: the active provider; Claude without a key means Claude
+     * Code with the sign-in of this machine (D-110). Empty when nothing can plan.
      */
     public Optional<AiTarget> planning() {
         String claude = anthropic;
         Compatible other = compatible;
-        return active().map(provider -> provider == AiProvider.ANTHROPIC
-                ? new AiTarget(provider, claude, null, AnthropicCall.MODEL)
-                : new AiTarget(provider, other.apiKey(), other.baseUrl(), other.model()))
-                .or(() -> Optional.ofNullable(signIn));
+        return active().map(provider -> {
+            if (provider == AiProvider.OPENAI) {
+                return new AiTarget(provider, other.apiKey(), other.baseUrl(), other.model());
+            }
+            return claude == null ? signIn : new AiTarget(provider, claude, null, AnthropicCall.MODEL);
+        });
     }
 }

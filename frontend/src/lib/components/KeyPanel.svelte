@@ -39,7 +39,7 @@
 
 	const preset = $derived(PRESETS.find((p) => p.id === presetId) ?? DEFAULT_PRESET);
 	const keys = $derived(engineKey.keys);
-	const bothSet = $derived(keys !== null && keys.anthropic.set && keys.openai.set);
+	const bothSet = $derived(keys !== null && (keys.anthropic.set || keys.signIn) && keys.openai.set);
 
 	function pick(id: PresetId) {
 		presetId = id;

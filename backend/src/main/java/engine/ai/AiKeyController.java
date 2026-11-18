@@ -43,10 +43,11 @@ public class AiKeyController {
      * The state of the keys.
      *
      * @param saved true when the keys are saved on this machine and outlive a restart of the engine
+     * @param signIn true when planning can go through Claude Code with the sign-in of this machine
      */
     public record AiKeys(
             KeyState anthropic, CompatibleState openai, Planning planning, Defaults defaults,
-            boolean saved) {
+            boolean saved, boolean signIn) {
     }
 
     /** Request body; the key never appears in toString. */
@@ -78,7 +79,8 @@ public class AiKeyController {
                         t.signIn() ? t.model() + " (Claude Code sign-in, no key)" : t.model()))
                 .orElse(null);
         return new AiKeys(anthropic, openai, planning,
-                new Defaults(sessionKey.defaultBaseUrl(), sessionKey.defaultModel()), sessionKey.saved());
+                new Defaults(sessionKey.defaultBaseUrl(), sessionKey.defaultModel()), sessionKey.saved(),
+                sessionKey.signInOffered());
     }
 
     @PutMapping("/api/ai/keys/{provider}")

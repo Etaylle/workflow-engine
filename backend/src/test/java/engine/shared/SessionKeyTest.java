@@ -100,6 +100,31 @@ class SessionKeyTest {
     }
 
     @Test
+    void withTheSignInOnAKeyOfAnotherProviderPlansOnlyWhenItIsChosen() {
+        SessionKey keys = new SessionKey(null, true);
+        keys.setCompatible(OTHER_KEY, null, null);
+
+        assertThat(keys.planning().orElseThrow().signIn()).as("Claude plans unless chosen otherwise").isTrue();
+
+        keys.choose(AiProvider.OPENAI);
+
+        assertThat(keys.planning().orElseThrow().apiKey()).isEqualTo(OTHER_KEY);
+
+        keys.choose(AiProvider.ANTHROPIC);
+
+        assertThat(keys.planning().orElseThrow().signIn()).isTrue();
+    }
+
+    @Test
+    void withoutTheSignInTheOnlyKeySetPlans() {
+        SessionKey keys = new SessionKey();
+        keys.setCompatible(OTHER_KEY, null, null);
+
+        assertThat(keys.signInOffered()).isFalse();
+        assertThat(keys.planning().orElseThrow().apiKey()).isEqualTo(OTHER_KEY);
+    }
+
+    @Test
     void aFileTheEngineDidNotWriteStopsTheStartAndSaysWhatToDo() throws IOException {
         Files.createDirectories(file().getParent());
         Files.writeString(file(), "not json");

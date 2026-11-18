@@ -8,7 +8,8 @@ const none: AiKeys = {
 	openai: { set: false, last4: null, baseUrl: null, model: null },
 	planning: null,
 	defaults: { baseUrl: 'https://api.openai.com/v1', model: 'gpt-5.4-mini' },
-	saved: false
+	saved: false,
+	signIn: false
 };
 const gemini: AiKeys = {
 	...none,

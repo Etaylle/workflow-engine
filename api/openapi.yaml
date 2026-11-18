@@ -113,7 +113,7 @@ paths:
   /api/ai/planning:
     put:
       operationId: choosePlanningProvider
-      summary: Choose which provider the planning calls use when both keys are set
+      summary: Choose which provider the planning calls use when Claude (by key or sign-in) and the compatible provider are both available; Claude when nothing is chosen
       requestBody:
         required: true
         content:
@@ -2080,9 +2080,10 @@ components:
           nullable: true
     AiKeys:
       type: object
-      required: [anthropic, openai, planning, defaults, saved]
+      required: [anthropic, openai, planning, defaults, saved, signIn]
       properties:
         saved: {type: boolean, description: "true = the keys are saved on the engine machine (a file only the owner of the engine process can read) and survive a restart; false = memory only"}
+        signIn: {type: boolean, description: "true = planning can go through Claude Code with the sign-in of the engine machine (D-110); Claude is then a planning choice without an Anthropic key"}
         anthropic:
           $ref: "#/components/schemas/KeyState"
         openai:

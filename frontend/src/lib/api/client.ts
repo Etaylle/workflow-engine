@@ -14,6 +14,8 @@ export type AiKeys = {
 	defaults: { baseUrl: string; model: string };
 	/** The keys are saved on the engine machine and survive a restart (false: memory only). */
 	saved: boolean;
+	/** Planning can go through Claude Code with the sign-in of the engine machine, without a key. */
+	signIn: boolean;
 };
 export type AiCheckResult = { ok: boolean; model: string };
 export type Problem = { title: string; status: number; detail?: string };
