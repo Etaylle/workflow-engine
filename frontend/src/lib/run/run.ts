@@ -26,6 +26,10 @@ export const canResume = (run: Run | null): boolean =>
 	(run.status === 'interrupted' ||
 		(run.status === 'waiting' && (run.waitKind === 'tokens' || run.waitKind === 'cost_limit')));
 
+/** A run that can be continued and has a separate reviewer can also go on without it. */
+export const canDropReviewer = (run: Run | null): boolean =>
+	canResume(run) && run?.reviewerHarness != null;
+
 /** The run waits at its cost limit and asks for a higher one. */
 export const atCostLimit = (run: Run | null): boolean =>
 	run !== null && run.status === 'waiting' && run.waitKind === 'cost_limit';

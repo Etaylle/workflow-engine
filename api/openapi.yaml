@@ -1106,7 +1106,10 @@ paths:
         least the cost so far plus USD 0.30; 400 otherwise). After an engine restart the key is
         gone: enter it again first (409 "No Anthropic key" otherwise). The workspace is reset to the
         last commit, the step that was under way is built again. An interrupted run is resumed at
-        most 3 times; the next interruption ends it failed.
+        most 3 times; the next interruption ends it failed. With withoutReviewer the run drops its
+        separate reviewer for good (for example when the reviewer is out of tokens): the builder
+        runs the review steps that are left, a step that only a reviewer runs is left out, and the
+        run shows no reviewer from then on. Ignored for a run without a reviewer.
       parameters:
         - $ref: "#/components/parameters/RunId"
       requestBody:
@@ -1117,6 +1120,7 @@ paths:
               type: object
               properties:
                 costLimitUsd: {type: number}
+                withoutReviewer: {type: boolean, default: false}
       responses:
         "200":
           description: The run, executing again

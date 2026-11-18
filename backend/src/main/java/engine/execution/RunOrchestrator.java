@@ -253,7 +253,17 @@ class RunOrchestrator {
                     later);
         }
         for (int s = 0; s < task.steps().size(); s++) {
-            if (!"done".equals(task.steps().get(s).status()) && !buildStep(ctx, task, s, index + 1)) {
+            RunStore.StepRow row = task.steps().get(s);
+            if ("done".equals(row.status())) {
+                continue;
+            }
+            Step def = ctx.run().steps().get(s);
+            if (def.reviewerOnly() && ctx.run().reviewer() == null) {
+                store.setStep(row.id(), "done", "Left out: the run goes on without the second opinion.");
+                events.publish(ctx.run().id(), "step", "Step " + def.title() + " left out");
+                continue;
+            }
+            if (!buildStep(ctx, task, s, index + 1)) {
                 return false;
             }
         }

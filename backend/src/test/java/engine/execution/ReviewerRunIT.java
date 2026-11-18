@@ -202,6 +202,50 @@ class ReviewerRunIT {
     }
 
     @Test
+    void aRunWhoseReviewerIsOutOfTokensGoesOnWithoutTheSecondOpinionWhenTheClientSaysSo() throws Exception {
+        signIn();
+        queue("limit", "limit", "limit", "limit", "limit", "limit");
+        UUID project = confirmedProject();
+        http.json("PATCH", "/api/projects/" + project, "{\"reviewerHarness\":\"codex_cli\"}");
+        String runId = http.json("POST", "/api/projects/" + project + "/runs", null).get("id").asString();
+        JsonNode waiting = awaitStoppedRetrying(runId);
+        assertThat(waiting.get("failureReason").asString()).contains("usage limit");
+        int limited = Files.readAllLines(BIN.resolve("fake-codex/args.log")).size();
+
+        JsonNode resumed = http.json("POST", "/api/runs/" + runId + "/resume", "{\"withoutReviewer\":true}");
+        assertThat(resumed.get("reviewerHarness").isNull()).isTrue();
+        JsonNode run = awaitEnd(runId);
+
+        assertThat(run.get("status").asString()).isEqualTo("done");
+        assertThat(Files.readAllLines(BIN.resolve("fake-codex/args.log")))
+                .as("the reviewer is not called again").hasSize(limited);
+        for (JsonNode task : run.get("tasks")) {
+            JsonNode steps = task.get("steps");
+            assertThat(steps).allSatisfy(s -> assertThat(s.get("status").asString()).isEqualTo("done"));
+            assertThat(steps.get(4).get("builderHarness").asString()).as("the builder checks its own work")
+                    .isEqualTo("claude_code");
+        }
+        assertThat(Files.readAllLines(BIN.resolve("claude-args.log")))
+                .as("plan, build, ci and check of every task; no second opinion on the plan")
+                .hasSize(run.get("tasks").size() * 4)
+                .noneSatisfy(call -> assertThat(call).contains("SECOND OPINION ON THE PLAN"));
+        assertThat(http.call("GET", "/api/runs/" + runId + "/events?after=0", null).body())
+                .contains("goes on without the second opinion of Codex CLI").contains("left out");
+    }
+
+    private JsonNode awaitStoppedRetrying(String runId) throws Exception {
+        long deadline = System.nanoTime() + Duration.ofSeconds(60).toNanos();
+        while (System.nanoTime() < deadline) {
+            JsonNode run = http.json("GET", "/api/runs/" + runId, null);
+            if (run.path("failureReason").asString("").contains("Still limited")) {
+                return run;
+            }
+            Thread.sleep(100);
+        }
+        throw new AssertionError("The run did not stop retrying within 60 seconds");
+    }
+
+    @Test
     void aStepProfileKeepsTheReviewFlagInACopyAndTheShortProfileMarksCheck() throws Exception {
         JsonNode profiles = http.json("GET", "/api/settings/step-profiles", null);
         JsonNode full = profiles.valueStream().filter(p -> "16 steps".equals(p.get("name").asString()))

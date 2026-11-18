@@ -3,7 +3,14 @@
 	import { createAction } from '#lib/api/action.svelte.js';
 	import ConfirmDialog from '#lib/components/ConfirmDialog.svelte';
 	import { locale } from '#lib/i18n/state.svelte.js';
-	import { atCostLimit, canResume, canStop, limitHasRoom, suggestedLimit } from '#lib/run/run.js';
+	import {
+		atCostLimit,
+		canDropReviewer,
+		canResume,
+		canStop,
+		limitHasRoom,
+		suggestedLimit
+	} from '#lib/run/run.js';
 
 	let {
 		run,
@@ -24,12 +31,12 @@
 		});
 	}
 
-	async function resume() {
+	async function resume(withoutReviewer = false) {
 		await resuming.run(async () => {
 			if (key.trim()) await checkAiConnection({ provider: 'anthropic', apiKey: key.trim() });
 			key = '';
 			const raised = atCostLimit(run) ? Number(limit) : undefined;
-			updated(await resumeRun(run.id, raised));
+			updated(await resumeRun(run.id, raised, withoutReviewer));
 		});
 	}
 </script>
@@ -60,12 +67,22 @@
 		</label>
 		<button
 			class="primary"
-			onclick={resume}
+			onclick={() => resume()}
 			disabled={resuming.busy || (atCostLimit(run) && !limitHasRoom(run, Number(limit)))}
 			data-testid="resume-run"
 		>
 			{locale.t('run.resume')}
 		</button>
+		{#if canDropReviewer(run)}
+			<button
+				onclick={() => resume(true)}
+				disabled={resuming.busy || (atCostLimit(run) && !limitHasRoom(run, Number(limit)))}
+				data-testid="resume-without-reviewer"
+			>
+				{locale.t('run.resumeWithoutReviewer')}
+			</button>
+			<p class="hint">{locale.t('run.resumeWithoutReviewerHint')}</p>
+		{/if}
 		{#if resuming.error}<p role="alert" data-testid="resume-error">{resuming.error}</p>{/if}
 	</div>
 {/if}

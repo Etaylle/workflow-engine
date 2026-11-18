@@ -251,9 +251,11 @@ class RunService {
     /**
      * Continues a run from the last checkpoint: an interrupted one (after an engine restart the key
      * is asked for again first, and the resumes are bounded), one that stopped waiting for tokens, or
-     * one that reached the cost limit (then {@code raiseLimitTo} must lift the limit).
+     * one that reached the cost limit (then {@code raiseLimitTo} must lift the limit). With
+     * {@code withoutReviewer} the run drops its separate reviewer for good (D-112): the builder runs
+     * the review steps that are left and the second opinion on the plan is left out.
      */
-    RunView resume(UUID runId, BigDecimal raiseLimitTo) {
+    RunView resume(UUID runId, BigDecimal raiseLimitTo, boolean withoutReviewer) {
         RunView run = view(runId);
         boolean interrupted = "interrupted".equals(run.status());
         boolean waiting = "waiting".equals(run.status());
@@ -264,6 +266,12 @@ class RunService {
         if (orchestrator.isBuilding(runId)) {
             throw new ApiProblem(409, "Run retrying", "The run is waiting for tokens and tries again by"
                     + " itself; continue it only when it has stopped retrying.");
+        }
+        if (withoutReviewer && run.reviewerHarness() != null) {
+            store.clearReviewer(runId);
+            events.publish(runId, "run", "The run goes on without the second opinion of "
+                    + Harness.ofId(run.reviewerHarness()).label() + ": the builder runs the review steps.");
+            run = view(runId);
         }
         checkReady(run);
         if ("cost_limit".equals(run.waitKind()) || raiseLimitTo != null) {
@@ -277,7 +285,7 @@ class RunService {
         return view(runId);
     }
 
-    /** The builders the run started with: a resume never switches builders. */
+    /** The builders of the run: a resume never switches builders, it can only drop the reviewer. */
     private void checkReady(RunView run) {
         checkReady(Harness.ofId(run.harness()),
                 run.reviewerHarness() == null ? null : Harness.ofId(run.reviewerHarness()));

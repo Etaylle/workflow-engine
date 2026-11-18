@@ -180,6 +180,8 @@
 	"run.stop.confirm": "Ja, Lauf stoppen",
 	"run.stop.cancel": "Weiterlaufen lassen",
 	"run.resume": "Ab dem letzten Kontrollpunkt fortsetzen",
+	"run.resumeWithoutReviewer": "Ohne Zweitmeinung fortsetzen",
+	"run.resumeWithoutReviewerHint": "Wenn der Prüfer keine Tokens mehr hat: Der Builder prüft seine Arbeit für den Rest dieses Laufs selbst.",
 	"run.resumeKey": "Anthropic-Schlüssel (nach einem Neustart erneut nötig)",
 	"run.resumeCount": "{count} von 3 Mal fortgesetzt.",
 	"run.question.stop": "Lauf stoppen",

@@ -182,6 +182,12 @@ class RunStore {
                 .param("id", runId).update();
     }
 
+    /** The run goes on without its separate reviewer. */
+    void clearReviewer(UUID runId) {
+        jdbc.sql("update execution.runs set reviewer_harness = null, reviewer_model = null,"
+                + " reviewer_effort = null where id = :id").param("id", runId).update();
+    }
+
     int resumeCount(UUID runId) {
         return jdbc.sql("select resume_count from execution.runs where id = :id").param("id", runId)
                 .query(Integer.class).single();

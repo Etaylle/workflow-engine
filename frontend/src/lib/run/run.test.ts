@@ -4,6 +4,7 @@ import {
 	MAX_CONSOLE_LINES,
 	atCostLimit,
 	canDownload,
+	canDropReviewer,
 	canResume,
 	canStop,
 	canStart,
@@ -95,6 +96,9 @@ describe('run state', () => {
 		expect(canResume({ ...run('waiting'), waitKind: 'cost_limit' })).toBe(true);
 		expect(canResume({ ...run('waiting'), waitKind: 'question' })).toBe(false);
 		expect(canResume(run('failed'))).toBe(false);
+		expect(canDropReviewer(run('interrupted'))).toBe(false);
+		expect(canDropReviewer({ ...run('interrupted'), reviewerHarness: 'codex_cli' })).toBe(true);
+		expect(canDropReviewer({ ...run('executing'), reviewerHarness: 'codex_cli' })).toBe(false);
 	});
 
 	it('knows when a new cost limit leaves room', () => {

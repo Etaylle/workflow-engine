@@ -74,13 +74,17 @@ class RunController {
         return service.stop(runId);
     }
 
-    /** Optional body of resume: the new cost limit when the run waits at its limit. */
-    record ResumeRequest(BigDecimal costLimitUsd) {
+    /**
+     * Optional body of resume: the new cost limit when the run waits at its limit, and whether the
+     * run goes on without its separate reviewer.
+     */
+    record ResumeRequest(BigDecimal costLimitUsd, Boolean withoutReviewer) {
     }
 
     @PostMapping("/api/runs/{runId}/resume")
     RunView resume(@PathVariable UUID runId, @RequestBody(required = false) ResumeRequest request) {
-        return service.resume(runId, request == null ? null : request.costLimitUsd());
+        return service.resume(runId, request == null ? null : request.costLimitUsd(),
+                request != null && Boolean.TRUE.equals(request.withoutReviewer()));
     }
 
     @GetMapping("/api/runs/{runId}/report")
